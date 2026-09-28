@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,6 +27,10 @@
 }
 :root[data-theme="dark"]{ --deep:#0b0720; --ink:#efeaff; --dim:#a79cd6; --yellow:#ffc41f; --lilac:#e7b3ff; --green:#3dff9a; --panel:rgba(20,14,48,.72); --line:rgba(170,120,255,.32); }
 *,*::before,*::after{box-sizing:inherit}
+*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{touch-action:none;overscroll-behavior:none}
+#game{-webkit-user-select:none;-webkit-touch-callout:none}
+
 html{height:100%;background:var(--deep);scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;height:100%;background:var(--deep);color:var(--ink);font-family:"Chakra Petch",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #stage{position:relative;height:100%;overflow:hidden;background:var(--deep)}
@@ -112,6 +116,18 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 <script>
 window.addEventListener("error", e => { const d = document.createElement("div"); d.className = "dbg"; d.textContent = "Error: " + (e.message || e.error) + (e.lineno ? " (line " + e.lineno + ")" : ""); document.getElementById("stage").appendChild(d); setTimeout(() => d.remove(), 9000); });
 window.addEventListener("unhandledrejection", e => { const d = document.createElement("div"); d.className = "dbg"; d.textContent = "Error: " + (e.reason && e.reason.message || e.reason); document.getElementById("stage").appendChild(d); setTimeout(() => d.remove(), 9000); });
+</script>
+<script>
+// stop iOS magnifier, text selection, callout menu, double-tap and pinch zoom while playing
+(() => {
+  const stop = e => { if (!e.target.closest || !e.target.closest('button')) e.preventDefault(); };
+  document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  document.addEventListener('touchend', stop, { passive: false });
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('selectstart', e => e.preventDefault());
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+})();
 </script>
 <script type="importmap">
 { "imports": {
