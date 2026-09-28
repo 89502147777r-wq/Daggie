@@ -105,7 +105,7 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 </head>
 <body>
 <div id="stage">
-  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div></div></div>
+  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track · v1.4 (Film)</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div></div></div>
   <canvas id="game" aria-label="Saw Run: Daggie skates a floating track above the clouds, dodging spinning saws"></canvas>
   <div class="hook" id="hook"><span>CAN HE SURVIVE</span><span>THE SAW RUN?</span></div>
   <div class="pops" id="pops"></div>
@@ -1541,6 +1541,6 @@ setTimeout(() => $('loader').classList.add('gone'), 250);
 requestAnimationFrame(frame);
 
 </script>
-<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});</script>
 </body>
 </html>
