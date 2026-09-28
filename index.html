@@ -77,6 +77,7 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 .result dt{color:var(--dim)} .result dd{margin:0;color:var(--yellow);font-weight:700;font-variant-numeric:tabular-nums}
 .result button{appearance:none;border:0;background:var(--yellow);color:#16112a;font:700 16px "Chakra Petch",ui-sans-serif,sans-serif;padding:11px 18px;border-radius:12px;width:100%;cursor:pointer}
 .loader{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(#8fc3f2,#dcecf9);z-index:5;transition:opacity .5s}
+.loader .help{margin:14px 0 0;font-size:12px;line-height:1.5;color:#27496e}
 .loader.gone{opacity:0;pointer-events:none}
 .loader .box{width:min(80vw,320px);text-align:center;color:#16304f}
 .loader h1{margin:0 0 6px;font-size:26px;color:#16141c}
@@ -106,12 +107,19 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 .fire:active{transform:scale(.93)}
 .filming .fire{display:none}
 .updbtn{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);z-index:9;appearance:none;border:0;border-radius:12px;background:#3dff9a;color:#0b2a17;font:700 14px "Chakra Petch",ui-sans-serif,sans-serif;padding:10px 14px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.vidcard{position:absolute;inset:0;z-index:8;background:rgba(10,7,28,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.vidcard[hidden]{display:none}
+.vidcard h2{margin:0;color:var(--yellow);font-size:20px}
+.vidcard video{max-height:62vh;max-width:100%;border-radius:12px;background:#000}
+.vidcard small{color:var(--dim)}
+.vidcard .rrow{width:min(88vw,340px)}
+.vidcard #vidSave{background:var(--yellow);color:#16112a;border:0}
 .err{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--dim)}
 </style>
 </head>
 <body>
 <div id="stage">
-  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track · v1.6.1 (Arm cannon)</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div></div></div>
+  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track · v1.7 (Video)</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div><p class="help">Drag to dodge · Tap to jump · Tap in the air to slam · Orange crate: arm cannon · Blue crate: shield · Green crate: repair</p></div></div>
   <canvas id="game" aria-label="Saw Run: Daggie skates a floating track above the clouds, dodging spinning saws"></canvas>
   <div class="hook" id="hook"><span>CAN HE SURVIVE</span><span>THE SAW RUN?</span></div>
   <div class="pops" id="pops"></div>
@@ -121,11 +129,10 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
     <div class="chip"><b id="dist">0</b> m</div>
   </div>
   <div class="meters"><div class="hp" id="hpBox"><span>HP <b id="hpNum">100</b></span><div class="hpbar"><i id="hpFill"></i></div></div><div class="prog"><i id="progFill"></i><b aria-hidden="true">🏁</b></div></div>
-  <p class="hint">Drag to dodge. Tap to jump, tap again in the air to slam down. Tap during the drop to skip it. Orange crate = arm cannon (press FIRE), blue crate = shield. Grab green crates to repair. Boost and jump off the ramp to clear the giant saw.</p>
   <div class="result" id="result" hidden>
     <h2 id="rTitle">Test #001</h2>
     <dl><dt>Distance</dt><dd id="rDist">0 m</dd><dt>Top speed</dt><dd id="rTop">0 mph</dd><dt>Close calls</dt><dd id="rClose">0</dd><dt>Parts lost</dt><dd id="rLost">0</dd><dt>Score</dt><dd id="rScore">0</dd><dt>Stopped by</dt><dd id="rCause">-</dd></dl>
-    <div class="rrow"><button id="rFilm" type="button">🎬 Film</button><button id="rSave" type="button">★ Save</button></div>
+    <div class="rrow"><button id="rFilm" type="button">🎬 Film</button><button id="rVideo" type="button">🎥 Video</button><button id="rSave" type="button">★ Save</button></div>
     <button id="rAgain" type="button">Run again</button>
   </div>
   <nav class="bar" aria-label="Controls">
@@ -135,6 +142,7 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
     <button id="bRep" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>Replays</button>
     <button id="bHide" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>Hide UI</button>
   </nav>
+  <div class="vidcard" id="vidCard" hidden><h2>Your video is ready</h2><video id="vidPrev" playsinline controls muted loop></video><small id="vidInfo"></small><div class="rrow"><button id="vidSave" type="button">Save / Share</button><button id="vidClose" type="button">Close</button></div></div>
   <button class="fire" id="bFire" type="button" hidden>FIRE<span id="ammo">3</span></button>
   <button class="ghost" id="bShow" type="button" hidden>Show UI</button>
   <div class="replays" id="replays" hidden><div class="rp-head"><h2>My replays</h2><button id="repClose" type="button">Close</button></div><ul id="repList"></ul></div>
@@ -743,7 +751,7 @@ function explodeVisual(p) {
   recEvt('x', [p.x, p.y, p.z]);
   const b = BOOMS[boomNext]; boomNext = (boomNext + 1) % BOOMS.length; b.t = 0; b.m.visible = true; b.m.position.copy(p);
   for (const s of b.smoke) { s.sp.visible = true; s.sp.position.copy(p); s.v.set(rand(-3, 3), rand(2, 5), rand(-3, 3)); s.sp.material.opacity = 0.9; }
-  if (AC) { try { const len = AC.sampleRate * 0.6, buf = AC.createBuffer(1, len, AC.sampleRate), dd = buf.getChannelData(0); for (let i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); const src = AC.createBufferSource(); src.buffer = buf; const gn = AC.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(AC.destination); src.start(); } catch (e) {} }
+  if (AC) { try { const len = AC.sampleRate * 0.6, buf = AC.createBuffer(1, len, AC.sampleRate), dd = buf.getChannelData(0); for (let i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); const src = AC.createBufferSource(); src.buffer = buf; const gn = AC.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(OUT()); src.start(); } catch (e) {} }
 }
 function explodeAt(p) {
   explodeVisual(p);
@@ -950,6 +958,8 @@ function stepMess(dt) {
 
 // ---------- sound ----------
 let AC = null;
+let MASTER = null, AUDIO_DEST = null;
+function OUT() { if (!MASTER) { MASTER = AC.createGain(); MASTER.connect(AC.destination); try { AUDIO_DEST = AC.createMediaStreamDestination(); MASTER.connect(AUDIO_DEST); } catch (e) { AUDIO_DEST = null; } } return MASTER; }
 function initAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } else if (AC.state === 'suspended') AC.resume(); }
 function tone(f0, f1, dur, type, vol, delay) {
   recEvt('t', [f0, f1, dur, type, vol, delay || 0]);
@@ -957,7 +967,7 @@ function tone(f0, f1, dur, type, vol, delay) {
   const t = AC.currentTime + (delay || 0), o = AC.createOscillator(), g = AC.createGain();
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur + 0.03);
+  o.connect(g); g.connect(OUT()); o.start(t); o.stop(t + dur + 0.03);
 }
 let lastClank = 0;
 function clank(v) { const now = performance.now(); if (now - lastClank < 60) return; lastClank = now; tone(rand(500, 900), rand(200, 300), 0.12, 'triangle', Math.min(0.12, 0.02 + v * 0.02)); }
@@ -1014,9 +1024,10 @@ function planShots(rec) {
   else if (passT != null) shots.push({ t0: passT, type: 'hero' });
   return { shots, cum, total, crashT, evTimes };
 }
-function startFilm(rec, fromResult) {
+function startFilm(rec, fromResult, record) {
   if (!rec || !rec.frames.length) return;
   recStop();
+  if (record) startRecorder();
   PLAY = { rec, t: 0, i: 0, fired: -1, fromResult, ...planShots(rec), shotI: -1, fixed: new V3(), orbitA: 0, slowUntil: 0, slowAt: -1, replayed: false, zoom: 0 };
   state = 'replay';
   $('result').hidden = true; $('replays').hidden = true;
@@ -1033,7 +1044,8 @@ function startFilm(rec, fromResult) {
 }
 function endFilm() {
   if (!PLAY) return;
-  const back = PLAY.fromResult; PLAY = null; drone.visible = false; camera.fov = baseFov(); camera.updateProjectionMatrix();
+  const back = PLAY.fromResult; PLAY = null;
+  if (recorder) stopRecorder().then(showVideoCard); drone.visible = false; camera.fov = baseFov(); camera.updateProjectionMatrix();
   stage.classList.remove('filming', 'clean');
   if (back) { state = 'result'; $('result').hidden = false; } else resetRun();
 }
@@ -1140,10 +1152,48 @@ async function openReplays() {
     play.onclick = async () => { const r = await idbGet('replay:' + m.id); if (r) { initAudio(); startFilm({ frames: r.frames }, false); } };
     const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = 'Delete'; del.setAttribute('aria-label', 'Delete replay');
     del.onclick = async () => { await idbDel('replay:' + m.id); const l2 = ((await idbGet('replays:list')) || []).filter(x => x.id !== m.id); await idbPut('replays:list', l2); openReplays(); };
-    li.append(info, play, del); ul.appendChild(li);
+    const vid = document.createElement('button'); vid.type = 'button'; vid.textContent = '🎥 Video';
+    vid.onclick = async () => { const r = await idbGet('replay:' + m.id); if (r) { initAudio(); startFilm({ frames: r.frames }, false, true); } };
+    li.append(info, play, vid, del); ul.appendChild(li);
   }
   $('replays').hidden = false;
 }
+
+// ---------- record the film straight to a video file (no iOS screen recording needed) ----------
+let recorder = null, recChunks = [], lastVideo = null;
+function startRecorder() {
+  try {
+    if (!window.MediaRecorder || !canvas.captureStream) throw new Error('unsupported');
+    const stream = canvas.captureStream(30);
+    initAudio(); if (AC) { OUT(); if (AUDIO_DEST) AUDIO_DEST.stream.getAudioTracks().forEach(t => stream.addTrack(t)); }
+    const mime = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 10e6 } : { videoBitsPerSecond: 10e6 });
+    recChunks = []; recorder.ondataavailable = ev => { if (ev.data && ev.data.size) recChunks.push(ev.data); };
+    recorder.start(250); return true;
+  } catch (err) { recorder = null; lastPop = 0; pop('VIDEO NOT SUPPORTED HERE', 'lilac'); return false; }
+}
+function stopRecorder() {
+  return new Promise(res => {
+    if (!recorder) return res(null);
+    const r = recorder; recorder = null;
+    r.onstop = () => res(new Blob(recChunks, { type: r.mimeType || 'video/mp4' }));
+    try { r.stop(); } catch (e) { res(null); }
+  });
+}
+function showVideoCard(blob) {
+  if (!blob || !blob.size) return;
+  const ext = /webm/.test(blob.type) ? 'webm' : 'mp4';
+  lastVideo = new File([blob], 'crash-test-daggie-' + Date.now() + '.' + ext, { type: blob.type || 'video/mp4' });
+  const v = $('vidPrev'); try { v.src = URL.createObjectURL(blob); } catch (e) {}
+  $('vidInfo').textContent = (blob.size / 1e6).toFixed(1) + ' MB · ' + ext.toUpperCase();
+  $('vidCard').hidden = false;
+}
+$('vidSave').onclick = async () => {
+  if (!lastVideo) return;
+  try { if (navigator.canShare && navigator.canShare({ files: [lastVideo] })) { await navigator.share({ files: [lastVideo], title: 'Crash Test Daggie' }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(lastVideo); a.download = lastVideo.name; document.body.appendChild(a); a.click(); a.remove(); } catch (e) { $('vidInfo').textContent = 'Saving is blocked in this viewer. Open the game from GitHub.'; }
+};
+$('vidClose').onclick = () => { $('vidCard').hidden = true; const v = $('vidPrev'); try { v.pause(); } catch (e) {} };
 const DROP_H = 14;
 // ---------- state & helpers ----------
 const tv = new V3(), tv2 = new V3(), tq = new THREE.Quaternion();
@@ -1575,6 +1625,7 @@ function action() {
 $('bNew').onclick = () => { initAudio(); startRoll(); resetRun(); };
 $('bFire').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio(); fireCannon(); });
 $('rFilm').onclick = () => { initAudio(); startFilm(LAST_REC, true); };
+$('rVideo').onclick = () => { initAudio(); startFilm(LAST_REC, true, true); };
 $('rSave').onclick = () => saveReplay();
 $('bRep').onclick = () => openReplays();
 $('repClose').onclick = () => { $('replays').hidden = true; };
@@ -1591,7 +1642,7 @@ function startRoll() {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
     const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
-    rollGain = AC.createGain(); rollGain.gain.value = 0; src.connect(lp); lp.connect(rollGain); rollGain.connect(AC.destination); src.start();
+    rollGain = AC.createGain(); rollGain.gain.value = 0; src.connect(lp); lp.connect(rollGain); rollGain.connect(OUT()); src.start();
   } catch (e) { rollGain = null; }
 }
 
@@ -1706,7 +1757,7 @@ function frame() {
 }
 setLoad(1, 'Ready');
 { const note = CACHE_NOTE || (window.__cacheHit ? 'Loaded from this device' : 'Downloaded (saved for next time)');
-  const el = document.createElement('div'); el.className = 'cachenote'; el.textContent = note; stage.appendChild(el); setTimeout(() => el.remove(), 4000);
+  const el = document.createElement('div'); el.className = 'cachenote'; el.textContent = note; stage.appendChild(el); setTimeout(() => el.remove(), 1800);
   setTimeout(() => { if (!window.__cacheHit && window.__savedOk === false) { const e2 = document.createElement('div'); e2.className = 'cachenote'; e2.textContent = 'Could not save Daggie on this device (the app blocks storage).'; stage.appendChild(e2); setTimeout(() => e2.remove(), 5000); } }, 4500); }
 resetRun();
 try { renderer.compile(scene, camera); } catch (e) {}
@@ -1716,7 +1767,7 @@ requestAnimationFrame(frame);
 </script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});</script>
 <script>
-const BUILD = '1.6.1';
+const BUILD = '1.7';
 // if GitHub has a newer index.html than the one running, offer a one-tap update
 setTimeout(async () => {
   try {
