@@ -57,7 +57,7 @@ body{margin:0;height:100%;background:var(--deep);color:var(--ink);font-family:"C
 .prog b{position:absolute;right:-4px;top:-9px;font-size:16px}
 .clean .meters{display:none}
 .hint{position:absolute;left:12px;right:12px;bottom:84px;text-align:center;margin:0;color:var(--dim);font-size:14px;line-height:1.35;pointer-events:none}
-.bar{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 8px 10px;background:linear-gradient(to top,rgba(10,7,28,.96),rgba(10,7,28,.7));border-top:1px solid var(--line)}
+.bar{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:8px 8px 10px;background:linear-gradient(to top,rgba(10,7,28,.96),rgba(10,7,28,.7));border-top:1px solid var(--line)}
 .bar button{appearance:none;-webkit-appearance:none;border:1px solid transparent;background:transparent;color:var(--ink);font:500 12px/1.1 "Chakra Petch",ui-sans-serif,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border-radius:10px;touch-action:manipulation;cursor:pointer}
 .bar button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .bar button[aria-pressed="true"]{color:var(--yellow);border-color:rgba(255,196,31,.4);background:rgba(255,196,31,.08)}
@@ -84,6 +84,22 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 .track{height:10px;border-radius:6px;background:rgba(22,48,79,.18);overflow:hidden;margin:14px 0 8px}
 #loadBar{height:100%;width:0;background:#ffc21a;transition:width .2s}
 #loadTxt{font-size:14px}
+.rrow{display:flex;gap:8px;margin:0 0 10px}
+.rrow button{flex:1;background:rgba(255,255,255,.08);color:var(--ink);border:1px solid var(--line)}
+.rrow button:disabled{opacity:.6}
+.replays{position:absolute;inset:0;z-index:7;background:rgba(10,7,28,.94);padding:calc(env(safe-area-inset-top,0px) + 14px) 14px 20px;display:flex;flex-direction:column}
+.replays[hidden]{display:none}
+.rp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.rp-head h2{margin:0;font-size:20px;color:var(--yellow)}
+.rp-head button,.replays li button{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--ink);font:600 13px "Chakra Petch",ui-sans-serif,sans-serif;padding:8px 10px;border-radius:10px;cursor:pointer}
+.replays ul{list-style:none;margin:0;padding:0;overflow:auto;flex:1}
+.replays li{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.replays li.empty{color:var(--dim);border:0}
+.replays .info{flex:1;min-width:0}
+.replays .info b{display:block;font-size:14px}
+.replays .info small{display:block;color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.replays li button.del{color:#ff8a96}
+.filming .ghost,.filming .cachenote{display:none}
 .err{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--dim)}
 </style>
 </head>
@@ -103,15 +119,18 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
   <div class="result" id="result" hidden>
     <h2 id="rTitle">Test #001</h2>
     <dl><dt>Distance</dt><dd id="rDist">0 m</dd><dt>Top speed</dt><dd id="rTop">0 mph</dd><dt>Close calls</dt><dd id="rClose">0</dd><dt>Parts lost</dt><dd id="rLost">0</dd><dt>Score</dt><dd id="rScore">0</dd><dt>Stopped by</dt><dd id="rCause">-</dd></dl>
+    <div class="rrow"><button id="rFilm" type="button">🎬 Film</button><button id="rSave" type="button">★ Save</button></div>
     <button id="rAgain" type="button">Run again</button>
   </div>
   <nav class="bar" aria-label="Controls">
     <button id="bNew" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg>New test</button>
     <button id="bSlow" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>Slow-mo</button>
     <button id="bHook" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 11h10"/><path d="M4 16h7"/></svg>Title</button>
+    <button id="bRep" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>Replays</button>
     <button id="bHide" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>Hide UI</button>
   </nav>
   <button class="ghost" id="bShow" type="button" hidden>Show UI</button>
+  <div class="replays" id="replays" hidden><div class="rp-head"><h2>My replays</h2><button id="repClose" type="button">Close</button></div><ul id="repList"></ul></div>
 </div>
 <script>
 window.addEventListener("error", e => { const d = document.createElement("div"); d.className = "dbg"; d.textContent = "Error: " + (e.message || e.error) + (e.lineno ? " (line " + e.lineno + ")" : ""); document.getElementById("stage").appendChild(d); setTimeout(() => d.remove(), 9000); });
@@ -227,7 +246,7 @@ async function fetchWithProgress(url, onP) {
   const total = +res.headers.get('content-length') || 0; const reader = res.body && res.body.getReader ? res.body.getReader() : null;
   if (!reader) return new Uint8Array(await res.arrayBuffer());
   const chunks = []; let got = 0;
-  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); got += value.length; onP(total ? got / total : Math.min(0.95, got / 5.7e6)); }
+  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); got += value.length; onP(total ? got / total : Math.min(0.95, got / 7.6e6)); }
   const out = new Uint8Array(got); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; } return out;
 }
 // small IndexedDB cache so the model downloads only once per device
@@ -712,14 +731,18 @@ const boomMat = new THREE.MeshBasicMaterial({ color: glowColor(0xffa033, 3), tra
 const smokeTex = tex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 4, 64, 64, 62); gr.addColorStop(0, 'rgba(90,86,92,0.9)'); gr.addColorStop(0.6, 'rgba(70,66,72,0.5)'); gr.addColorStop(1, 'rgba(70,66,72,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
 const BOOMS = Array.from({ length: 4 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), boomMat.clone()); m.visible = false; scene.add(m); const smoke = Array.from({ length: 8 }, () => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false })); sp.visible = false; scene.add(sp); return { sp, v: new V3() }; }); return { m, smoke, t: 9 }; });
 let boomNext = 0;
-function explodeAt(p) {
+function explodeVisual(p) {
+  recEvt('x', [p.x, p.y, p.z]);
   const b = BOOMS[boomNext]; boomNext = (boomNext + 1) % BOOMS.length; b.t = 0; b.m.visible = true; b.m.position.copy(p);
   for (const s of b.smoke) { s.sp.visible = true; s.sp.position.copy(p); s.v.set(rand(-3, 3), rand(2, 5), rand(-3, 3)); s.sp.material.opacity = 0.9; }
+  if (AC) { try { const len = AC.sampleRate * 0.6, buf = AC.createBuffer(1, len, AC.sampleRate), dd = buf.getChannelData(0); for (let i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); const src = AC.createBufferSource(); src.buffer = buf; const gn = AC.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(AC.destination); src.start(); } catch (e) {} }
+}
+function explodeAt(p) {
+  explodeVisual(p);
   burst(p, 90, SPARK, 12); burst(p, 30, CONF, 8);
   const few = debris.filter(d => !d.on).slice(0, 8);
   for (const d of few) { d.on = true; d.ground = false; d.m.visible = true; d.m.scale.setScalar(1); d.m.position.copy(p); d.v.set(rand(-6, 6), rand(4, 9), rand(-6, 6)); d.w.set(rand(-20, 20), rand(-20, 20), rand(-20, 20)); }
   tone(80, 25, 0.8, 'sawtooth', 0.35); tone(160, 40, 0.6, 'square', 0.18); tone(600, 60, 0.35, 'triangle', 0.12);
-  if (AC) { try { const len = AC.sampleRate * 0.6, buf = AC.createBuffer(1, len, AC.sampleRate), dd = buf.getChannelData(0); for (let i = 0; i < len; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); const src = AC.createBufferSource(); src.buffer = buf; const gn = AC.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(AC.destination); src.start(); } catch (e) {} }
   for (const c of OBS.cones) if (Math.hypot(c.g.position.x - p.x, c.g.position.z - p.z) < 5) { c.hit = true; c.v.set((c.g.position.x - p.x) * 3, rand(6, 10), (c.g.position.z - p.z) * 3); c.w.set(rand(-15, 15), 0, rand(-15, 15)); }
 }
 function animateBooms(dt, t) {
@@ -740,6 +763,7 @@ scene.add(new THREE.Points(spGeo, new THREE.PointsMaterial({ size: 0.045, vertex
 let spNext = 0;
 const SPARK = [[4, 2.6, 0.6], [4, 1.8, 0.4], [3, 3, 2.2]], CONF = [[4, 2.8, 0.2], [2.8, 1, 4], [0.8, 3, 4], [0.8, 4, 1.8]];
 function burst(p, n, pal, sp) {
+  recEvt('b', [p.x, p.y, p.z, n, pal === CONF ? 1 : 0, sp || 0]);
   for (let k = 0; k < n; k++) {
     const i = spNext; spNext = (spNext + 1) % SPN;
     spPos[i * 3] = p.x; spPos[i * 3 + 1] = p.y; spPos[i * 3 + 2] = p.z;
@@ -869,6 +893,7 @@ function stepMess(dt) {
 let AC = null;
 function initAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } else if (AC.state === 'suspended') AC.resume(); }
 function tone(f0, f1, dur, type, vol, delay) {
+  recEvt('t', [f0, f1, dur, type, vol, delay || 0]);
   if (!AC) return;
   const t = AC.currentTime + (delay || 0), o = AC.createOscillator(), g = AC.createGain();
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -878,6 +903,165 @@ function tone(f0, f1, dur, type, vol, delay) {
 let lastClank = 0;
 function clank(v) { const now = performance.now(); if (now - lastClank < 60) return; lastClank = now; tone(rand(500, 900), rand(200, 300), 0.12, 'triangle', Math.min(0.12, 0.02 + v * 0.02)); }
 
+// ---------- replay: record every run, film it back with a virtual camera crew ----------
+let REC = null, LAST_REC = null, PLAY = null;
+const STATE_CODE = { intro: 0, ride: 1, passed: 2, crashed: 3, result: 4 };
+function recEvt(kind, data) { if (REC && REC.on && !PLAY) REC.cur.push([kind, data]); }
+function recStart() { REC = { on: true, frames: [], cur: [], acc: 0, test: 0, trick: '', dur: 0 }; }
+function recStop() { if (REC && REC.on) { REC.on = false; REC.dur = REC.frames.reduce((a, f) => a + f.dt, 0); LAST_REC = REC; } }
+const _wp = new V3(), _wq = new THREE.Quaternion();
+function recordFrame(dt) {
+  if (!REC || !REC.on) return;
+  REC.acc += dt; if (REC.acc < 1 / 30) return;
+  if (REC.frames.length > 1900) { recStop(); return; }
+  const P = new Float32Array(parts.length * 7);
+  parts.forEach((p, i) => { p.getWorldPosition(_wp); p.getWorldQuaternion(_wq); P.set([_wp.x, _wp.y, _wp.z, _wq.x, _wq.y, _wq.z, _wq.w], i * 7); });
+  const B = new Float32Array([board.position.x, board.position.y, board.position.z, board.quaternion.x, board.quaternion.y, board.quaternion.z, board.quaternion.w]);
+  const bar = new Float32Array(OBS.barrels.map(b => b.s));
+  const con = new Float32Array(OBS.cones.length * 6);
+  OBS.cones.forEach((c, i) => con.set([c.g.position.x, c.g.position.y, c.g.position.z, c.g.rotation.x, c.g.rotation.y, c.g.rotation.z], i * 6));
+  let tnt = 0; TNTS.forEach((n, i) => { if (n.alive) tnt |= 1 << i; });
+  let spr = 0; SPARES.forEach((s, i) => { if (!s.taken) spr |= 1 << i; });
+  const deb = []; debris.forEach((d, i) => { if (d.m.visible) deb.push(i, d.m.position.x, d.m.position.y, d.m.position.z, d.m.quaternion.x, d.m.quaternion.y, d.m.quaternion.z, d.m.quaternion.w, d.m.scale.x); });
+  const drp = []; drops.forEach((d, i) => { if (d.m.visible) drp.push(i, d.m.position.x, d.m.position.y, d.m.position.z, d.m.quaternion.x, d.m.quaternion.y, d.m.quaternion.z, d.m.quaternion.w, d.m.scale.x, d.m.scale.y); });
+  const spl = []; splats.forEach((s, i) => { if (s.m.visible) spl.push(i, s.m.position.x, s.m.position.y, s.m.position.z, s.m.rotation.y, s.m.scale.x); });
+  REC.frames.push({ dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
+  REC.acc = 0; REC.cur = [];
+}
+// virtual director: plan hard cuts every ~2-3 s, choosing shots around what happens next
+const SHOTS = ['chase', 'front', 'fixed', 'side', 'low', 'drone'];
+function planShots(rec) {
+  const fr = rec.frames, cum = []; let t = 0; for (const f of fr) { cum.push(t); t += f.dt; } const total = t;
+  const torsoI = parts.indexOf(torso) * 7;
+  const firstOf = code => { const i = fr.findIndex(f => f.st === code); return i < 0 ? null : cum[i]; };
+  const introEnd = firstOf(1) ?? 0, crashT = firstOf(3), passT = firstOf(2);
+  const endPlay = crashT ?? passT ?? total;
+  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST/.test(d[0])) || k === 'x') evTimes.push(cum[i]); });
+  const airAt = tt => { const i = cum.findIndex(c => c >= tt); if (i < 0) return false; return fr[i].P[torsoI + 1] > 2.9; };
+  const shots = [];
+  if (introEnd > 0.2) shots.push({ t0: 0, type: 'intro' });
+  let tt = introEnd > 0.2 ? introEnd + 0.45 : 0, last = 'intro', k = 0;
+  if (shots.length) shots.push({ t0: introEnd - 0.05, type: 'landing' });
+  while (tt < endPlay - 0.3) {
+    const seg = Math.min(endPlay - 0.2, tt + rand(1.7, 2.7));
+    const hasEv = evTimes.some(e => e >= tt && e <= seg), air = airAt((tt + seg) / 2);
+    let type = air ? 'side' : hasEv ? (last === 'front' ? 'low' : 'front') : SHOTS[(k++) % SHOTS.length];
+    if (type === last) type = SHOTS[(k++) % SHOTS.length];
+    shots.push({ t0: tt, type }); last = type; tt = seg;
+  }
+  if (crashT != null) shots.push({ t0: Math.max(0, crashT - 0.15), type: 'orbit' });
+  else if (passT != null) shots.push({ t0: passT, type: 'hero' });
+  return { shots, cum, total };
+}
+function startFilm(rec, fromResult) {
+  if (!rec || !rec.frames.length) return;
+  recStop();
+  PLAY = { rec, t: 0, i: 0, fired: -1, fromResult, ...planShots(rec), shotI: -1, fixed: new V3(), orbitA: 0 };
+  state = 'replay';
+  $('result').hidden = true; $('replays').hidden = true;
+  stage.classList.add('clean', 'filming'); $('bShow').hidden = true;
+  if (!stage.classList.contains('nohook')) { $('hook').classList.add('show'); setTimeout(() => $('hook').classList.remove('show'), 2400); }
+  for (const p of parts) scene.attach(p);
+  for (const d of debris) { d.on = false; d.m.visible = false; }
+  for (const d of drops) { d.on = false; d.m.visible = false; }
+  for (const s of splats) { s.m.visible = false; s.t = 1; }
+  for (const c of OBS.cones) c.hit = false;
+  BB.free = false; dripUntil = 0;
+  if (rollGain && AC) rollGain.gain.setTargetAtTime(0, AC.currentTime, 0.05);
+  snapCam = true;
+}
+function endFilm() {
+  if (!PLAY) return;
+  const back = PLAY.fromResult; PLAY = null;
+  stage.classList.remove('filming', 'clean');
+  if (back) { state = 'result'; $('result').hidden = false; } else resetRun();
+}
+const _pa = new V3(), _pb = new V3(), _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion();
+function fireEvents(f) {
+  for (const [k, d] of f.ev) {
+    if (k === 'b') burst(new V3(d[0], d[1], d[2]), d[3], d[4] ? CONF : SPARK, d[5]);
+    else if (k === 't') tone(d[0], d[1], d[2], d[3], d[4], d[5]);
+    else if (k === 'p') { lastPop = 0; pop(d[0], d[1]); }
+    else if (k === 'x') explodeVisual(new V3(d[0], d[1], d[2]));
+  }
+}
+function replayFrame(dt) {
+  const P = PLAY, fr = P.rec.frames;
+  P.t += dt;
+  while (P.i < fr.length - 1 && P.cum[P.i + 1] <= P.t) P.i++;
+  for (let j = P.fired + 1; j <= P.i; j++) fireEvents(fr[j]);
+  P.fired = P.i;
+  const f0 = fr[P.i], f1 = fr[Math.min(P.i + 1, fr.length - 1)];
+  const a = f1 === f0 ? 0 : clamp((P.t - P.cum[P.i]) / Math.max(1e-4, f1.dt), 0, 1);
+  parts.forEach((p, i) => { const o = i * 7; _pa.fromArray(f0.P, o); _pb.fromArray(f1.P, o); p.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.P, o + 3); _qb.fromArray(f1.P, o + 3); p.quaternion.slerpQuaternions(_qa, _qb, a); });
+  _pa.fromArray(f0.B, 0); _pb.fromArray(f1.B, 0); board.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.B, 3); _qb.fromArray(f1.B, 3); board.quaternion.slerpQuaternions(_qa, _qb, a);
+  simT = lerp(f0.simT, f1.simT, a);
+  OBS.barrels.forEach((b, i) => { b.s = lerp(f0.bar[i], f1.bar[i], a); });
+  OBS.cones.forEach((c, i) => { const o = i * 6; c.g.position.set(lerp(f0.con[o], f1.con[o], a), lerp(f0.con[o + 1], f1.con[o + 1], a), lerp(f0.con[o + 2], f1.con[o + 2], a)); c.g.rotation.set(f0.con[o + 3], f0.con[o + 4], f0.con[o + 5]); });
+  TNTS.forEach((n, i) => { n.alive = !!(f0.tnt & (1 << i)); n.g.visible = n.alive; });
+  SPARES.forEach((s, i) => { s.taken = !(f0.spr & (1 << i)); s.m.visible = !s.taken; });
+  for (const d of debris) d.m.visible = false;
+  for (let o = 0; o < f0.deb.length; o += 9) { const m = debris[f0.deb[o]].m; m.visible = true; m.position.set(f0.deb[o + 1], f0.deb[o + 2], f0.deb[o + 3]); m.quaternion.set(f0.deb[o + 4], f0.deb[o + 5], f0.deb[o + 6], f0.deb[o + 7]); m.scale.setScalar(f0.deb[o + 8]); }
+  for (const d of drops) d.m.visible = false;
+  for (let o = 0; o < f0.drp.length; o += 10) { const m = drops[f0.drp[o]].m; m.visible = true; m.position.set(f0.drp[o + 1], f0.drp[o + 2], f0.drp[o + 3]); m.quaternion.set(f0.drp[o + 4], f0.drp[o + 5], f0.drp[o + 6], f0.drp[o + 7]); m.scale.set(f0.drp[o + 8], f0.drp[o + 9], f0.drp[o + 8]); }
+  for (const s of splats) s.m.visible = false;
+  for (let o = 0; o < f0.spl.length; o += 6) { const s = splats[f0.spl[o]]; s.m.visible = true; s.t = 1; s.m.position.set(f0.spl[o + 1], f0.spl[o + 2], f0.spl[o + 3]); s.m.rotation.y = f0.spl[o + 4]; s.m.scale.setScalar(f0.spl[o + 5]); }
+  faceMode = f0.face;
+  for (const sw of SAWS) { if (sw.A) { sw.x = sw.x0 + Math.sin(simT * sw.w + sw.ph) * sw.A; sw.g.position.x = sw.x; } sw.g.rotation.z = -14 * simT; }
+  BIG.rotation.z = -6 * simT;
+  animateObstacles(simT, dt, -1e9); animateBooms(dt, simT);
+  for (const sp of SPARES) if (!sp.taken) { sp.m.position.set(sp.x, 1.2 + Math.sin(simT * 3 + sp.s) * 0.18, -sp.s); sp.m.rotation.set(0.4, simT * 1.8, 0.2); }
+  drawFace(performance.now()); updateSparks(dt);
+  // camera crew
+  while (P.shotI < P.shots.length - 1 && P.shots[P.shotI + 1].t0 <= P.t) { P.shotI++; P.cut = true; }
+  const shot = P.shots[Math.max(0, P.shotI)], T = torso.position;
+  const tgt = tv.copy(T);
+  if (P.cut) { P.cut = false; snapCam = true; if (shot.type === 'fixed') P.fixed.set(T.x + 3.4, 1.3, T.z - 17); if (shot.type === 'orbit') P.orbitA = Math.atan2(camera.position.x - T.x, camera.position.z - T.z); if (shot.type === 'intro') P.fixed.set(2.6, 1.4, -7.5); }
+  let pos = new V3(), look = new V3();
+  switch (shot ? shot.type : 'chase') {
+    case 'intro': pos.copy(P.fixed); look.copy(tgt).add(new V3(0, 0.3, 0)); break;
+    case 'landing': pos.set(tgt.x - 3.2, 0.6, tgt.z - 2.6); look.copy(tgt); break;
+    case 'front': pos.set(tgt.x + 1.1, tgt.y + 0.7, tgt.z - 4.3); look.set(tgt.x, tgt.y + 0.6, tgt.z); break;
+    case 'fixed': pos.copy(P.fixed); look.copy(tgt); break;
+    case 'side': pos.set(tgt.x + 7.5, tgt.y + 0.9, tgt.z + 0.6); look.set(tgt.x, tgt.y + 0.2, tgt.z - 1.5); break;
+    case 'low': pos.set(tgt.x - 1.8, 0.3, tgt.z - 3.4); look.set(tgt.x, tgt.y + 0.6, tgt.z); break;
+    case 'drone': pos.set(tgt.x * 0.3, tgt.y + 10.5, tgt.z + 5); look.set(tgt.x, tgt.y, tgt.z - 4); break;
+    case 'hero': pos.set(tgt.x + 2.5, tgt.y + 0.9, tgt.z - 6); look.set(tgt.x, tgt.y + 0.5, tgt.z); break;
+    case 'orbit': P.orbitA += dt * 0.35; pos.set(T.x + Math.sin(P.orbitA) * 7, Math.max(T.y + 2.6, floorAt(T.x, T.z) + 1.8), T.z + Math.cos(P.orbitA) * 7); look.copy(T); break;
+    default: pos.set(tgt.x * 0.7, tgt.y + 2.2, tgt.z + 6.6); look.set(tgt.x * 0.85, tgt.y + 0.4, tgt.z - 9);
+  }
+  wantPos.copy(pos); wantLook.copy(look);
+  if (P.t > P.total + 1.2) endFilm();
+}
+// saved replays (kept on this device)
+async function idbDel(key) { try { const db = await idbOpen(); await new Promise(res => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').delete(key); tx.oncomplete = res; tx.onerror = res; }); } catch (e) {} }
+async function saveReplay() {
+  const rec = LAST_REC; if (!rec) return;
+  const id = Date.now(), meta = { id, test: rec.test, ok: rec.ok, cause: rec.cause, dist: rec.dist, trick: rec.trick, date: new Date().toLocaleString() };
+  await idbPut('replay:' + id, { frames: rec.frames, test: rec.test });
+  const list = (await idbGet('replays:list')) || []; list.unshift(meta);
+  while (list.length > 30) { const old = list.pop(); await idbDel('replay:' + old.id); }
+  await idbPut('replays:list', list);
+  $('rSave').textContent = '★ Saved'; $('rSave').disabled = true;
+}
+async function openReplays() {
+  const list = (await idbGet('replays:list')) || [];
+  const ul = $('repList'); ul.textContent = '';
+  if (!list.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'No saved replays yet. Finish a run and tap ★ Save.'; ul.appendChild(li); }
+  for (const m of list) {
+    const li = document.createElement('li');
+    const info = document.createElement('div'); info.className = 'info';
+    const b = document.createElement('b'); b.textContent = 'Test #' + String(m.test).padStart(3, '0') + (m.ok ? ' · passed' : ' · ' + (m.cause || 'failed'));
+    const sm = document.createElement('small'); sm.textContent = (m.dist || 0) + ' m · ' + (m.trick || '') + ' · ' + m.date;
+    info.append(b, sm);
+    const play = document.createElement('button'); play.type = 'button'; play.textContent = '🎬 Film';
+    play.onclick = async () => { const r = await idbGet('replay:' + m.id); if (r) { initAudio(); startFilm({ frames: r.frames }, false); } };
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = 'Delete'; del.setAttribute('aria-label', 'Delete replay');
+    del.onclick = async () => { await idbDel('replay:' + m.id); const l2 = ((await idbGet('replays:list')) || []).filter(x => x.id !== m.id); await idbPut('replays:list', l2); openReplays(); };
+    li.append(info, play, del); ul.appendChild(li);
+  }
+  $('replays').hidden = false;
+}
 // ---------- state & helpers ----------
 const tv = new V3(), tv2 = new V3(), tq = new THREE.Quaternion();
 let faceUntil = 0;
@@ -885,6 +1069,7 @@ function setFace(m, hold) { faceMode = m; faceUntil = performance.now() + (hold 
 let lastPop = 0;
 function pop(text, cls) {
   const now = performance.now(); if (now - lastPop < 320) return; lastPop = now;
+  recEvt('p', [text, cls || '']);
   const el = document.createElement('div'); el.className = 'pop' + (cls ? ' ' + cls : ''); el.textContent = text;
   $('pops').appendChild(el); setTimeout(() => el.remove(), 1100);
 }
@@ -916,6 +1101,7 @@ function resetRun() {
   $('result').hidden = true; $('hook').classList.add('show');
   $('testNo').textContent = '#' + String(testNo).padStart(3, '0');
   snapCam = true;
+  recStart(); REC.test = testNo; REC.trick = trick.name;
 }
 const BB = { v: new V3(), w: new V3(), free: false };
 // pose the body every frame
@@ -1000,6 +1186,8 @@ function passed() {
 function showResult() {
   state = 'result';
   const ok = cause === '';
+  if (REC) { REC.ok = ok; REC.cause = ok ? '' : cause; REC.dist = Math.round(R.maxS); }
+  recStop(); $('rSave').textContent = '★ Save'; $('rSave').disabled = false;
   $('rTitle').textContent = 'Test #' + String(testNo).padStart(3, '0') + (ok ? ' passed' : ' failed');
   $('rTitle').className = ok ? 'ok' : 'fail';
   $('rDist').textContent = Math.round(R.maxS) + ' m';
@@ -1215,7 +1403,7 @@ function stepParts(dt) {
 
 // ---------- input ----------
 let drag = null;
-canvas.addEventListener('pointerdown', e => { initAudio(); startRoll(); drag = { x: e.clientX, x0: R.xT, t: performance.now(), moved: 0 }; try { canvas.setPointerCapture(e.pointerId); } catch (_) {} });
+canvas.addEventListener('pointerdown', e => { if (state === 'replay') { endFilm(); return; } initAudio(); startRoll(); drag = { x: e.clientX, x0: R.xT, t: performance.now(), moved: 0 }; try { canvas.setPointerCapture(e.pointerId); } catch (_) {} });
 canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x; drag.moved = Math.max(drag.moved, Math.abs(dx)); R.xT = clamp(drag.x0 + dx / Math.max(260, canvas.clientWidth) * 9, -3.8, 3.8); });
 canvas.addEventListener('pointerup', () => { if (drag && drag.moved < 12 && performance.now() - drag.t < 260) action(); drag = null; });
 canvas.addEventListener('pointercancel', () => { drag = null; });
@@ -1228,6 +1416,10 @@ function action() {
   else if (state === 'ride' && !R.grounded && !R.slam) { R.slam = true; R.vy = Math.min(R.vy, -17); crouchV += 2; tone(700, 150, 0.2, 'triangle', 0.06); setFace('scared', 600); }
 }
 $('bNew').onclick = () => { initAudio(); startRoll(); resetRun(); };
+$('rFilm').onclick = () => { initAudio(); startFilm(LAST_REC, true); };
+$('rSave').onclick = () => saveReplay();
+$('bRep').onclick = () => openReplays();
+$('repClose').onclick = () => { $('replays').hidden = true; };
 $('rAgain').onclick = () => { initAudio(); startRoll(); resetRun(); };
 $('bSlow').onclick = () => { manualSlow = !manualSlow; $('bSlow').setAttribute('aria-pressed', String(manualSlow)); };
 $('bHook').onclick = () => { stage.classList.toggle('nohook'); $('bHook').setAttribute('aria-pressed', String(!stage.classList.contains('nohook'))); };
@@ -1274,6 +1466,15 @@ let acc = 0, landedTrick = false;
 function frame() {
   const now = performance.now();
   const dt = Math.min(0.05, clock.getDelta());
+  if (state === 'replay') {
+    replayFrame(dt);
+    if (snapCam) { camPos.copy(wantPos); camLook.copy(wantLook); snapCam = false; }
+    const fc = 1 - Math.exp(-dt * 9); camPos.lerp(wantPos, fc); camLook.lerp(wantLook, Math.min(1, fc * 1.4));
+    camera.position.copy(camPos); camera.lookAt(camLook);
+    if (Math.abs(camera.fov - baseFov()) > 0.05) { camera.fov = baseFov(); camera.updateProjectionMatrix(); }
+    sunLight.position.copy(camLook).addScaledVector(SUN, 40); sunLight.target.position.copy(camLook);
+    composer.render(); requestAnimationFrame(frame); return;
+  }
   let ts = now < slowUntil ? slowK : 1; if (manualSlow) ts = Math.min(ts, 0.35);
   const sdt = dt * ts; simT += sdt;
   for (const sw of SAWS) { if (sw.A) { sw.x = sw.x0 + Math.sin(simT * sw.w + sw.ph) * sw.A; sw.g.position.x = sw.x; } sw.g.rotation.z -= 14 * sdt; }
@@ -1327,6 +1528,7 @@ function frame() {
   $('spd').textContent = String(Math.round((state === 'ride' ? R.speed : 0) * 2.237));
   $('dist').textContent = String(Math.round(R.maxS));
   if (rollGain && AC) rollGain.gain.setTargetAtTime(state === 'ride' && R.grounded ? Math.min(0.09, R.speed * 0.003) : 0, AC.currentTime, 0.05);
+  recordFrame(dt);
   composer.render();
   requestAnimationFrame(frame);
 }
