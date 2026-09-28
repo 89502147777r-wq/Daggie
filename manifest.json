@@ -1,0 +1,1 @@
+{ "name": "Crash Test Daggie: Saw Run", "short_name": "Daggie", "start_url": "./", "display": "fullscreen", "orientation": "portrait", "background_color": "#0b0720", "theme_color": "#0b0720", "icons": [{ "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }] }
