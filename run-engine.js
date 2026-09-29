@@ -1519,17 +1519,13 @@ function finishLiveRec() { liveStop = 0; stage.classList.remove('liverec'); if (
 function startRecorder() {
   try {
     if (!window.MediaRecorder || !canvas.captureStream) throw new Error('unsupported');
-    // even size, at most 1080 px wide: what phones and CapCut decode smoothly
-    const k = Math.min(1, 1080 / canvas.width); comp.width = Math.round(canvas.width * k / 2) * 2; comp.height = Math.round(canvas.height * k / 2) * 2;
-    // steady 30 fps: frames are pushed on a fixed clock instead of whenever the screen redraws (uneven timing makes editors stutter)
-    let stream = comp.captureStream(0); recTrack = stream.getVideoTracks()[0] || null;
-    if (!recTrack || typeof recTrack.requestFrame !== 'function') { stream = comp.captureStream(30); recTrack = null; }
-    recNextT = performance.now(); composite();
+    comp.width = canvas.width; comp.height = canvas.height; composite();
+    const stream = comp.captureStream(30); recTrack = null;
     initAudio(); if (AC) { OUT(); if (AUDIO_DEST) AUDIO_DEST.stream.getAudioTracks().forEach(t => stream.addTrack(t)); }
     const mime = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
     recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 10e6 } : { videoBitsPerSecond: 10e6 });
     recChunks = []; recorder.ondataavailable = ev => { if (ev.data && ev.data.size) recChunks.push(ev.data); };
-    recorder.start(); return true; // one clean file at the end (no fragmented chunks)
+    recorder.start(250); return true;
   } catch (err) { recorder = null; lastPop = 0; pop('VIDEO NOT SUPPORTED HERE', 'lilac'); return false; }
 }
 function stopRecorder() {
@@ -2159,9 +2155,10 @@ window.addEventListener('resize', resize);
 resize();
 const clock = new THREE.Clock();
 let acc = 0, landedTrick = false;
-function frame() {
-  const now = performance.now();
-  const dt = Math.min(0.05, clock.getDelta());
+let lastTs = 0;
+function frame(vts) {
+  const now = performance.now(), fts = vts || now;
+  const dt = lastTs ? Math.min(0.05, Math.max(0.001, (fts - lastTs) / 1000)) : 1 / 60; lastTs = fts;
   if (state === 'replay') {
     replayFrame(dt);
     if (PLAY) PLAY.shotSnap = snapCam;
@@ -2210,9 +2207,8 @@ function frame() {
     }
   }
   if (state === 'ride' || state === 'passed') {
-    acc += sdt; let n = 0;
-    while (acc >= 1 / 120 && n < 8) { stepRide(1 / 120, now); acc -= 1 / 120; n++; if (state !== 'ride' && state !== 'passed') break; }
-    if (n === 8) acc = 0;
+    const n = Math.min(8, Math.max(1, Math.ceil(sdt * 120 - 1e-6))), h = sdt / n;
+    for (let k = 0; k < n; k++) { stepRide(h, now); if (state !== 'ride' && state !== 'passed') break; }
     stepDebris(sdt, now);
     if (state === 'ride' && now > faceUntil) setFace(!R.grounded ? 'wow' : R.speed > 25 ? 'scared' : 'idle');
     if (state === 'ride' && t > 1.4) $('hook').classList.remove('show');
@@ -2220,9 +2216,8 @@ function frame() {
   }
   if (state === 'intro' || state === 'ride' || state === 'passed') { placeRider(simT); poseBody(simT); }
   if (state === 'crashed' || (state === 'result' && cause !== '')) {
-    let n = 0; acc += sdt;
-    while (acc >= 1 / 120 && n < 8) { stepParts(1 / 120); stepDebris(1 / 120, now); acc -= 1 / 120; n++; }
-    if (n === 8) acc = 0;
+    const n = Math.min(8, Math.max(1, Math.ceil(sdt * 120 - 1e-6))), h = sdt / n;
+    for (let k = 0; k < n; k++) { stepParts(h); stepDebris(h, now); }
     if (state === 'crashed' && now > faceUntil) setFace((now - stateT) > 2500 ? ((Math.floor(now / 2000) % 2) ? 'okq' : 'worried') : 'scared');
     if (state === 'crashed' && now - stateT > 2800) showResult();
   }
