@@ -118,13 +118,15 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 .vidcard #vidSave{background:var(--yellow);color:#16112a;border:0}
 .social{position:absolute;left:50%;top:22%;z-index:6;transform:translate(-50%,-50%);background:#ff2b2b;color:#fff;font:700 18px "Chakra Petch",ui-sans-serif,sans-serif;padding:7px 14px;border-radius:12px;box-shadow:0 6px 18px rgba(255,43,43,.4);white-space:nowrap;pointer-events:none;animation:soc 1.2s ease-out forwards}
 .social span{font-size:19px}
+.flash{position:absolute;inset:0;background:#fff;pointer-events:none;z-index:5;animation:flash .3s ease-out forwards}
+@keyframes flash{0%{opacity:.35}100%{opacity:0}}
 @keyframes soc{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}10%{transform:translate(-50%,-50%) scale(1.1);opacity:1}20%,40%,60%{transform:translate(-50%,-50%) scale(1)}30%,50%,70%{transform:translate(-50%,-50%) scale(1.08)}85%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
 .err{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--dim)}
 </style>
 </head>
 <body>
 <div id="stage">
-  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track · v2.2 (Daggie versions)</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div><p class="help">Drag to dodge · Tap to jump · Tap in the air to slam · Orange crate: arm cannon · Blue crate: shield · Green crate: repair · Gates: green = strong Daggie, red = weak Daggie</p></div></div>
+  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track · v2.3 (Daggie versions)</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div><p class="help">Drag to dodge · Tap to jump · Tap in the air to slam · Orange crate: arm cannon · Blue crate: shield · Green crate: repair · Gates: green = strong Daggie, red = weak Daggie</p></div></div>
   <canvas id="game" aria-label="Saw Run: Daggie skates a floating track above the clouds, dodging spinning saws"></canvas>
   <div class="hook" id="hook"><span>CAN HE SURVIVE</span><span>THE SAW RUN?</span></div>
   <div class="pops" id="pops"></div>
@@ -1184,6 +1186,7 @@ function socialFx(kind) {
   recEvt('u', [kind]);
   const el = document.createElement('div'); el.className = 'social'; el.innerHTML = kind === 'like' ? '<span>👍</span> LIKE' : 'SUBSCRIBE <span>🔔</span>';
   stage.appendChild(el); setTimeout(() => el.remove(), 1200);
+  if (!reduceMotion) { const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
   OVL.items.push({ kind, t: performance.now() });
   tone(880, 880, 0.12, 'sine', 0.08); tone(1320, 1320, 0.18, 'sine', 0.07, 0.12);
 }
@@ -1365,7 +1368,7 @@ function cameraCrew(P, dt) {
     case 'landing': pos.set(tgt.x - 2.8, Math.max(0.7, tgt.y + 0.4), tgt.z + 3.4); look.set(tgt.x, tgt.y + 0.5, tgt.z - 4); break;
     case 'helmet': { // GoPro on the helmet, looking down the track
       const hidden = !head.visible || head.position.distanceTo(T) > 1.4;
-      pos.copy(hidden ? tv2.copy(T).add(new V3(0, 0.9, 0.3)) : head.position).add(new V3(rand(-0.008, 0.008), 0.3 + rand(-0.008, 0.008), 0.14));
+      pos.copy(hidden ? tv2.copy(T).add(new V3(0, 0.9, 0.3)) : head.position).add(new V3(rand(-0.008, 0.008), 0.3 + rand(-0.008, 0.008), 0.02));
       look.copy(pos).add(new V3(0, -0.6, -8)); fov = Math.max(baseFov(), 96); break; }
     case 'roadside': { // rally camera on the verge: waits ahead, pans and zooms as he blasts past
       pos.copy(P.fixed); look.set(tgt.x, tgt.y + 0.6, tgt.z); const d = pos.distanceTo(tgt); fov = clamp(12 + d * 2.2, 14, baseFov()); break; }
@@ -1378,6 +1381,7 @@ function cameraCrew(P, dt) {
     case 'orbit': P.orbitA += dt * 1.3; pos.set(T.x + Math.sin(P.orbitA) * 6.5, Math.max(T.y + 2.4, floorAt(T.x, T.z) + 1.6), T.z + Math.cos(P.orbitA) * 6.5); look.copy(T); break;
     default: pos.set(tgt.x * 0.7, tgt.y + 2.2, tgt.z + 6.6); look.set(tgt.x * 0.85, tgt.y + 0.4, tgt.z - 9);
   }
+  if (type === 'helmet') { head.visible = false; bubble.visible = false; }
   wantPos.copy(pos); wantLook.copy(look);
   P.roll = 0; P.fov = fov; P.rigid = type !== 'roadside' && type !== 'face' && type !== 'orbit';
   if (P.crashT != null && !P.replayed && P.t > P.total + 0.2) {
@@ -1511,6 +1515,7 @@ function composite() {
       strokeText(it.text, W / 2, H * (0.34 + it.slot * 0.09) - age * H * 0.05, W * 0.12 * k, col, -0.1);
       cctx.globalAlpha = 1;
     } else {
+      if (age < 0.3 && !reduceMotion) { cctx.fillStyle = 'rgba(255,255,255,' + (0.35 * (1 - age / 0.3)).toFixed(3) + ')'; cctx.fillRect(0, 0, W, H); }
       const pulse = 1 + Math.sin(age * 14) * 0.06, s = Math.min(1, age / 0.18) * pulse, bw = W * (it.kind === 'like' ? 0.26 : 0.4), bh = W * 0.09;
       cctx.save(); cctx.globalAlpha = age > 0.9 ? Math.max(0, 1 - (age - 0.9) / 0.3) : 1; cctx.translate(W / 2, H * 0.24); cctx.scale(s, s);
       cctx.fillStyle = '#ff2b2b'; cctx.beginPath(); cctx.roundRect ? cctx.roundRect(-bw / 2, -bh / 2, bw, bh, bh * 0.3) : cctx.rect(-bw / 2, -bh / 2, bw, bh); cctx.fill();
@@ -1888,7 +1893,7 @@ function stepRide(dt, now) {
     R.grounded = false; R.vy = 9; R.xT += (R.x >= n.x ? 1 : -1) * 1.6; if (!reduceMotion) shake = 0.8;
     if (FORM.kind === 'fire') { lastPop = 0; pop('FIREPROOF!', 'green'); setFace('happy', 900); } else { setHP(HP - 10); graze({}, R.x >= n.x ? 1 : -1, Math.random() < 0.25); if (state !== 'ride') return; lastPop = 0; pop('KABOOM!', 'green'); }
   }
-  for (const so of SOCIAL) if (!so.taken && Math.abs(R.s - so.s) < 1 && Math.abs(R.x - so.x) < 1.2 && R.y < 2.4) { so.taken = true; so.m.visible = false; socialFx(so.kind); burst(so.m.position, 12, CONF, 4); }
+  for (const so of SOCIAL) if (!so.taken && Math.abs(R.s - so.s) < 1 && Math.abs(R.x - so.x) < 1.2 && R.y < 2.4) { so.taken = true; so.m.visible = false; socialFx(so.kind); burst(so.m.position, 12, CONF, 4); slowUntil = now + 900; slowK = 0.3; setFace('happy', 1000); }
   for (const pk of PICKS) if (!pk.taken && Math.abs(R.s - pk.s) < 1 && Math.abs(R.x - pk.x) < 1 && R.y < 2.4) {
     pk.taken = true; pk.m.visible = false; burst(pk.m.position, 30, CONF, 5);
     if (pk.kind === 'cannon') equipCannon(); else { R.shield = true; lastPop = 0; pop('SHIELD UP!', 'green'); tone(500, 1500, 0.3, 'sine', 0.06); }
@@ -2104,7 +2109,7 @@ requestAnimationFrame(frame);
 </script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});</script>
 <script>
-const BUILD = '2.2';
+const BUILD = '2.3';
 // if GitHub has a newer index.html than the one running, offer a one-tap update
 setTimeout(async () => {
   try {
