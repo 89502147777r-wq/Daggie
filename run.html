@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0720">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="icon" href="icon-512.png">
+<title>Crash Test Daggie: Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --deep:#0b0720; --ink:#efeaff; --dim:#a79cd6; --yellow:#ffc41f; --lilac:#e7b3ff; --green:#3dff9a;
+  --panel:rgba(20,14,48,.72); --line:rgba(170,120,255,.32);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --deep:#0b0720; --ink:#efeaff; --dim:#a79cd6; --yellow:#ffc41f; --lilac:#e7b3ff; --green:#3dff9a; --panel:rgba(20,14,48,.72); --line:rgba(170,120,255,.32); }
+}
+:root[data-theme="dark"]{ --deep:#0b0720; --ink:#efeaff; --dim:#a79cd6; --yellow:#ffc41f; --lilac:#e7b3ff; --green:#3dff9a; --panel:rgba(20,14,48,.72); --line:rgba(170,120,255,.32); }
+*,*::before,*::after{box-sizing:inherit}
+*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{touch-action:none;overscroll-behavior:none}
+#game{-webkit-user-select:none;-webkit-touch-callout:none}
+
+html{height:100%;background:var(--deep);scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:var(--deep);color:var(--ink);font-family:"Chakra Petch",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#stage{position:relative;height:100%;overflow:hidden;background:var(--deep)}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:6px;pointer-events:none}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--dim);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);white-space:nowrap}
+.chip b{color:var(--yellow);font-size:17px;margin-left:4px;font-variant-numeric:tabular-nums;font-weight:700}
+.hook{position:absolute;left:0;right:0;top:100px;text-align:center;pointer-events:none;opacity:0;transform:translateY(-10px) scale(.96);transition:opacity .35s,transform .35s}
+.hook.show{opacity:1;transform:none}
+.nohook .hook{display:none}
+.hook span{display:block;font-weight:700;font-size:clamp(30px,10vw,58px);line-height:1.02;color:var(--yellow);-webkit-text-stroke:2px #16112a;text-shadow:0 4px 0 #16112a,0 0 22px rgba(255,196,31,.45)}
+.hook span+span{color:#fff;font-size:clamp(26px,8.6vw,50px)}
+.meters{position:absolute;top:58px;left:10px;right:10px;display:flex;gap:8px;align-items:center;pointer-events:none}
+.hp{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 8px;font-size:11px;color:var(--dim);flex:0 0 46%}
+.hp b{color:var(--ink);font-variant-numeric:tabular-nums;display:inline-block;min-width:24px}
+.hp.hit{animation:hpHit .45s}
+@keyframes hpHit{0%,100%{transform:none;border-color:var(--line)}25%{transform:translateX(-4px);border-color:#ff4a5a}75%{transform:translateX(4px);border-color:#ff4a5a}}
+.cachenote{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);background:rgba(20,14,48,.85);color:#efeaff;font-size:12px;padding:6px 10px;border-radius:10px;border:1px solid rgba(170,120,255,.32);z-index:8;pointer-events:none;white-space:nowrap}
+.dbg{position:absolute;left:8px;right:8px;bottom:90px;color:#ff5a6a;font:12px ui-monospace,monospace;background:rgba(0,0,0,.6);padding:6px;border-radius:8px;white-space:pre-wrap;pointer-events:none;z-index:9}
+.hpbar{position:relative;flex:1;min-width:60px;height:10px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}
+#hpFill{display:block;height:100%;width:100%;background:#3dff9a;transition:width .25s,background .25s}
+.prog{position:relative;flex:1;height:9px;border-radius:5px;background:rgba(20,14,48,.55);border:1px solid var(--line);overflow:visible}
+#progFill{display:block;height:100%;width:0;border-radius:5px;background:var(--yellow)}
+.prog b{position:absolute;right:-4px;top:-9px;font-size:16px}
+.clean .meters{display:none}
+.rew{position:absolute;left:16px;top:12%;z-index:7;font:700 30px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;-webkit-text-stroke:1.5px #16112a;text-shadow:0 3px 0 #16112a;pointer-events:none;animation:blink .5s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+.hint{position:absolute;left:12px;right:12px;bottom:84px;text-align:center;margin:0;color:var(--dim);font-size:14px;line-height:1.35;pointer-events:none}
+.bar{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px 8px 10px;background:linear-gradient(to top,rgba(10,7,28,.96),rgba(10,7,28,.7));border-top:1px solid var(--line)}
+.bar button{appearance:none;-webkit-appearance:none;border:1px solid transparent;background:transparent;color:var(--ink);font:500 12px/1.1 "Chakra Petch",ui-sans-serif,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border-radius:10px;touch-action:manipulation;cursor:pointer}
+.bar button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bar button[aria-pressed="true"]{color:var(--yellow);border-color:rgba(255,196,31,.4);background:rgba(255,196,31,.08)}
+#bNew{color:var(--yellow)}
+button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.ghost{position:absolute;top:8px;right:8px;appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 12px "Chakra Petch",ui-sans-serif,sans-serif;padding:6px 10px;border-radius:10px;opacity:.28;cursor:pointer}
+.clean .hud,.clean .bar,.clean .hint{display:none}
+.pops{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.pop{position:absolute;left:50%;top:34%;font-weight:700;font-size:clamp(34px,11vw,64px);color:var(--yellow);-webkit-text-stroke:2px #16112a;text-shadow:0 0 18px rgba(255,196,31,.55),0 4px 0 #16112a;white-space:nowrap;transform:translate(-50%,-50%) rotate(-6deg);animation:pop 1s ease-out forwards}
+.pop.green{color:var(--green);text-shadow:0 0 18px rgba(61,255,154,.55),0 4px 0 #16112a}
+.pop.lilac{color:var(--lilac);text-shadow:0 0 18px rgba(200,100,255,.6),0 4px 0 #16112a}
+@keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) rotate(-6deg) scale(.4)}15%{opacity:1;transform:translate(-50%,-50%) rotate(-6deg) scale(1.12)}30%{transform:translate(-50%,-50%) rotate(-6deg) scale(1)}100%{opacity:0;transform:translate(-50%,-90%) rotate(-6deg) scale(1)}}
+.result{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(88vw,340px);background:rgba(18,12,44,.92);border:1px solid rgba(231,179,255,.45);border-radius:18px;padding:18px 18px 16px;text-align:center;box-shadow:0 0 40px rgba(180,90,255,.25)}
+.result h2{margin:0 0 12px;font-size:22px}
+.result h2.ok{color:var(--green)} .result h2.fail{color:#ff5a7a}
+.result dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0 0 16px;text-align:left;font-size:15px}
+.result dt{color:var(--dim)} .result dd{margin:0;color:var(--yellow);font-weight:700;font-variant-numeric:tabular-nums}
+.result button{appearance:none;border:0;background:var(--yellow);color:#16112a;font:700 16px "Chakra Petch",ui-sans-serif,sans-serif;padding:11px 18px;border-radius:12px;width:100%;cursor:pointer}
+.loader{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(#8fc3f2,#dcecf9);z-index:5;transition:opacity .5s}
+.loader .help{margin:14px 0 0;font-size:12px;line-height:1.5;color:#27496e}
+.loader.gone{opacity:0;pointer-events:none}
+.loader .box{width:min(80vw,320px);text-align:center;color:#16304f}
+.loader h1{margin:0 0 6px;font-size:26px;color:#16141c}
+.loader h1 b{color:#e0a000}
+.track{height:10px;border-radius:6px;background:rgba(22,48,79,.18);overflow:hidden;margin:14px 0 8px}
+#loadBar{height:100%;width:0;background:#ffc21a;transition:width .2s}
+#loadTxt{font-size:14px}
+.rrow{display:flex;gap:8px;margin:0 0 10px}
+.rrow button{flex:1;background:rgba(255,255,255,.08);color:var(--ink);border:1px solid var(--line)}
+.rrow button:disabled{opacity:.6}
+.replays{position:absolute;inset:0;z-index:7;background:rgba(10,7,28,.94);padding:calc(env(safe-area-inset-top,0px) + 14px) 14px 20px;display:flex;flex-direction:column}
+.replays[hidden]{display:none}
+.rp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.rp-head h2{margin:0;font-size:20px;color:var(--yellow)}
+.rp-head button,.replays li button{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--ink);font:600 13px "Chakra Petch",ui-sans-serif,sans-serif;padding:8px 10px;border-radius:10px;cursor:pointer}
+.replays ul{list-style:none;margin:0;padding:0;overflow:auto;flex:1}
+.replays li{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.replays li.empty{color:var(--dim);border:0}
+.replays .info{flex:1;min-width:0}
+.replays .info b{display:block;font-size:14px}
+.replays .info small{display:block;color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.replays li button.del{color:#ff8a96}
+.filming .ghost,.filming .cachenote{display:none}
+.fire{position:absolute;right:14px;bottom:108px;width:86px;height:86px;border-radius:50%;border:3px solid #fff3;background:radial-gradient(circle at 35% 30%,#ffb35a,#ff6a1a 60%,#c2410c);color:#fff;font:700 17px "Chakra Petch",ui-sans-serif,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(255,122,26,.6);z-index:4;touch-action:none}
+.fire[hidden]{display:none}
+.fire span{font-size:12px;opacity:.9}
+.fire:active{transform:scale(.93)}
+.filming .fire{display:none}
+.updbtn{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);z-index:9;appearance:none;border:0;border-radius:12px;background:#3dff9a;color:#0b2a17;font:700 14px "Chakra Petch",ui-sans-serif,sans-serif;padding:10px 14px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.vidcard{position:absolute;inset:0;z-index:8;background:rgba(10,7,28,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.vidcard[hidden]{display:none}
+.vidcard h2{margin:0;color:var(--yellow);font-size:20px}
+.vidcard video{max-height:62vh;max-width:100%;border-radius:12px;background:#000}
+.vidcard small{color:var(--dim)}
+.vidcard .rrow{width:min(88vw,340px)}
+.vidcard #vidSave{background:var(--yellow);color:#16112a;border:0}
+.social{position:absolute;left:50%;top:22%;z-index:6;transform:translate(-50%,-50%);background:#ff2b2b;color:#fff;font:700 18px "Chakra Petch",ui-sans-serif,sans-serif;padding:7px 14px;border-radius:12px;box-shadow:0 6px 18px rgba(255,43,43,.4);white-space:nowrap;pointer-events:none;animation:soc 1.2s ease-out forwards}
+.social span{font-size:19px}
+.flash{position:absolute;inset:0;background:#fff;pointer-events:none;z-index:5;animation:flash .3s ease-out forwards}
+@keyframes flash{0%{opacity:.35}100%{opacity:0}}
+@keyframes soc{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}10%{transform:translate(-50%,-50%) scale(1.1);opacity:1}20%,40%,60%{transform:translate(-50%,-50%) scale(1)}30%,50%,70%{transform:translate(-50%,-50%) scale(1.08)}85%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
+.err{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div><span id="lvlName">Loading level…</span></div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div><p class="help">Drag to dodge · Tap to jump · Tap in the air to slam · Orange crate: arm cannon · Blue crate: shield · Green crate: repair · Gates: green = strong Daggie, red = weak Daggie</p></div></div>
+  <canvas id="game" aria-label="Saw Run: Daggie skates a floating track above the clouds, dodging spinning saws"></canvas>
+  <div class="hook" id="hook"></div>
+  <div class="pops" id="pops"></div>
+  <div class="rew" id="rew" hidden>◀◀ REWIND</div>
+  <div class="hud">
+    <div class="chip">Test <b id="testNo">#001</b></div>
+    <div class="chip"><b id="spd">0</b> mph</div>
+    <div class="chip"><b id="dist">0</b> m</div>
+  </div>
+  <div class="meters"><div class="hp" id="hpBox"><span>HP <b id="hpNum">100</b></span><div class="hpbar"><i id="hpFill"></i></div></div><div class="prog"><i id="progFill"></i><b aria-hidden="true">🏁</b></div></div>
+  <div class="result" id="result" hidden>
+    <h2 id="rTitle">Test #001</h2>
+    <dl><dt>Distance</dt><dd id="rDist">0 m</dd><dt>Top speed</dt><dd id="rTop">0 mph</dd><dt>Close calls</dt><dd id="rClose">0</dd><dt>Parts lost</dt><dd id="rLost">0</dd><dt>Score</dt><dd id="rScore">0</dd><dt>Stopped by</dt><dd id="rCause">-</dd></dl>
+    <div class="rrow"><button id="rFilm" type="button">🎬 Film</button><button id="rVideo" type="button">🎥 Video</button><button id="rSave" type="button">★ Save</button></div>
+    <div class="rrow"><button id="rMenu" type="button">◀ Menu</button><button id="rAgain" type="button" style="flex:2">Run again</button></div>
+  </div>
+  <nav class="bar" aria-label="Controls">
+    <button id="bNew" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg>New test</button>
+    <button id="bSlow" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>Slow-mo</button>
+    <button id="bHook" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 11h10"/><path d="M4 16h7"/></svg>Title</button>
+    <button id="bRep" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>Replays</button>
+    <button id="bLoop" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>Loop</button>
+    <button id="bHide" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>Hide UI</button>
+  </nav>
+  <div class="vidcard" id="vidCard" hidden><h2>Your video is ready</h2><video id="vidPrev" playsinline controls muted loop></video><small id="vidInfo"></small><div class="rrow"><button id="vidSave" type="button">Save / Share</button><button id="vidClose" type="button">Close</button></div></div>
+  <button class="fire" id="bFire" type="button" hidden>FIRE<span id="ammo">3</span></button>
+  <button class="ghost" id="bShow" type="button" hidden>Show UI</button>
+  <div class="replays" id="replays" hidden><div class="rp-head"><h2>My replays</h2><button id="repClose" type="button">Close</button></div><ul id="repList"></ul></div>
+</div>
+<script>
+window.addEventListener("error", e => { const d = document.createElement("div"); d.className = "dbg"; d.textContent = "Error: " + (e.message || e.error) + (e.lineno ? " (line " + e.lineno + ")" : ""); document.getElementById("stage").appendChild(d); setTimeout(() => d.remove(), 9000); });
+window.addEventListener("unhandledrejection", e => { const d = document.createElement("div"); d.className = "dbg"; d.textContent = "Error: " + (e.reason && e.reason.message || e.reason); document.getElementById("stage").appendChild(d); setTimeout(() => d.remove(), 9000); });
+</script>
+<script>
+// stop iOS magnifier, text selection, callout menu, double-tap and pinch zoom while playing
+(() => {
+  const stop = e => { if (!e.target.closest || !e.target.closest('button')) e.preventDefault(); };
+  document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  document.addEventListener('touchend', stop, { passive: false });
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('selectstart', e => e.preventDefault());
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+})();
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script>
+setTimeout(() => { if (!window.__daggieStarted) { const t = document.getElementById('loadTxt'); if (t) t.textContent = 'The 3D engine is still loading. Check the connection and reopen the page.'; } }, 20000);
+</script>
+<script type="module">
+// load the level chosen in the menu, then start the RUN engine
+import { MODES } from './levels.js';
+const want = new URLSearchParams(location.search).get('level') || 'sky';
+const list = MODES.find(m => m.id === 'run').levels.filter(l => l.ready && l.file);
+const lv = list.find(l => l.id === want) || list[0];
+window.LEVEL = (await import('./' + lv.file)).LEVEL;
+document.getElementById('lvlName').textContent = lv.name;
+await import('./run-engine.js');
+</script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});</script>
+<script src="update.js"></script>
+</body>
+</html>

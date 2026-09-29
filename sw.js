@@ -1,14 +1,24 @@
-// cache-first: the game, the model and the 3D engine are kept on the phone after the first visit
-const CACHE = 'daggie-v2';
-self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'index.html', 'daggie_model.bin?v=1', 'daggie_tex.jpg?v=1', 'manifest.json', 'icon-512.png']).catch(() => {}))); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+// Offline cache. Game code (html/js/json) is network-first so updates arrive right away;
+// heavy files (model, textures, fonts, three.js) are cache-first.
+const CACHE = 'daggie-v3';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil((async () => {
+  for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+  await self.clients.claim();
+})()));
 self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET') return;
-  const isPage = e.request.mode === 'navigate' || url.pathname.endsWith('index.html');
-  if (isPage) { // page: network first so updates arrive, cache as fallback
-    e.respondWith(fetch(e.request, { cache: 'no-store' }).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
-    return;
-  }
-  e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request).then(r => { if (r.ok || r.type === 'opaque') { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); } return r; })));
+  const req = e.request; if (req.method !== 'GET') return;
+  const u = new URL(req.url);
+  if (u.searchParams.has('check')) return;
+  const heavy = /\.(bin|jpe?g|png|webp|woff2?|ttf)$/i.test(u.pathname) || /jsdelivr|gstatic|googleapis/.test(u.hostname);
+  e.respondWith(heavy ? cacheFirst(req) : networkFirst(req));
 });
+async function cacheFirst(req) {
+  const c = await caches.open(CACHE), hit = await c.match(req); if (hit) return hit;
+  const res = await fetch(req); if (res.ok || res.type === 'opaque') c.put(req, res.clone()); return res;
+}
+async function networkFirst(req) {
+  const c = await caches.open(CACHE);
+  try { const res = await fetch(req); if (res.ok) c.put(req, res.clone()); return res; }
+  catch (e) { const hit = await c.match(req, { ignoreSearch: true }); if (hit) return hit; throw e; }
+}
