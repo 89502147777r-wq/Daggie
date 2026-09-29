@@ -672,10 +672,10 @@ const SOCIAL = L.social.map(([s, x, kind]) => {
 
 // ---------- boost gates: pick a side, get stronger or weaker ----------
 const GATE_S = L.gates;
-const GATE_PAIRS = [['muscle', 'skeleton'], ['chrome', 'rusty'], ['fire', 'frozen']];
+const GATE_GOOD = ['x2', '+1', '+2', 'x2'], GATE_BAD = ['-1', '-2', '÷2'];
 const GATE_INFO = {
-  muscle: ['MUSCLE', 'SMASH + TOUGH', 1], chrome: ['CHROME', 'SAW-PROOF + FAST', 1], fire: ['ON FIRE', 'TNT-PROOF', 1],
-  skeleton: ['SKELETON', 'ONE TOUCH = BONES', 0], rusty: ['RUSTY', 'FALLING APART', 0], frozen: ['FROZEN', 'SLIPPERY + BRITTLE', 0],
+  'x2': ['x2', 'DOUBLE DAGGIES', 1], '+1': ['+1', 'ONE MORE DAGGIE', 1], '+2': ['+2', 'TWO MORE DAGGIES', 1],
+  '-1': ['-1', 'LOSE ONE', 0], '-2': ['-2', 'LOSE TWO', 0], '÷2': ['÷2', 'HALF OF THEM', 0],
 };
 const GATE_TEX = {};
 function gateTex(key) {
@@ -694,21 +694,21 @@ const GATES = GATE_S.map((s, gi) => {
     const grp = new THREE.Group(); grp.position.set(sd * HALF / 2, 0, -s); scene.add(grp);
     const postMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     for (const px of [-HALF / 2 + 0.12, HALF / 2 - 0.12]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.4, 0.22), postMat); p.position.set(px, 1.7, 0); grp.add(p); }
-    const signMat = new THREE.MeshBasicMaterial({ map: gateTex('muscle') });
+    const signMat = new THREE.MeshBasicMaterial({ map: gateTex('x2') });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(HALF - 0.1, 1.2), signMat); sign.position.set(0, 3.9, 0); grp.add(sign);
     const back = new THREE.Mesh(sign.geometry, signMat); back.rotation.y = Math.PI; back.position.set(0, 3.9, -0.02); grp.add(back);
     const curMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     const cur = new THREE.Mesh(new THREE.PlaneGeometry(HALF - 0.36, 3.3), curMat); cur.position.set(0, 1.65, 0); grp.add(cur);
     return { grp, signMat, postMat, curMat, flash: 0 };
   });
-  return { s, gi, sides, keys: ['muscle', 'skeleton'], used: false };
+  return { s, gi, sides, keys: ['x2', '-1'], used: false };
 });
-let GATE_LAYOUT = [[0, 1], [1, 0], [2, 1]];
-function layoutGates(L) {
-  GATE_LAYOUT = L.map(a => a.slice());
+let GATE_LAYOUT = [];
+function layoutGates(lay) {
+  GATE_LAYOUT = lay.map(a => a.slice());
   GATES.forEach((gt, i) => {
-    const [pi, goodLeft] = L[i] || [i % 3, 1], pair = GATE_PAIRS[pi];
-    gt.keys = goodLeft ? [pair[0], pair[1]] : [pair[1], pair[0]];
+    let [good, bad, goodLeft] = lay[i] || []; if (!GATE_INFO[good] || !GATE_INFO[bad]) { good = 'x2'; bad = '-1'; goodLeft = 1; }
+    gt.keys = goodLeft ? [good, bad] : [bad, good];
     gt.sides.forEach((sd, k) => {
       const good = GATE_INFO[gt.keys[k]][2];
       sd.signMat.map = gateTex(gt.keys[k]); sd.signMat.needsUpdate = true;
@@ -717,134 +717,185 @@ function layoutGates(L) {
     });
   });
 }
-function randomGates() { const order = [0, 1, 2].sort(() => Math.random() - 0.5); layoutGates(order.map(pi => [pi, Math.random() < 0.5 ? 1 : 0])); for (const gt of GATES) gt.used = false; }
+function randomGates() { layoutGates(GATES.map(() => [pick(GATE_GOOD), pick(GATE_BAD), Math.random() < 0.5 ? 1 : 0])); for (const gt of GATES) gt.used = false; }
 function animateGates(t, dt) {
   for (const gt of GATES) for (const sd of gt.sides) { sd.flash *= Math.pow(0.05, dt); sd.curMat.opacity = 0.16 + Math.sin(t * 4 + gt.s) * 0.05 + sd.flash * 0.7; }
 }
 function gateFlash(i, side) { const sd = GATES[i].sides[side]; sd.flash = 1; const good = GATE_INFO[GATES[i].keys[side]][2]; burst(new V3((side ? 1 : -1) * HALF / 2, 1.8, -GATES[i].s), 60, good ? CONF : SPARK, 7); }
 
-// ---------- Daggie versions: each gate turns him into another version of himself ----------
-const PW = { size: 1 };
-const VAR_LIST = ['', 'muscle', 'skeleton', 'chrome', 'rusty', 'fire', 'frozen'];
-const FORM_MAX = { muscle: 30, chrome: 38, rusty: 22, frozen: 24 };
-const FORM = { kind: '', t: 0, n: 0, fx: 0 };
-const PART_EXT = {}; for (const p of parts) { const bb = p.userData.mesh.geometry.boundingBox, e = new V3().subVectors(bb.max, bb.min); const ax = e.x >= e.y && e.x >= e.z ? 0 : e.y >= e.z ? 1 : 2; PART_EXT[p.name] = { e, ax, bb }; }
-function noiseTex(w, h, draw) { const t = tex(w, h, draw); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
-const rustTex = noiseTex(512, 512, (g, w, h) => {
-  g.fillStyle = '#8a3f1c'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 1800; i++) { const r = Math.random() * 16 + 2; g.fillStyle = pick(['rgba(160,74,28,.55)', 'rgba(94,40,18,.6)', 'rgba(196,110,48,.45)', 'rgba(60,30,20,.5)', 'rgba(210,160,60,.25)']); g.beginPath(); g.arc(Math.random() * w, Math.random() * h, r, 0, TAU); g.fill(); }
-});
-rustTex.repeat.set(3, 3);
-const fireTex = noiseTex(256, 256, (g, w, h) => { g.fillStyle = '#ff7a1a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 500; i++) { g.fillStyle = pick(['rgba(255,220,80,.6)', 'rgba(255,60,20,.6)', 'rgba(40,10,0,.7)']); g.beginPath(); g.arc(Math.random() * w, Math.random() * h, Math.random() * 14 + 3, 0, TAU); g.fill(); } });
-fireTex.repeat.set(2, 2);
-const VAR_MAT = {
-  chrome: new THREE.MeshPhysicalMaterial({ color: 0xe8edf3, metalness: 1, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.8 }),
-  rusty: new THREE.MeshStandardMaterial({ map: rustTex, color: 0xffffff, metalness: 0.55, roughness: 0.92 }),
-  fire: new THREE.MeshStandardMaterial({ color: 0x1c0a04, roughness: 0.6, emissive: 0xffffff, emissiveMap: fireTex, emissiveIntensity: 1.6 }),
-  frozen: new THREE.MeshPhysicalMaterial({ color: 0xc9eeff, roughness: 0.12, metalness: 0.05, clearcoat: 1, transparent: true, opacity: 0.86, emissive: 0x1a4a70, emissiveIntensity: 0.35, envMapIntensity: 1.8 }),
-  skeleton: new THREE.MeshPhysicalMaterial({ color: 0x9fd6ff, roughness: 0.1, transparent: true, opacity: 0.17, depthWrite: false, emissive: 0x16304a, emissiveIntensity: 0.4 }),
-};
-// muscle: thicker across, not longer
-const MUSCLE_K = { upper: 1.6, fore: 1.5, hand: 1.25, thigh: 1.42, shin: 1.3, foot: 1.1, torso: 1.3, pelvis: 1.15, head: 1 };
-function muscleScale(p) { const k = MUSCLE_K[p.name.replace(/[LR]$/, '')] || 1, ax = PART_EXT[p.name].ax, v = new V3(k, k, k); v.setComponent(ax, 1.04); return v; }
-// skeleton bones + frozen icicles, built inside every part and hidden until needed
-const blackPaint = new THREE.MeshStandardMaterial({ color: 0x1b1a20, roughness: 0.7 });
-const boneMat = new THREE.MeshStandardMaterial({ color: 0xf1e8d2, roughness: 0.55 });
-const icicleMat = new THREE.MeshPhysicalMaterial({ color: 0xe6f8ff, roughness: 0.05, transparent: true, opacity: 0.85, clearcoat: 1, emissive: 0x2a6a9a, emissiveIntensity: 0.3 });
-const ALIGN = [q => q.setFromAxisAngle(new V3(0, 0, 1), Math.PI / 2), q => q.identity(), q => q.setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2)];
-const RING = [q => q.setFromAxisAngle(new V3(0, 1, 0), Math.PI / 2), q => q.setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2), q => q.identity()];
-const BONES = [], ICICLES = [];
-for (const p of parts) {
-  const { e, ax } = PART_EXT[p.name], L = e.getComponent(ax), side = [0, 1, 2].filter(i => i !== ax).map(i => e.getComponent(i)), w = Math.min(...side), base = p.name.replace(/[LR]$/, '');
-  const g = new THREE.Group(); g.visible = false; p.add(g); BONES.push(g);
-  const along = (len, r) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, len, 10), boneMat); ALIGN[ax](m.quaternion); return m; };
-  const knob = (off, r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), boneMat); const v = new V3(); v.setComponent(ax, off); m.position.copy(v); return m; };
-  if (['upper', 'fore', 'thigh', 'shin'].includes(base)) { g.add(along(L * 0.82, Math.max(0.022, w * 0.12))); g.add(knob(L * 0.42, Math.max(0.035, w * 0.2)), knob(-L * 0.42, Math.max(0.035, w * 0.2))); }
-  else if (base === 'hand' || base === 'foot') { const m = new THREE.Mesh(new THREE.BoxGeometry(e.x * 0.5, e.y * 0.5, e.z * 0.5), boneMat); g.add(m); }
-  else if (base === 'torso') { g.add(along(L * 0.95, Math.max(0.03, w * 0.08))); for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(w * 0.42, Math.max(0.014, w * 0.045), 8, 28), boneMat); RING[ax](r.quaternion); const v = new V3(); v.setComponent(ax, L * (0.05 + i * 0.12)); r.position.copy(v); r.scale.set(1.25, 1, 1); g.add(r); } }
-  else if (base === 'pelvis') { const r = new THREE.Mesh(new THREE.TorusGeometry(w * 0.4, Math.max(0.02, w * 0.08), 8, 24), boneMat); RING[ax](r.quaternion); g.add(r); }
-  else if (base === 'head') { const sk = new THREE.Mesh(new THREE.SphereGeometry(w * 0.3, 20, 14), boneMat); sk.scale.set(1, 1.1, 1.05); g.add(sk); for (const sd of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(w * 0.07, 10, 8), blackPaint); eye.position.set(sd * w * 0.1, w * 0.03, -w * 0.26); g.add(eye); } }
-  const ic = new THREE.Group(); ic.visible = false; p.add(ic); ICICLES.push(ic);
-  if (/upper|fore|torso|head|thigh/.test(base)) { const bb = PART_EXT[p.name].bb; for (let i = 0; i < 3; i++) { const h = rand(0.08, 0.2); const c = new THREE.Mesh(new THREE.ConeGeometry(h * 0.22, h, 8), icicleMat); c.rotation.x = Math.PI; c.position.set(rand(bb.min.x, bb.max.x) * 0.7, bb.min.y - h * 0.4, rand(bb.min.z, bb.max.z) * 0.7); ic.add(c); } }
+// ---------- the flock: up to 5 Daggies ride together, loosely like a flock of birds ----------
+// (the old "versions" system is switched off; these stubs keep the hooks elsewhere harmless)
+const PW = { size: 1 }, FORM = { kind: '' };
+function powerHit() { return false; }
+function formMax() { return 34; }
+function stepForm() {}
+function formRec() { return null; }
+function formApply() { for (const p of parts) if (!/^hand/.test(p.name)) p.visible = true; board.visible = true; }
+function resetPower() {}
+const FLOCK_MAX = 5, FL_STEP = 1 + 7 + 15 * 7;
+const SLOTS = [[-1.5, 2.4], [1.5, 2.6], [-3.0, 4.8], [3.0, 5.1]]; // [side offset, distance behind the leader]
+const TI = parts.indexOf(torso);
+function makeFollower(i) {
+  const rig = new THREE.Group(), body = new THREE.Group(); rig.add(body); body.position.y = BOARD_TOP; scene.add(rig);
+  const fp = parts.map(p => { const g = new THREE.Group(); g.name = p.name; for (const ch of p.children) g.add(ch.clone()); g.userData = { v: new V3(), w: new V3(), samples: p.userData.samples.map(sm => ({ p: sm.p.clone(), r: sm.r })) }; body.add(g); return g; });
+  const bd = board.clone(); scene.add(bd);
+  rig.visible = false; bd.visible = false;
+  return { i, rig, body, parts: fp, board: bd, state: 'off', x: 0, s: 0, y: 0, slot: 0, spawn: 1, boardFree: false, bv: new V3(), bw: new V3(), ph: rand(0, TAU) };
 }
-let varShown = 0;
-function setVariantVisual(code) {
-  if (code === varShown) return; varShown = code; const k = VAR_LIST[code];
-  for (const p of parts) { const m = p.userData.mesh; m.material = VAR_MAT[k] || bodyMat; if (k === 'muscle') m.scale.copy(muscleScale(p)); else m.scale.set(1, 1, 1); }
-  for (const g of BONES) g.visible = k === 'skeleton';
-  for (const g of ICICLES) g.visible = k === 'frozen';
+const FLOCK = Array.from({ length: 8 }, (_, i) => makeFollower(i));
+const HIST = [];
+function flockCount() { return (state === 'crashed' || state === 'result' && cause !== '' ? 0 : 1) + FLOCK.filter(f => f.state === 'ride').length; }
+function updateFlockHUD() { const el = $('flockN'); if (el) el.textContent = String(flockCount()); }
+function resetFlock() {
+  HIST.length = 0;
+  for (const f of FLOCK) { f.state = 'off'; f.rig.visible = false; f.board.visible = false; f.boardFree = false; for (const p of f.parts) { f.body.add(p); p.visible = true; p.position.set(0, 0, 0); p.quaternion.identity(); p.userData.v.set(0, 0, 0); p.userData.w.set(0, 0, 0); } }
+  updateFlockHUD();
 }
-function syncForm() {}
-function hideDaggie() {}
-function startForm(kind) {
-  FORM.kind = kind; FORM.t = 3.5; FORM.n = 0; FORM.fx = 0; setVariantVisual(VAR_LIST.indexOf(kind));
-  const c = torso.getWorldPosition(new V3()); burst(c, 70, kind === 'fire' ? SPARK : CONF, 7);
+function spawnFollower() {
+  let f = FLOCK.find(ff => ff.state === 'off');
+  if (!f) { f = FLOCK.filter(ff => ff.state === 'dead').sort((a, b) => b.s - a.s).pop(); if (!f) return false; for (const p of f.parts) { f.body.add(p); p.visible = true; } f.boardFree = false; }
+  Object.assign(f, { state: 'ride', s: R.s, x: R.x, y: R.y, spawn: 0 });
+  f.rig.visible = true; f.board.visible = true;
+  burst(new V3(R.x, R.y + 1.2, -R.s), 40, CONF, 6);
+  return true;
 }
-function endForm(msg, violent) {
-  if (!FORM.kind) return; FORM.kind = ''; setVariantVisual(0);
-  const c = torso.getWorldPosition(new V3()); burst(c, violent ? 60 : 40, violent ? SPARK : CONF, violent ? 8 : 6);
-  if (msg) { lastPop = 0; pop(msg, 'lilac'); setFace(violent ? 'hit' : 'wow', 900); tone(violent ? 1800 : 500, violent ? 300 : 1500, 0.25, violent ? 'square' : 'sine', 0.05); }
+function histAt(s) {
+  if (!HIST.length) return null; let i = HIST.length - 1; while (i > 0 && HIST[i].s > s) i--;
+  const a = HIST[i], b = HIST[Math.min(i + 1, HIST.length - 1)], t = b.s > a.s ? clamp((s - a.s) / (b.s - a.s), 0, 1) : 0;
+  return { y: lerp(a.y, b.y, t), p: lerp(a.p, b.p, t) };
 }
-function stepForm(dt) {
-  const k = FORM.kind; if (!k) return;
-  if (k === 'fire') {
-    VAR_MAT.fire.emissiveIntensity = 1.5 + Math.sin(simT * 13) * 0.35 + Math.random() * 0.2; fireTex.offset.y -= dt * 0.8;
-    FORM.fx += dt; if (FORM.fx > 0.05 && (state === 'ride' || state === 'passed')) { FORM.fx = 0; const pp = pick(parts); if (!pp.userData.detached) burst(pp.getWorldPosition(new V3()), 3, SPARK, 1.5); }
+// what a follower at (x, s, y) runs into; followers have no HP: any real hit takes them out
+function followerHits(x, s, y) {
+  const y0 = y + 0.2, y1 = y + 2.3;
+  for (const sw of SAWS) { if (sw.dead || Math.abs(s - sw.s) > 0.4) continue; const yy = clamp(sw.y, y0, y1); if (Math.hypot(Math.max(0, Math.abs(x - sw.x) - 0.34), yy - sw.y) < sw.R + 0.05) return ['saw', Math.sign(x - sw.x) || 1]; }
+  if (Math.abs(s - SAW_S) < 0.5) { const yy = clamp(BIG_Y, y0, y1); if (Math.hypot(Math.max(0, Math.abs(x) - 0.34), yy - BIG_Y) < BIG_R) return ['big', 0]; }
+  for (const hu of OBS.hurdles) if (!hu.dead && Math.abs(s - hu.s) < 0.3 && y < hu.h - 0.12) return ['hurdle', 0];
+  for (const b of OBS.balls) { if (b.dead || Math.abs(s - b.s) > 1.6) continue; const yy = clamp(b.pos.y, y0, y1); if (Math.hypot(x - b.pos.x, yy - b.pos.y, -s - b.pos.z) < b.r + 0.1) return ['ball', Math.sign(x - b.pos.x) || 1]; }
+  for (const p of OBS.presses) if (!p.dead && Math.abs(s - p.s) < p.d / 2 + 0.3 && Math.abs(x - p.x) < p.w / 2 + 0.3 && p.bottom < y + 2.2) return ['press', 0];
+  for (const b of OBS.barrels) if (!b.dead && Math.abs(s - b.s) < b.r + 0.3 && Math.abs(x - b.x) < 0.95 && y < b.r * 2 - 0.15) return ['barrel', 0];
+  for (const sw of OBS.sweepers) { if (sw.dead || Math.abs(s - sw.s) > HALF) continue; const th = sw.arm.rotation.y, c = Math.cos(th), sn = Math.sin(th), dz = sw.s - s; if (Math.abs(x * c - dz * sn) < sw.len && Math.abs(c * dz + sn * x) < 0.32 && y < sw.h + 0.15) return ['sweeper', 0]; }
+  for (const w of OBS.walls) if (!w.dead && Math.abs(s - w.s) < 0.4 && Math.abs(x - w.x) < w.w / 2 + 0.05) return ['wall', Math.sign(x - w.x) || 1];
+  for (const sp of OBS.spikes) if (s > sp.s0 && s < sp.s1 && sp.up > 0.6 && y < 0.5) return ['spikes', 0];
+  for (const n of TNTS) if (n.alive && Math.abs(s - n.s) < 0.75 && Math.abs(x - n.x) < 0.8 && y < 0.95) { n.alive = false; n.g.visible = false; explodeAt(new V3(n.x, 0.6, -n.s)); return ['tnt', x >= n.x ? 1 : -1]; }
+  for (const c of OBS.cones) if (!c.hit && Math.abs(s - c.s0) < 0.45 && Math.abs(x - c.x0) < 0.55 && y < 0.6) { c.hit = true; c.v.set((c.x0 - x) * 6, rand(4, 6), -R.speed * 0.8); c.w.set(rand(-12, 12), 0, rand(-12, 12)); clank(4); }
+  return null;
+}
+function flingParts(f, kind, dir, vz, vx) {
+  for (const p of f.parts) {
+    const u = p.userData; u.v.set((vx || 0) + rand(-2.5, 2.5) + dir * rand(1.5, 5), rand(2, 5.5), vz * rand(0.45, 0.85));
+    if (kind === 'big' || kind === 'wall' || kind === 'hurdle' || kind === 'barrel') u.v.z *= 0.2;
+    if (kind === 'press') u.v.y = rand(-1, 0.5);
+    if (kind === 'spikes' || kind === 'tnt' || kind === 'gate') u.v.y += rand(3, 6);
+    u.w.set(rand(-10, 10), rand(-8, 8), rand(-10, 10));
   }
-  if (k === 'frozen') { FORM.fx += dt; if (FORM.fx > 0.12 && state === 'ride') { FORM.fx = 0; burst(torso.getWorldPosition(new V3()), 1, CONF, 0.6); } }
-  if (k === 'rusty' && state === 'ride') {
-    FORM.t -= dt; if (Math.random() < dt * 0.8) tone(rand(900, 1400), rand(600, 900), 0.18, 'square', 0.025);
-    if (FORM.t <= 0 && FORM.n < 2) { FORM.t = 3.5; const n = ['handL', 'handR', 'foreL', 'foreR'].find(x => !byName[x].userData.detached); if (n) { FORM.n++; detachPart(n, Math.random() < 0.5 ? -1 : 1); setHP(HP - 10); lastPop = 0; pop('RUSTED OFF!', 'lilac'); setFace('worried', 900); clank(6); } }
+  f.state = 'dead'; f.rig.visible = false; f.boardFree = true; f.bv.set(rand(-2, 2), rand(2, 4), vz * 0.7); f.bw.set(rand(-12, 12), rand(-6, 6), rand(-12, 12));
+  const c = f.parts[TI].getWorldPosition(new V3()); burst(c, 60, SPARK, 9); burst(c, 20, CONF, 5);
+  for (let i = 0; i < 12; i++) spawnDrop(c.clone(), new V3(rand(-1.8, 1.8), rand(0.8, 3.2), vz * 0.5 + rand(-1, 1)), rand(0.012, 0.022));
+}
+function crashFollower(f, kind, dir) {
+  f.rig.updateMatrixWorld(true);
+  for (const p of f.parts) { scene.attach(p); p.visible = true; }
+  flingParts(f, kind, dir, -(state === 'ride' || state === 'passed' ? R.speed : 6));
+  lastPop = 0; pop(kind === 'gate' ? 'POOF!' : '-1 DAGGIE', 'lilac'); clank(8); tone(900, 200, 0.25, 'sawtooth', 0.05);
+  updateFlockHUD();
+}
+// the leader takes a lethal hit while others are alive: a Daggie blows apart right there
+// and the nearest follower takes over the lead, fully repaired
+function flockSwap(kind) {
+  const f = FLOCK.find(ff => ff.state === 'ride' && ff.spawn >= 1); if (!f) return false;
+  daggie.updateMatrixWorld(true);
+  parts.forEach((lp, i) => { const fp = f.parts[i]; scene.attach(fp); lp.getWorldPosition(fp.position); lp.getWorldQuaternion(fp.quaternion); fp.visible = lp.visible; });
+  f.board.position.copy(board.position); f.board.quaternion.copy(board.quaternion); f.board.scale.set(1, 1, 1); f.board.visible = true;
+  flingParts(f, kind, Math.random() < 0.5 ? -1 : 1, -R.speed, R.xv * 0.3);
+  while (detached.length) reattach(); stumps.length = 0; setHP(100);
+  const now = performance.now(); R.inv = now + 1000; slowUntil = now + 900; slowK = 0.3; if (!reduceMotion) shake = 0.5;
+  lastPop = 0; pop({ saw: 'ZZZT!', big: 'SHREDDED!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!' }[kind] || 'CRASH!', 'green');
+  setTimeout(() => { lastPop = 0; pop('-1 DAGGIE', 'lilac'); }, 350);
+  setFace('hit', 900); tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06);
+  updateFlockHUD();
+  return true;
+}
+const _fm = new THREE.Matrix4(), _ft = new THREE.Matrix4(), _fsc = new V3(), FPOSE = parts.map(() => ({ p: new V3(), q: new THREE.Quaternion() }));
+function ragStep(list, dt) {
+  for (const p of list) {
+    const u = p.userData; u.v.y -= 9.8 * 1.1 * dt; p.position.addScaledVector(u.v, dt);
+    const wl = u.w.length(); if (wl > 1e-4) { tq.setFromAxisAngle(tv.copy(u.w).multiplyScalar(1 / wl), wl * dt); p.quaternion.premultiply(tq); }
+    let touched = false;
+    for (const sm of u.samples) { tv2.copy(sm.p).applyQuaternion(p.quaternion).add(p.position); const fl = floorAt(tv2.x, tv2.z), pen = fl - (tv2.y - sm.r); if (pen > 0 && pen < 0.8) { p.position.y += pen; touched = true; if (u.v.y < 0) { if (u.v.y < -2.5) clank(-u.v.y); u.v.y *= -0.3; } } }
+    if (touched) { const k = Math.pow(0.3, dt); u.v.x *= k; u.v.z *= k; u.w.multiplyScalar(Math.pow(0.25, dt)); } else u.w.multiplyScalar(Math.pow(0.9, dt));
+    if (p.position.y < -89) { p.position.y = -89; u.v.set(0, 0, 0); u.w.set(0, 0, 0); }
   }
 }
-function formRec() { return FORM.kind ? [VAR_LIST.indexOf(FORM.kind)] : null; }
-function formApply(fm) {
-  setVariantVisual(fm ? fm[0] : 0);
-  for (const p of parts) if (!/^hand/.test(p.name)) p.visible = true;
-  board.visible = true;
+function stepFlock(dt) {
+  const riding = state === 'ride' || state === 'passed';
+  if (riding) { const last = HIST[HIST.length - 1]; if (!last || R.s > last.s + 0.05) { HIST.push({ s: R.s, y: R.y, p: rider.rotation.x }); if (HIST.length > 4000) HIST.shift(); } }
+  // everyone copies the leader's body pose
+  for (let i = 0; i < parts.length; i++) { const N = NODE[parts[i].name], rp = parts[i].userData.restPos; _ft.makeTranslation(rp.x, rp.y, rp.z); _fm.copy(N.M).multiply(_ft); _fm.decompose(FPOSE[i].p, FPOSE[i].q, _fsc); }
+  let slot = 0;
+  for (const f of FLOCK) {
+    if (f.state !== 'ride') continue;
+    if (!riding) { if (state === 'crashed') crashFollower(f, 'fall', 0); continue; }
+    f.slot = Math.min(slot++, SLOTS.length - 1);
+    const [dx, dz] = SLOTS[f.slot], px = f.x, ps = f.s, py = f.y;
+    const tx = clamp(R.x + dx + Math.sin(simT * 1.1 + f.ph) * 0.35, -HALF + 0.45, HALF - 0.45);
+    const ts = Math.max(0, R.s - dz + Math.sin(simT * 0.8 + f.ph * 2) * 0.5);
+    f.x += (tx - f.x) * Math.min(1, dt * 3.2); f.s += (ts - f.s) * Math.min(1, dt * 5);
+    if (f.spawn < 1) f.spawn = Math.min(1, f.spawn + dt * 3);
+    const h = histAt(f.s); f.y = h ? h.y : 0;
+    f.rig.position.set(f.x, f.y, -f.s); f.rig.rotation.set(h ? h.p : 0, 0, clamp(-(tx - f.x) * 0.25, -0.35, 0.35));
+    const sc = 0.3 + 0.7 * (1 - Math.pow(1 - f.spawn, 3)); f.rig.scale.setScalar(sc);
+    f.board.position.copy(f.rig.position); f.board.quaternion.copy(f.rig.quaternion); f.board.scale.setScalar(sc);
+    f.parts.forEach((p, i) => { p.position.copy(FPOSE[i].p); p.quaternion.copy(FPOSE[i].q); });
+    if (state === 'ride' && f.spawn >= 1) {
+      const n = Math.max(1, Math.ceil(Math.abs(f.s - ps) / 0.2));
+      for (let k = 1; k <= n; k++) { const t = k / n, hit = followerHits(lerp(px, f.x, t), lerp(ps, f.s, t), lerp(py, f.y, t)); if (hit) { crashFollower(f, hit[0], hit[1]); break; } }
+    }
+  }
+  const dead = FLOCK.filter(f => f.state === 'dead');
+  if (dead.length) for (let k = 0; k < 4; k++) {
+    const h = dt / 4;
+    for (const f of dead) {
+      ragStep(f.parts, h);
+      if (f.boardFree) { const B2 = f.board; f.bv.y -= 9.8 * h; B2.position.addScaledVector(f.bv, h); const wl = f.bw.length(); if (wl > 1e-3) { tq.setFromAxisAngle(tv.copy(f.bw).multiplyScalar(1 / wl), wl * h); B2.quaternion.premultiply(tq); } const fl = floorAt(B2.position.x, B2.position.z); if (B2.position.y < fl + 0.06 && B2.position.y > fl - 0.8) { B2.position.y = fl + 0.06; if (f.bv.y < 0) f.bv.y *= -0.35; f.bv.x *= 0.9; f.bv.z *= 0.9; f.bw.multiplyScalar(0.8); } if (B2.position.y < -89) { B2.position.y = -89; f.bv.set(0, 0, 0); } }
+    }
+  }
 }
-function resetPower() { FORM.kind = ''; setVariantVisual(0); }
-function formMax() { return FORM_MAX[FORM.kind] || 34; }
+function recFlock() {
+  const out = [];
+  for (const f of FLOCK) {
+    if (f.state === 'off') continue;
+    out.push(f.i, f.board.position.x, f.board.position.y, f.board.position.z, f.board.quaternion.x, f.board.quaternion.y, f.board.quaternion.z, f.board.quaternion.w);
+    for (const p of f.parts) { p.getWorldPosition(_wp); p.getWorldQuaternion(_wq); out.push(_wp.x, _wp.y, _wp.z, _wq.x, _wq.y, _wq.z, _wq.w); }
+  }
+  return new Float32Array(out);
+}
+function setTr(obj, A, o, B, ob, a) { obj.position.set(A[o], A[o + 1], A[o + 2]); obj.quaternion.set(A[o + 3], A[o + 4], A[o + 5], A[o + 6]); if (ob != null) { obj.position.lerp(_pb.set(B[ob], B[ob + 1], B[ob + 2]), a); _qb.set(B[ob + 3], B[ob + 4], B[ob + 5], B[ob + 6]); obj.quaternion.slerp(_qb, a); } }
+function applyFlockRec(f0, f1, a) {
+  const seen = new Set(), A = f0.FL, B = f1.FL, m1 = B && B.length ? idxMap(B, FL_STEP) : null;
+  if (A) for (let o = 0; o < A.length; o += FL_STEP) {
+    const f = FLOCK[A[o]]; if (!f) continue; seen.add(f); const o1 = m1 ? m1.get(A[o]) : undefined, has = o1 != null;
+    setTr(f.board, A, o + 1, B, has ? o1 + 1 : null, a); f.board.visible = true; f.board.scale.set(1, 1, 1);
+    f.parts.forEach((p, k) => { setTr(p, A, o + 8 + k * 7, B, has ? o1 + 8 + k * 7 : null, a); p.visible = true; });
+  }
+  for (const f of FLOCK) if (!seen.has(f)) { f.board.visible = false; for (const p of f.parts) p.visible = false; }
+}
 function takeGate(i, side) {
   const key = GATES[i].keys[side], good = GATE_INFO[key][2]; recEvt('g', [i, side]); gateFlash(i, side);
   if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 450; slowK = 0.45;
-  startForm(key); lastPop = 0;
-  pop({ muscle: 'MUSCLE DAGGIE!', skeleton: 'SKELETON!', chrome: 'CHROME DAGGIE!', rusty: 'RUSTY!', fire: 'ON FIRE!', frozen: 'FROZEN!' }[key], good ? 'green' : 'lilac');
-  setFace(good ? 'happy' : 'scared', 1200);
-  if (good) { tone(300, 1200, 0.35, 'square', 0.05); tone(600, 1800, 0.3, 'square', 0.04, 0.15); } else tone(700, 150, 0.45, 'sawtooth', 0.05);
-}
-const SMASHABLE = { hurdle: 1, barrel: 1 };
-function smashObj(obj, txt) { const d = DESTR.find(dd => dd.obj === obj); if (!d || obj.dead) return false; killDestr(d, torso.getWorldPosition(new V3())); R.kills = (R.kills || 0) + 1; lastPop = 0; pop(txt, 'green'); setFace('happy', 900); if (!reduceMotion) shake = 0.6; return true; }
-// a strong version takes one big hit, then breaks back to normal Daggie, who gets hurt: nothing is invincible
-function formBreak(msg) {
-  const c = torso.getWorldPosition(new V3());
-  endForm(msg, true); explodeVisual(c); burst(c, 70, SPARK, 10);
-  const now = performance.now(); R.inv = now + 900; R.grounded = false; R.vy = Math.max(R.vy, 6); R.speed *= 0.8; slowUntil = now + 700; slowK = 0.3;
-  const target = [...(Math.random() < 0.5 ? ['foreL', 'foreR'] : ['foreR', 'foreL']), 'upperL', 'upperR', 'head'].find(n => !byName[n].userData.detached);
-  setHP(HP - 30); if (target) detachPart(target, Math.random() < 0.5 ? -1 : 1);
-  if (HP <= 0) crash('wear');
-}
-function powerHit(kind, obj) {
-  const f = FORM.kind; if (!f) return false;
-  const now = performance.now(), isSaw = kind === 'saw' || kind === 'big' || (!!obj && SAWS.includes(obj));
-  if (f === 'muscle') {
-    if (SMASHABLE[kind] && obj && !obj.dead) { smashObj(obj, 'MUSCLE SMASH!'); R.inv = now + 300; return true; }
-    if (isSaw) return false;
-    if (kind === 'graze') { setHP(HP - 10); lastPop = 0; pop('TOO STRONG!', 'green'); clank(8); R.inv = now + 500; if (HP <= 0) crash('wear'); return true; }
-    formBreak('MUSCLES GAVE OUT!'); return true;
+  const n = flockCount(), t = { 'x2': n * 2, '+1': n + 1, '+2': n + 2, '-1': n - 1, '-2': n - 2, '÷2': Math.floor(n / 2) }[key];
+  lastPop = 0;
+  if (good) {
+    let add = Math.min(FLOCK_MAX, t) - n, made = 0; while (add-- > 0 && spawnFollower()) made++;
+    if (made) { pop(key === 'x2' ? 'DOUBLE! x' + (n + made) : '+' + made + ' DAGGIE' + (made > 1 ? 'S' : ''), 'green'); setFace('happy', 1200); tone(300, 1200, 0.35, 'square', 0.05); tone(600, 1800, 0.3, 'square', 0.04, 0.15); }
+    else { pop('MAX 5 DAGGIES!', 'green'); tone(600, 1200, 0.2, 'square', 0.04); }
+  } else {
+    let lose = n - Math.max(0, t);
+    const riders = FLOCK.filter(f => f.state === 'ride').sort((a, b) => b.slot - a.slot);
+    while (lose > 0 && riders.length) { crashFollower(riders.shift(), 'gate', Math.random() < 0.5 ? -1 : 1); lose--; }
+    if (lose > 0) { graze({}, Math.random() < 0.5 ? -1 : 1, false); }
+    setFace('worried', 1200); tone(700, 150, 0.45, 'sawtooth', 0.05);
   }
-  if (f === 'chrome') {
-    if (!isSaw) return false;
-    if (kind === 'graze') { setHP(HP - 5); burst(torso.getWorldPosition(new V3()), 40, SPARK, 7); lastPop = 0; pop('SCRATCHED!', 'green'); tone(2400, 1200, 0.25, 'sawtooth', 0.05); R.inv = now + 400; return true; }
-    formBreak('CHROME CRACKED!'); return true;
-  }
-  if (f === 'fire') { if (kind === 'graze') return false; formBreak('FIRE OUT!'); return true; }
-  if (f === 'skeleton') { if (kind === 'graze') { crash('bones'); return true; } return false; }
-  if (f === 'frozen') {
-    if (kind === 'graze') { const n = ['handL', 'handR', 'footL', 'footR'].find(x => !byName[x].userData.detached); if (n) { detachPart(n, Math.random() < 0.5 ? -1 : 1); burst(torso.getWorldPosition(new V3()), 30, CONF, 6); } lastPop = 0; pop('SHATTERED!', 'lilac'); }
-    return false;
-  }
-  return false;
+  updateFlockHUD();
 }
 // ---------- particles ----------
 const SPN = 500, spPos = new Float32Array(SPN * 3), spCol = new Float32Array(SPN * 3), spVel = Array.from({ length: SPN }, () => new V3()), spLife = new Float32Array(SPN);
@@ -1022,6 +1073,7 @@ function recordFrame(dt) {
   if (REC.frames.length > 1900) { recStop(); return; }
   const P = new Float32Array(parts.length * 7);
   parts.forEach((p, i) => { p.getWorldPosition(_wp); p.getWorldQuaternion(_wq); P.set([_wp.x, _wp.y, _wp.z, _wq.x, _wq.y, _wq.z, _wq.w], i * 7); });
+  const FL = recFlock();
   const B = new Float32Array([board.position.x, board.position.y, board.position.z, board.quaternion.x, board.quaternion.y, board.quaternion.z, board.quaternion.w]);
   const bar = new Float32Array(OBS.barrels.map(b => b.s));
   const con = new Float32Array(OBS.cones.length * 6);
@@ -1033,7 +1085,7 @@ function recordFrame(dt) {
   const spl = []; splats.forEach((s, i) => { if (s.m.visible) spl.push(i, s.m.position.x, s.m.position.y, s.m.position.z, s.m.rotation.y, s.m.scale.x); });
   const DR = new Float32Array([drone.visible ? 1 : 0, drone.position.x, drone.position.y, drone.position.z, drone.rotation.x, drone.rotation.z]);
   const GX = { can: CANNON.on || (cannonG.visible && !!cannonG.parent) ? (CANNON.k === 'L' ? 1 : CANNON.k === 'R' ? 2 : (cannonG.parent === byName.foreL ? 1 : 2)) : 0, cs: cannonG.scale.x, sh: bubble.visible ? 1 : 0, dead: DESTR.map(dd => dd.obj.dead ? 1 : 0), pk: PICKS.map(p => p.taken ? 0 : 1), so: SOCIAL.map(p => p.taken ? 0 : 1), pj: PROJ.flatMap(p => p.on ? [p.m.position.x, p.m.position.y, p.m.position.z] : []), fm: formRec() };
-  REC.frames.push({ GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
+  REC.frames.push({ FL, GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
   REC.acc = 0; REC.cur = [];
 }
 // virtual director: plan hard cuts every ~2-3 s, choosing shots around what happens next
@@ -1044,7 +1096,7 @@ function planShots(rec) {
   const torsoI = parts.indexOf(torso) * 7;
   const firstOf = code => { const i = fr.findIndex(f => f.st === code); return i < 0 ? null : cum[i]; };
   const introEnd = firstOf(1) ?? 0, crashT = firstOf(3), passT = firstOf(2);
-  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|MUSCLE|SKELETON|CHROME|RUSTY|RUSTED|FIRE|FROZEN|SHATTER|SMASH|STRONG|SCRATCHED|CRACKED|GAVE|BONES/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
+  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|DAGGIE|DOUBLE|POOF|SURVIVED|MAX/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
   // highlight ranges: the drop, every big moment, and the crash or finish; calm riding is cut out
   let ranges = [[0, introEnd + 0.8]];
   for (const e of evTimes) ranges.push([Math.max(0, e - 1.0), e + 0.8]);
@@ -1086,6 +1138,7 @@ function startFilm(rec, fromResult, record) {
   stage.classList.add('clean', 'filming'); $('bShow').hidden = true;
   if (!stage.classList.contains('nohook')) { $('hook').classList.add('show'); setTimeout(() => $('hook').classList.remove('show'), 2400); }
   for (const p of parts) scene.attach(p);
+  for (const f of FLOCK) { f.rig.visible = false; for (const p of f.parts) scene.attach(p); }
   for (const d of debris) { d.on = false; d.m.visible = false; }
   for (const d of drops) { d.on = false; d.m.visible = false; }
   for (const s of splats) { s.m.visible = false; s.t = 1; }
@@ -1138,6 +1191,7 @@ function applyRecFrame(P, dt, rdt) {
   const f0 = fr[P.i], f1 = fr[Math.min(P.i + 1, fr.length - 1)];
   const a = f1 === f0 ? 0 : clamp((P.t - P.cum[P.i]) / Math.max(1e-4, f1.dt), 0, 1);
   parts.forEach((p, i) => { const o = i * 7; _pa.fromArray(f0.P, o); _pb.fromArray(f1.P, o); p.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.P, o + 3); _qb.fromArray(f1.P, o + 3); p.quaternion.slerpQuaternions(_qa, _qb, a); });
+  applyFlockRec(f0, f1, a);
   _pa.fromArray(f0.B, 0); _pb.fromArray(f1.B, 0); board.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.B, 3); _qb.fromArray(f1.B, 3); board.quaternion.slerpQuaternions(_qa, _qb, a);
   simT = lerp(f0.simT, f1.simT, a);
   OBS.barrels.forEach((b, i) => { b.s = lerp(f0.bar[i], f1.bar[i], a); });
@@ -1375,7 +1429,7 @@ let state = 'intro', stateT = 0, testNo = 0, slowUntil = 0, slowK = 1, manualSlo
 let simT = 0, orbitA = 0, crouch = 0.45, crouchV = 0, bal = 0, lastXv = 0, stanceBlend = 0;
 function resetRun() {
   testNo++;
-  resetPower(); randomGates();
+  resetPower(); randomGates(); resetFlock();
   Object.assign(R, { s: -9, x: 0, xT: 0, xv: 0, y: DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0 });
   trick = TRICKS[(testNo - 1) % TRICKS.length];
   for (const b of BOOSTS) b.used = false;
@@ -1443,6 +1497,7 @@ function jointsNow() { daggie.updateMatrixWorld(true); const out = []; for (cons
 function crash(kind, saw) {
   if (state !== 'ride') return;
   if (kind !== 'fall' && kind !== 'wear' && kind !== 'bones') { if (performance.now() < R.inv) return; if (R.shield) { shieldSave(); return; } if (powerHit(kind, saw)) return; }
+  if (kind !== 'fall' && flockSwap(kind)) return;
   state = 'crashed'; stateT = performance.now(); cause = kind; setHP(0);
   const now = stateT, vel = new V3(R.xv, R.vy, -R.speed);
   const jw = jointsNow(); const center = torso.getWorldPosition(new V3());
@@ -1477,7 +1532,7 @@ function crash(kind, saw) {
 }
 function passed() {
   state = 'passed'; stateT = performance.now();
-  setFace('happy', 99999); pop('HE SURVIVED!', 'green');
+  setFace('happy', 99999); const nf = flockCount(); pop(nf > 1 ? nf + ' SURVIVED!' : 'HE SURVIVED!', 'green');
   for (let i = 0; i < 4; i++) setTimeout(() => burst(rider.position.clone().add(new V3(rand(-2, 2), 3, rand(-3, 1))), 60, CONF, 7), i * 250);
   tone(660, 1320, 0.3, 'square', 0.05); tone(880, 1760, 0.3, 'square', 0.04, 0.15);
 }
@@ -1491,8 +1546,9 @@ function showResult() {
   $('rDist').textContent = Math.round(R.maxS) + ' m';
   $('rTop').textContent = Math.round(R.top * 2.237) + ' mph';
   $('rClose').textContent = String(R.close);
+  const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
-  $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0))));
+  $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
   $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart' }[cause] || cause);
   $('result').hidden = false;
 }
@@ -1820,7 +1876,8 @@ function camTargets(now, dt) {
   if (state === 'intro') { wantPos.set(3.8, Math.max(2.5, b.y * 0.55 + 2.6), b.z + 7.5); wantLook.set(0, b.y * 0.85 + 0.8, b.z - 8); return 5; }
   if (state === 'ride') {
     if (!R.grounded && R.s > RAMP1 - 1) { wantPos.set(b.x + 12, b.y + 2.2, b.z + 3.5); wantLook.set(b.x, b.y + 1, b.z - 3); return 3; }
-    wantPos.set(b.x * 0.7, b.y + 3.2, b.z + 6.6); wantLook.set(b.x * 0.85, b.y + 1.3, b.z - 9); return 7;
+    const fb = FLOCK.filter(f => f.state === 'ride').length, back = fb > 2 ? 4.2 : fb > 0 ? 2 : 0;
+    wantPos.set(b.x * 0.7, b.y + 3.2 + back * 0.4, b.z + 6.6 + back); wantLook.set(b.x * 0.85, b.y + 1.3, b.z - 9); return 7;
   }
   if (state === 'passed' || (state === 'result' && cause === '')) { wantPos.set(b.x + 2.8, b.y + 2.2, b.z - 6.5); wantLook.set(b.x, b.y + 1.4, b.z); return 2.5; }
   const c = pelvis.position;
@@ -1904,6 +1961,7 @@ function frame() {
     if (state === 'crashed' && now > faceUntil) setFace((now - stateT) > 2500 ? ((Math.floor(now / 2000) % 2) ? 'okq' : 'worried') : 'scared');
     if (state === 'crashed' && now - stateT > 2800) showResult();
   }
+  stepFlock(sdt);
   stepMess(sdt);
   drawFace(now);
   updateSparks(sdt);
