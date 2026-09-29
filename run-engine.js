@@ -15,6 +15,7 @@ window.__daggieStarted = true;
 // the level being played (set by run.html from a level file listed in levels.js)
 const L = window.LEVEL;
 const TH = L.theme || 'sky', VEH = L.vehicle || 'skate'; // world look and what Daggie rides
+const CART_S = 1.35; // the player's cart is scaled up so a life-size robot can sit in it
 const V3 = THREE.Vector3, TAU = Math.PI * 2, Y = new V3(0, 1, 0);
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[(Math.random() * a.length) | 0];
@@ -515,29 +516,33 @@ if (VEH === 'cart') buildCart(); else {
     for (const x of [-0.135, 0.135]) { const w = new THREE.Group(); w.position.set(x, 0.056, z); const wm = new THREE.Mesh(wheelG, wheelMat); wm.castShadow = true; w.add(wm); const c = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.05, 12), coreMat); c.rotation.z = Math.PI / 2; w.add(c); board.add(w); wheels.push(w); }
   }
 }
-const BOARD_TOP = VEH === 'cart' ? 0.44 : 0.135 + 0.026;
-// supermarket cart: chrome wire basket, red handle, four casters. Daggie stands in the basket.
-function buildCart() {
+const BOARD_TOP = VEH === 'cart' ? 0.4 * CART_S + 0.012 : 0.135 + 0.026;
+const WHEEL_R = VEH === 'cart' ? 0.06 * CART_S : 0.056;
+// supermarket cart: chrome wire basket, red handle, four casters. Origin on the floor, front faces -z.
+function makeCartMesh(S, wheelsOut) {
+  const root = new THREE.Group(), g = new THREE.Group(); g.scale.setScalar(S); root.add(g);
   const chrome = new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 1, roughness: 0.2 });
   const red = new THREE.MeshPhysicalMaterial({ color: 0xe0322b, roughness: 0.35, clearcoat: 1 });
   const black = new THREE.MeshStandardMaterial({ color: 0x1b1a20, roughness: 0.7 });
   const W = 0.64, y0 = 0.4, y1 = 1.02, zf0 = -0.45, zb0 = 0.45, zf1 = -0.47, zb1 = 0.58, geos = [];
-  const bar = (x0, yy0, z0, x1, yy1, z1, r = 0.011) => { const a = new V3(x0, yy0, z0), b = new V3(x1, yy1, z1), len = a.distanceTo(b); if (len < 1e-4) return; const g = new THREE.CylinderGeometry(r, r, len, 6, 1); g.translate(0, len / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), b.clone().sub(a).normalize())); g.translate(a.x, a.y, a.z); geos.push(g); };
+  const bar = (x0, yy0, z0, x1, yy1, z1, r = 0.011) => { const a = new V3(x0, yy0, z0), b = new V3(x1, yy1, z1), len = a.distanceTo(b); if (len < 1e-4) return; const gg = new THREE.CylinderGeometry(r, r, len, 6, 1); gg.translate(0, len / 2, 0); gg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), b.clone().sub(a).normalize())); gg.translate(a.x, a.y, a.z); geos.push(gg); };
   for (let i = 0; i <= 11; i++) { const t = i / 11; for (const sd of [-1, 1]) bar(sd * W / 2, y0, lerp(zf0, zb0, t), sd * (W / 2 + 0.03), y1, lerp(zf1, zb1, t)); }
   for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x * 1.09, y1, zf1); bar(x, y0, zb0, x * 1.09, y1, zb1); }
   for (const t of [0, 0.34, 0.67, 1]) { const y = lerp(y0, y1, t), zf = lerp(zf0, zf1, t), zb = lerp(zb0, zb1, t), hw = lerp(W / 2, W / 2 + 0.03, t); bar(-hw, y, zf, hw, y, zf, 0.013); bar(-hw, y, zb, hw, y, zb, 0.013); bar(-hw, y, zf, -hw, y, zb, 0.013); bar(hw, y, zf, hw, y, zb, 0.013); }
   for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x, y0, zb0, 0.009); }
   for (let i = 0; i <= 10; i++) { const z = lerp(zf0, zb0, i / 10); bar(-W / 2, y0, z, W / 2, y0, z, 0.009); }
   for (const sd of [-1, 1]) { bar(sd * 0.27, 0.15, -0.44, sd * 0.27, 0.15, 0.52, 0.018); bar(sd * 0.27, 0.15, 0.52, sd * 0.3, y0, zb0, 0.016); bar(sd * 0.27, 0.15, -0.44, sd * 0.28, y0, zf0 + 0.04, 0.016); bar(sd * (W / 2 + 0.03), y1, zb1, sd * (W / 2 + 0.02), y1 + 0.1, zb1 + 0.14, 0.014); }
-  const cage = new THREE.Mesh(mergeGeometries(geos), chrome); cage.castShadow = true; board.add(cage);
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, W + 0.12, 14), red); handle.rotation.z = Math.PI / 2; handle.position.set(0, y1 + 0.1, zb1 + 0.14); handle.castShadow = true; board.add(handle);
-  const flap = new THREE.Mesh(new THREE.BoxGeometry(W * 0.92, 0.02, 0.24), red); flap.position.set(0, y1 - 0.05, zb1 - 0.13); flap.rotation.x = -0.45; board.add(flap);
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; board.add(plate);
+  const cage = new THREE.Mesh(mergeGeometries(geos), chrome); cage.castShadow = true; g.add(cage);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, W + 0.12, 14), red); handle.rotation.z = Math.PI / 2; handle.position.set(0, y1 + 0.1, zb1 + 0.14); handle.castShadow = true; g.add(handle);
+  const flap = new THREE.Mesh(new THREE.BoxGeometry(W * 0.92, 0.02, 0.24), red); flap.position.set(0, y1 - 0.05, zb1 - 0.13); flap.rotation.x = -0.45; g.add(flap);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; g.add(plate);
   for (const [x, z] of [[-0.27, -0.44], [0.27, -0.44], [-0.27, 0.52], [0.27, 0.52]]) {
-    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), chrome); fork.position.set(x, 0.11, z); board.add(fork);
-    const w = new THREE.Group(); w.position.set(x, 0.06, z); const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 16), black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); board.add(w); wheels.push(w);
+    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), chrome); fork.position.set(x, 0.11, z); g.add(fork);
+    const w = new THREE.Group(); w.position.set(x, 0.06, z); const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 16), black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); g.add(w); if (wheelsOut) wheelsOut.push(w);
   }
+  return root;
 }
+function buildCart() { board.add(makeCartMesh(CART_S, wheels)); }
 // ---------- more obstacles ----------
 const hazard = (len) => stripeMat(len);
 const OBS = { balls: [], presses: [], barrels: [], hurdles: [], sweepers: [], walls: [], oils: [], tramps: [], spikes: [], fans: [], cones: [] };
@@ -557,6 +562,8 @@ for (const p of L.presses) addPress(p.s, p.blocks);
 { const bt = tex(256, 128, (g, w, h) => { g.fillStyle = '#d8342b'; g.fillRect(0, 0, w, h); g.fillStyle = '#f4f4ee'; g.fillRect(0, 18, w, 12); g.fillRect(0, h - 30, w, 12); g.fillStyle = '#16141c'; g.font = '700 38px ' + FONT; g.textAlign = 'center'; g.fillText('☢', w / 2, h / 2 + 14); });
   const bm = new THREE.MeshStandardMaterial({ map: bt, roughness: 0.5, metalness: 0.3 });
   for (const [x, s0] of L.barrels) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.25, 24), bm); m.rotation.z = Math.PI / 2; m.castShadow = true; scene.add(m); OBS.barrels.push({ x, s0, s: s0, m, r: 0.55, v: 7, near: false }); } }
+// 3b. oncoming shopping carts rolling down the roof (level option L.carts = [[x, s], ...])
+for (const [x, s0] of (L.carts || [])) { const m = makeCartMesh(1.0, null); m.rotation.y = Math.PI; scene.add(m); OBS.barrels.push({ x, s0, s: s0, m, r: 0.62, v: 9, near: false, cart: true }); }
 // 4. hurdle bar (jump it)
 function addHurdle(s) { const g = new THREE.Group(); g.position.set(0, 0, -s);
   for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.95, 0.14), steel); p.position.set(sd * (HALF - 0.1), 0.47, 0); g.add(p); }
@@ -631,7 +638,7 @@ function animateObstacles(t, dt, riderS) {
   }
   for (const b of OBS.barrels) {
     if (state === 'ride' && riderS > b.s0 - 95) b.s -= b.v * dt;
-    b.m.position.set(b.x, b.r, -b.s); b.m.rotation.x -= b.v * dt / b.r;
+    if (b.cart) b.m.position.set(b.x, 0, -b.s); else { b.m.position.set(b.x, b.r, -b.s); b.m.rotation.x -= b.v * dt / b.r; }
   }
   for (const sw of OBS.sweepers) { sw.arm.rotation.y = t * sw.w; }
   for (const w of OBS.walls) { w.x = Math.sin(t * w.sp) * w.A; w.m.position.set(w.x, 1.5, -w.s); }
@@ -974,7 +981,7 @@ function flockSwap(kind) {
   flingParts(f, kind, Math.random() < 0.5 ? -1 : 1, -R.speed, R.xv * 0.3);
   while (detached.length) reattach(); stumps.length = 0; setHP(100);
   const now = performance.now(); R.inv = now + 1000; slowUntil = now + 900; slowK = 0.3; if (!reduceMotion) shake = 0.5;
-  lastPop = 0; pop({ saw: 'ZZZT!', big: 'SHREDDED!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!' }[kind] || 'CRASH!', 'green');
+  lastPop = 0; pop({ saw: 'ZZZT!', big: 'SHREDDED!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!' }[kind] || 'CRASH!', 'green');
   setTimeout(() => { lastPop = 0; pop('-1 DAGGIE', 'lilac'); }, 350);
   setFace('hit', 900); tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06);
   updateFlockHUD();
@@ -1625,7 +1632,64 @@ function resetRun() {
 }
 const BB = { v: new V3(), w: new V3(), free: false };
 // pose the body every frame
+// two-bone IK over the rig: places the end joint at `target` (model space), bending toward `pole`
+const _iq = new THREE.Quaternion(), _iqp = new THREE.Quaternion(), _iM = new THREE.Matrix4(), _iE = new THREE.Euler();
+function parentQ(n, out) { const par = NODE[n].par; return par ? out.setFromRotationMatrix(_iM.extractRotation(NODE[par].M)) : out.identity(); }
+function limbIK(A, B, C, target, pole, P) {
+  const r1 = NODE[B].p.clone().sub(NODE[A].p), r2 = NODE[C].p.clone().sub(NODE[B].p), l1 = r1.length(), l2 = r2.length();
+  const S = jointWorld(A, new V3()), to = target.clone().sub(S), dist = clamp(to.length(), Math.abs(l1 - l2) + 1e-3, l1 + l2 - 1e-3), dir = to.normalize();
+  const a = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  const pp = pole.clone().addScaledVector(dir, -pole.dot(dir)); if (pp.lengthSq() < 1e-6) pp.set(0, 1, 0).addScaledVector(dir, -dir.y); pp.normalize();
+  const E = S.clone().addScaledVector(dir, a).addScaledVector(pp, h), Wp = S.clone().addScaledVector(dir, dist);
+  parentQ(A, _iqp); let d = E.sub(S).normalize().applyQuaternion(_iqp.clone().invert());
+  _iq.setFromUnitVectors(r1.clone().normalize(), d); _iE.setFromQuaternion(_iq, 'XYZ'); P[A] = [_iE.x, _iE.y, _iE.z]; runFK(P);
+  const E2 = jointWorld(B, new V3()); parentQ(B, _iqp); d = Wp.sub(E2).normalize().applyQuaternion(_iqp.clone().invert());
+  _iq.setFromUnitVectors(r2.clone().normalize(), d); _iE.setFromQuaternion(_iq, 'XYZ'); P[B] = [_iE.x, _iE.y, _iE.z]; runFK(P);
+  return E2;
+}
+function levelPart(n, P, extra) { parentQ(n, _iqp); _iq.copy(_iqp).invert().multiply(rootQ); if (extra) _iq.multiply(extra); _iE.setFromQuaternion(_iq, 'XYZ'); P[n] = [_iE.x, _iE.y, _iE.z]; }
+// seated in the basket, in model space where y = 0 is the basket floor
+const CART_SEAT = new V3(0, 0.17, 0.32), CART_RIM_Y = (1.02 - 0.4) * CART_S, CART_RIM_X = (0.32 + 0.03) * CART_S;
+function poseCart(t) {
+  if (state === 'intro') {
+    if (R.carry) { rootQ.identity(); solveStance(flailPose(t * 0.6), 0); return; }
+    const T = Math.sqrt(2 * DROP_H / 9.8), u = clamp(Math.sqrt(2 * Math.max(0, DROP_H - R.y) / 9.8) / T, 0, 1);
+    rootQ.identity();
+    const P = blendPose(flailPose(t), tuckPose(t), u < 0.12 ? u / 0.12 : 1), e = clamp((u - 0.55) / 0.45, 0, 1), ee = e * e * (3 - 2 * e);
+    rootPos.set(0, 0, 0); runFK(P); const hp = NODE.pelvis.p;
+    rootPos.set((CART_SEAT.x - hp.x) * ee, (CART_SEAT.y - hp.y) * ee, (CART_SEAT.z - hp.z) * ee); runFK(P); applyFK();
+    return;
+  }
+  rootQ.identity();
+  const acc = R.xv - lastXv; lastXv = R.xv; bal += (clamp(-R.xv * 0.25 - acc * 0.4, -1, 1) - bal) * 0.15;
+  crouchV += ((0.66 - crouch) * 90 - crouchV * 11) * (1 / 60); crouch = clamp(crouch + crouchV / 60, 0.1, 1.05);
+  const comp = crouch - 0.66, air = !R.grounded, party = state === 'passed';
+  const sk = R.grounded && state === 'ride' ? clamp(R.speed / 30, 0, 1) : 0, rat = (Math.sin(t * 53) + Math.sin(t * 37.7)) * 0.0035 * sk;
+  const P = {
+    pelvis: [-0.1, 0, bal * 0.05],
+    torso: [0.1 + comp * 0.35 + (air ? 0.06 : 0) - (party ? 0.15 : 0), Math.sin(t * 1.3) * 0.02, -bal * 0.08 - R.xv * 0.01],
+    head: [-0.08 - comp * 0.2 - (party ? 0.25 : 0) + Math.sin(t * 23) * 0.012 * sk, -bal * 0.15 + Math.sin(t * 1.9) * 0.04, bal * 0.06],
+  };
+  const sx = clamp(-R.xv * 0.008, -0.05, 0.05);
+  rootPos.set(0, 0, 0); runFK(P); const hp = NODE.pelvis.p;
+  rootPos.set(CART_SEAT.x + sx - hp.x, CART_SEAT.y - comp * 0.09 + rat + (air ? 0.03 : 0) - hp.y, CART_SEAT.z - hp.z); runFK(P);
+  for (const s of ['L', 'R']) {
+    const sd = SIDE[s];
+    limbIK('thigh' + s, 'shin' + s, 'foot' + s, new V3(sd * 0.17, ANKLE_REST.y + rat * 0.5 + (air ? 0.02 : 0), -0.3), new V3(sd * 0.25, 1, -0.7), P);
+    levelPart('foot' + s, P);
+  }
+  for (const s of ['L', 'R']) {
+    const sd = SIDE[s];
+    if (CANNON.on && CANNON.k === s) { P['upper' + s] = [1.5, 0, sd * 0.1]; P['fore' + s] = [0.1, 0, 0]; continue; }
+    const rail = party ? new V3(sd * 0.55, CART_RIM_Y + 0.7 + Math.sin(t * 10 + sd) * 0.08, -0.1) : new V3(sd * CART_RIM_X, CART_RIM_Y + 0.005 + Math.sin(t * 40 + sd) * 0.002 * sk, -0.06 - sd * 0.01), pole = new V3(sd * 0.8, -0.4, 0.5);
+    const E = limbIK('upper' + s, 'fore' + s, 'hand' + s, rail, pole, P), dirF = rail.clone().sub(E).normalize();
+    limbIK('upper' + s, 'fore' + s, 'hand' + s, rail.clone().addScaledVector(dirF, -0.07), pole, P);
+    P['hand' + s] = party ? [0, 0, 0] : [0.35, 0, 0];
+  }
+  runFK(P); applyFK();
+}
 function poseBody(t) {
+  if (VEH === 'cart') { poseCart(t); return; }
   let P;
   if (state === 'intro') {
     if (R.carry) { rootQ.identity(); solveStance(flailPose(t * 0.6), 0); return; }
@@ -1666,7 +1730,7 @@ function placeRider(t) {
   else pitch = Math.atan2(R.vy, Math.max(6, R.speed)) * 0.5;
   rider.rotation.set(pitch, 0, clamp(-R.xv * 0.05, -0.38, 0.38));
   if (state !== 'intro') { board.position.copy(rider.position); board.quaternion.copy(rider.quaternion); }
-  for (const w of wheels) w.rotation.x -= (state === 'ride' || state === 'passed') && R.grounded ? R.speed / 0.056 / 60 : 0;
+  for (const w of wheels) w.rotation.x -= (state === 'ride' || state === 'passed') && R.grounded ? R.speed / WHEEL_R / 60 : 0;
 }
 function jointsNow() { daggie.updateMatrixWorld(true); const out = []; for (const [n, par] of RIG) if (par) out.push(jointWorld(n, new V3()).applyMatrix4(daggie.matrixWorld)); return out; }
 function crash(kind, saw) {
@@ -1685,7 +1749,7 @@ function crash(kind, saw) {
     if (kind === 'saw') { u.v.x += side * rand(3, 7); u.v.y += rand(2, 4); u.v.z *= 0.6; }
     if (kind === 'big') { u.v.z *= 0.15; u.v.x += (Math.random() < 0.5 ? -1 : 1) * rand(3, 8); u.v.y += rand(2, 6); }
     const leg = /thigh|shin|foot/.test(p.name);
-    if (kind === 'hurdle' || kind === 'barrel' || kind === 'wall') { if (leg) u.v.z *= 0.15; else { u.v.y += rand(1.5, 3); } if (kind === 'wall') u.v.z = Math.abs(u.v.z) * rand(0.1, 0.3); }
+    if (kind === 'hurdle' || kind === 'barrel' || kind === 'cart' || kind === 'wall') { if (leg) u.v.z *= 0.15; else { u.v.y += rand(1.5, 3); } if (kind === 'wall') u.v.z = Math.abs(u.v.z) * rand(0.1, 0.3); }
     if (kind === 'ball') { const dir = saw && saw.pos ? Math.sign(R.x - saw.pos.x) || 1 : 1; u.v.x += dir * rand(6, 11); u.v.y += rand(2, 4); u.v.z *= 0.5; }
     if (kind === 'press') { u.v.y = rand(-1, 0.5); u.v.x += rand(-5, 5); u.v.z += rand(-3, 3); }
     if (kind === 'spikes') { u.v.y += rand(4, 7); }
@@ -1701,7 +1765,7 @@ function crash(kind, saw) {
   setFace('hit', 1500);
   slowUntil = now + (reduceMotion ? 500 : 1600); slowK = 0.22;
   if (!reduceMotion) shake = 0.5;
-  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
+  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
   tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06);
   orbitA = Math.atan2(camera.position.x - center.x, camera.position.z - center.z);
 }
@@ -1724,7 +1788,7 @@ function showResult() {
   const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
   $('result').hidden = false;
 }
 function landImpact(v) { crouchV += Math.min(4.5, v * 0.35); }
@@ -1893,7 +1957,7 @@ function stepRide(dt, now) {
     if (R.y < -14) { crash('fall'); return; }
   }
   if (state !== 'ride') return;
-  const bodyY0 = R.y + 0.2, bodyY1 = R.y + 0.2 + 2.1 * PW.size, bw = 0.34 * PW.size;
+  const bodyY0 = R.y + 0.2, bodyY1 = R.y + 0.2 + (VEH === 'cart' ? 1.5 : 2.1) * PW.size, bw = (VEH === 'cart' ? 0.45 : 0.34) * PW.size;
   for (const sw of SAWS) {
     if (sw.dead) continue;
     const dz = Math.abs(R.s - sw.s); if (dz > 0.6) continue;
@@ -1920,13 +1984,13 @@ function stepRide(dt, now) {
   for (const p of OBS.presses) {
     if (p.dead) continue;
     if (Math.abs(R.s - p.s) < p.d / 2 + 0.3 && Math.abs(R.x - p.x) < p.w / 2 + 0.3) {
-      if (p.bottom < R.y + 2.2) { crash('press'); return; }
+      if (p.bottom < R.y + (VEH === 'cart' ? 1.9 : 2.2)) { crash('press'); return; }
       if (!p.near && p.bottom < R.y + 3.2) { p.near = true; R.close++; pop('CLOSE!', 'lilac'); }
     }
   }
   for (const b of OBS.barrels) {
     if (b.dead) continue;
-    if (Math.abs(R.s - b.s) < b.r + 0.3 && Math.abs(R.x - b.x) < 0.95 && R.y < b.r * 2 - 0.15) { crash('barrel', b); if (state !== 'ride') return; continue; }
+    if (Math.abs(R.s - b.s) < b.r + 0.3 && Math.abs(R.x - b.x) < 0.95 && R.y < b.r * 2 - 0.15) { crash(b.cart ? 'cart' : 'barrel', b); if (state !== 'ride') return; continue; }
     if (!b.near && Math.abs(R.s - b.s) < 1 && Math.abs(R.x - b.x) < 1.8) { b.near = true; R.close++; pop('CLOSE!', 'lilac'); }
   }
   for (const sw of OBS.sweepers) {
@@ -2106,7 +2170,7 @@ function frame() {
   if (state === 'intro') {
     drone.visible = true; rotors.forEach((r, i) => { r.rotation.y += sdt * (i % 2 ? -70 : 70); });
     R.s += INTRO_V * sdt; // the board/cart is already rolling; drone and Daggie keep pace above it
-    board.position.set(0, trackH(R.s) ?? 0, -R.s); board.rotation.set(0, 0, 0); for (const w of wheels) w.rotation.x -= INTRO_V / 0.056 * sdt;
+    board.position.set(0, trackH(R.s) ?? 0, -R.s); board.rotation.set(0, 0, 0); for (const w of wheels) w.rotation.x -= INTRO_V / WHEEL_R * sdt;
     if (R.carry) {
       R.carryT += sdt; R.y = DROP_H;
       drone.position.set(R.x, DROP_H + 2.55, -R.s); drone.rotation.set(-0.16, 0, Math.sin(simT * 3) * 0.04);
