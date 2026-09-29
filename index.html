@@ -49,7 +49,7 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
   <main id="modes"></main>
 </div>
 <script type="module">
-import { MODES } from './levels.js';
+const { MODES } = await import('./levels.js?v=' + (typeof BUILD !== 'undefined' ? BUILD : Date.now()));
 const root = document.getElementById('modes');
 for (const m of MODES) {
   const sec = document.createElement('section'); sec.className = 'mode';
