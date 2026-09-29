@@ -1303,6 +1303,7 @@ function planShots(rec) {
 }
 function startFilm(rec, fromResult, record) {
   if (!rec || !rec.frames.length) return;
+  if (liveRecOn()) finishLiveRec(); liveWant = false;
   recStop();
   if (rec.gates) layoutGates(rec.gates);
   PLAY = { wantRec: !!record, rec, t: 0, i: 0, fired: -1, fromResult, ...planShots(rec), shotI: -1, fixed: new V3(), orbitA: 0, slowUntil: 0, slowAt: -1, replayed: false, zoom: 0 };
@@ -1510,6 +1511,11 @@ async function openReplays() {
 
 // ---------- record the film straight to a video file (no iOS screen recording needed) ----------
 let recorder = null, recChunks = [], lastVideo = null;
+// "Rec ride": records the run exactly as played (behind camera), from the drop to the result. The "Video" button records the Film replay instead.
+let LIVE_REC = false, liveWant = false, liveStop = 0;
+try { LIVE_REC = localStorage.getItem('daggie-liverec') === '1'; } catch (e) {}
+function liveRecOn() { return !!recorder && !PLAY; }
+function finishLiveRec() { liveStop = 0; stage.classList.remove('liverec'); if (liveRecOn()) { $('recDot').hidden = true; stopRecorder().then(showVideoCard); } }
 function startRecorder() {
   try {
     if (!window.MediaRecorder || !canvas.captureStream) throw new Error('unsupported');
@@ -1610,6 +1616,8 @@ const R = {};
 let state = 'intro', stateT = 0, testNo = 0, slowUntil = 0, slowK = 1, manualSlow = false, shake = 0, cause = '', trick = TRICKS[0];
 let simT = 0, orbitA = 0, crouch = 0.45, crouchV = 0, bal = 0, lastXv = 0, stanceBlend = 0;
 function resetRun() {
+  if (liveRecOn()) finishLiveRec();
+  liveWant = LIVE_REC;
   testNo++;
   resetPower(); randomGates(); resetFlock(); resetFx();
   Object.assign(R, { s: -13.5, x: 0, xT: 0, xv: 0, y: DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0 });
@@ -1779,6 +1787,7 @@ function passed() {
 }
 function showResult() {
   state = 'result';
+  if (liveRecOn()) liveStop = performance.now() + 700;
   const ok = cause === '';
   if (REC) { REC.ok = ok; REC.cause = ok ? '' : cause; REC.dist = Math.round(R.maxS); }
   recStop(); $('rSave').textContent = '★ Save'; $('rSave').disabled = false;
@@ -2096,6 +2105,13 @@ $('rAgain').onclick = () => { initAudio(); startRoll(); resetRun(); };
 $('bSlow').onclick = () => { manualSlow = !manualSlow; $('bSlow').setAttribute('aria-pressed', String(manualSlow)); };
 $('bHook').onclick = () => { stage.classList.toggle('nohook'); $('bHook').setAttribute('aria-pressed', String(!stage.classList.contains('nohook'))); };
 $('bLoop').setAttribute('aria-pressed', String(LOOP));
+$('bLive').setAttribute('aria-pressed', String(LIVE_REC));
+$('bLive').onclick = () => {
+  LIVE_REC = !LIVE_REC; $('bLive').setAttribute('aria-pressed', String(LIVE_REC)); try { localStorage.setItem('daggie-liverec', LIVE_REC ? '1' : '0'); } catch (e) {}
+  if (LIVE_REC && !recorder && (state === 'intro' || state === 'ride')) liveWant = true; // switch on mid-run: record from now
+  if (!LIVE_REC && liveRecOn()) finishLiveRec();
+  lastPop = 0; pop(LIVE_REC ? 'REC: EVERY RUN' : 'REC OFF', 'lilac');
+};
 $('bLoop').onclick = () => { LOOP = !LOOP; $('bLoop').setAttribute('aria-pressed', String(LOOP)); try { localStorage.setItem('daggie-loop', LOOP ? '1' : '0'); } catch (e) {} };
 $('bHide').onclick = () => { stage.classList.add('clean'); $('bShow').hidden = false; };
 $('bShow').onclick = () => { stage.classList.remove('clean'); $('bShow').hidden = true; };
@@ -2224,6 +2240,8 @@ function frame() {
   if (rollGain && AC) rollGain.gain.setTargetAtTime(state === 'ride' && R.grounded ? Math.min(0.09, R.speed * 0.003) : 0, AC.currentTime, 0.05);
   recordFrame(dt);
   composer.render();
+  if (liveWant && !PLAY) { liveWant = false; if (startRecorder()) { $('recDot').hidden = false; stage.classList.add('liverec'); } } // bottom bar hides while a ride is being recorded // start on a freshly drawn frame
+  if (liveRecOn()) { composite(); if (liveStop && now >= liveStop) finishLiveRec(); }
   requestAnimationFrame(frame);
 }
 setLoad(1, 'Ready');
