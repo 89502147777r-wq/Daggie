@@ -184,13 +184,15 @@ setTimeout(() => { if (!window.__daggieStarted) { const t = document.getElementB
 </script>
 <script type="module">
 // load the level chosen in the menu, then start the RUN engine
-import { MODES } from './levels.js';
+// ?v= makes the phone take the file of this exact version instead of an old cached copy
+const V = '?v=' + (typeof BUILD !== 'undefined' ? BUILD : Date.now());
+const { MODES } = await import('./levels.js' + V);
 const want = new URLSearchParams(location.search).get('level') || 'sky';
 const list = MODES.find(m => m.id === 'run').levels.filter(l => l.ready && l.file);
 const lv = list.find(l => l.id === want) || list[0];
-window.LEVEL = (await import('./' + lv.file)).LEVEL;
+window.LEVEL = (await import('./' + lv.file + V)).LEVEL;
 document.getElementById('lvlName').textContent = lv.name;
-await import('./run-engine.js');
+await import('./run-engine.js' + V);
 </script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});</script>
 <script src="update.js"></script>
