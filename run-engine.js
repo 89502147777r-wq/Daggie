@@ -1510,7 +1510,7 @@ async function openReplays() {
 }
 
 // ---------- record the film straight to a video file (no iOS screen recording needed) ----------
-let recorder = null, recChunks = [], lastVideo = null;
+let recorder = null, recChunks = [], lastVideo = null, recTrack = null, recNextT = 0;
 // "Rec ride": records the run exactly as played (behind camera), from the drop to the result. The "Video" button records the Film replay instead.
 let LIVE_REC = false, liveWant = false, liveStop = 0;
 try { LIVE_REC = localStorage.getItem('daggie-liverec') === '1'; } catch (e) {}
@@ -1519,19 +1519,23 @@ function finishLiveRec() { liveStop = 0; stage.classList.remove('liverec'); if (
 function startRecorder() {
   try {
     if (!window.MediaRecorder || !canvas.captureStream) throw new Error('unsupported');
-    comp.width = canvas.width; comp.height = canvas.height; composite();
-    const stream = comp.captureStream(30);
+    // even size, at most 1080 px wide: what phones and CapCut decode smoothly
+    const k = Math.min(1, 1080 / canvas.width); comp.width = Math.round(canvas.width * k / 2) * 2; comp.height = Math.round(canvas.height * k / 2) * 2;
+    // steady 30 fps: frames are pushed on a fixed clock instead of whenever the screen redraws (uneven timing makes editors stutter)
+    let stream = comp.captureStream(0); recTrack = stream.getVideoTracks()[0] || null;
+    if (!recTrack || typeof recTrack.requestFrame !== 'function') { stream = comp.captureStream(30); recTrack = null; }
+    recNextT = performance.now(); composite();
     initAudio(); if (AC) { OUT(); if (AUDIO_DEST) AUDIO_DEST.stream.getAudioTracks().forEach(t => stream.addTrack(t)); }
     const mime = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
     recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 10e6 } : { videoBitsPerSecond: 10e6 });
     recChunks = []; recorder.ondataavailable = ev => { if (ev.data && ev.data.size) recChunks.push(ev.data); };
-    recorder.start(250); return true;
+    recorder.start(); return true; // one clean file at the end (no fragmented chunks)
   } catch (err) { recorder = null; lastPop = 0; pop('VIDEO NOT SUPPORTED HERE', 'lilac'); return false; }
 }
 function stopRecorder() {
   return new Promise(res => {
     if (!recorder) return res(null);
-    const r = recorder; recorder = null;
+    const r = recorder; recorder = null; recTrack = null;
     r.onstop = () => res(new Blob(recChunks, { type: r.mimeType || 'video/mp4' }));
     try { r.stop(); } catch (e) { res(null); }
   });
@@ -1563,6 +1567,7 @@ function composite() {
   if (!recorder && comp.width === 0) return;
   const W = comp.width, H = comp.height, now = performance.now();
   cctx.drawImage(canvas, 0, 0, W, H);
+  if (recTrack) { if (now >= recNextT) { recNextT = Math.max(recNextT + 1000 / 30, now - 20); queueMicrotask(() => { try { recTrack && recTrack.requestFrame(); } catch (e) {} }); } }
   if ($('hook').classList.contains('show') && !stage.classList.contains('nohook')) { strokeText(L.title[0], W / 2, H * 0.14, W * 0.1, '#ffc41f'); strokeText(L.title[1], W / 2, H * 0.14 + W * 0.1, W * 0.088, '#ffffff'); }
   if (PLAY && PLAY.rew && PLAY.rew.u <= 0.72) {
     cctx.fillStyle = 'rgba(255,255,255,0.07)'; for (let i = 0; i < 4; i++) cctx.fillRect(0, Math.random() * H, W, H * rand(0.004, 0.03));
