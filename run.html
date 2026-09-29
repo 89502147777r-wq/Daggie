@@ -118,6 +118,10 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 .vidcard #vidSave{background:var(--yellow);color:#16112a;border:0}
 .social{position:absolute;left:50%;top:22%;z-index:6;transform:translate(-50%,-50%);background:#ff2b2b;color:#fff;font:700 18px "Chakra Petch",ui-sans-serif,sans-serif;padding:7px 14px;border-radius:12px;box-shadow:0 6px 18px rgba(255,43,43,.4);white-space:nowrap;pointer-events:none;animation:soc 1.2s ease-out forwards}
 .social span{font-size:19px}
+.reveal{position:absolute;left:50%;top:22%;transform:translateX(-50%);z-index:7;width:min(86%,420px);background:rgba(20,12,48,.86);border:3px solid var(--c);border-radius:18px;padding:10px 16px 12px;text-align:center;pointer-events:none;animation:rev 1.9s ease-out forwards;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.reveal b{display:block;font:700 34px "Chakra Petch",ui-sans-serif,sans-serif;color:var(--c);-webkit-text-stroke:1px #16112a;letter-spacing:.5px}
+.reveal small{display:block;font:700 15px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;margin-top:2px}
+@keyframes rev{0%{opacity:0;transform:translateX(-50%) scale(.6)}10%{opacity:1;transform:translateX(-50%) scale(1.06)}16%{transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) scale(1)}}
 .flash{position:absolute;inset:0;background:#fff;pointer-events:none;z-index:5;animation:flash .3s ease-out forwards}
 @keyframes flash{0%{opacity:.35}100%{opacity:0}}
 @keyframes soc{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}10%{transform:translate(-50%,-50%) scale(1.1);opacity:1}20%,40%,60%{transform:translate(-50%,-50%) scale(1)}30%,50%,70%{transform:translate(-50%,-50%) scale(1.08)}85%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
@@ -135,12 +139,11 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
     <div class="chip">Test <b id="testNo">#001</b></div>
     <div class="chip"><b id="spd">0</b> mph</div>
     <div class="chip"><b id="dist">0</b> m</div>
-    <div class="chip">Daggies<b id="flockN">1</b></div>
   </div>
   <div class="meters"><div class="hp" id="hpBox"><span>HP <b id="hpNum">100</b></span><div class="hpbar"><i id="hpFill"></i></div></div><div class="prog"><i id="progFill"></i><b aria-hidden="true">🏁</b></div></div>
   <div class="result" id="result" hidden>
     <h2 id="rTitle">Test #001</h2>
-    <dl><dt>Distance</dt><dd id="rDist">0 m</dd><dt>Top speed</dt><dd id="rTop">0 mph</dd><dt>Close calls</dt><dd id="rClose">0</dd><dt>Parts lost</dt><dd id="rLost">0</dd><dt>Score</dt><dd id="rScore">0</dd><dt>Daggies survived</dt><dd id="rFlock">1 / 5</dd><dt>Stopped by</dt><dd id="rCause">-</dd></dl>
+    <dl><dt>Distance</dt><dd id="rDist">0 m</dd><dt>Top speed</dt><dd id="rTop">0 mph</dd><dt>Close calls</dt><dd id="rClose">0</dd><dt>Parts lost</dt><dd id="rLost">0</dd><dt>Score</dt><dd id="rScore">0</dd><dt>Stopped by</dt><dd id="rCause">-</dd></dl>
     <div class="rrow"><button id="rFilm" type="button">🎬 Film</button><button id="rVideo" type="button">🎥 Video</button><button id="rSave" type="button">★ Save</button></div>
     <div class="rrow"><button id="rMenu" type="button">◀ Menu</button><button id="rAgain" type="button" style="flex:2">Run again</button></div>
   </div>

@@ -8,11 +8,13 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 const ASSETS = { model: 'daggie_model.bin?v=1', tex: 'daggie_tex.jpg?v=1' };
 
 window.__daggieStarted = true;
 // the level being played (set by run.html from a level file listed in levels.js)
 const L = window.LEVEL;
+const TH = L.theme || 'sky', VEH = L.vehicle || 'skate'; // world look and what Daggie rides
 const V3 = THREE.Vector3, TAU = Math.PI * 2, Y = new V3(0, 1, 0);
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[(Math.random() * a.length) | 0];
@@ -55,13 +57,13 @@ const glowColor = (hex, k) => new THREE.Color(hex).multiplyScalar(k);
 function neon(hex, k) { return new THREE.MeshBasicMaterial({ color: glowColor(hex, k) }); }
 
 // ---------- sky, sun, clouds ----------
-const SUN = new V3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(58), THREE.MathUtils.degToRad(35));
-function makeSky() { const s = new Sky(); s.scale.setScalar(4000); const u = s.material.uniforms; u.turbidity.value = 2.0; u.rayleigh.value = 1.7; u.mieCoefficient.value = 0.003; u.mieDirectionalG.value = 0.8; u.sunPosition.value.copy(SUN); return s; }
+const SUN = new V3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(TH === 'city' ? 77 : 58), THREE.MathUtils.degToRad(TH === 'city' ? 22 : 35));
+function makeSky() { const s = new Sky(); s.scale.setScalar(4000); const u = s.material.uniforms; u.turbidity.value = TH === 'city' ? 7 : 2.0; u.rayleigh.value = TH === 'city' ? 2.6 : 1.7; u.mieCoefficient.value = 0.003; u.mieDirectionalG.value = 0.8; u.sunPosition.value.copy(SUN); return s; }
 scene.add(makeSky());
 { const envScene = new THREE.Scene(); envScene.add(makeSky()); const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0).texture; }
-scene.fog = new THREE.Fog(0xcbe0f6, 520, 2600);
+scene.fog = TH === 'city' ? new THREE.Fog(0xe9b996, 170, 1300) : new THREE.Fog(0xcbe0f6, 520, 2600);
 const hemi = new THREE.HemisphereLight(0xcfe6ff, 0x9aa3b5, 0.85); scene.add(hemi);
-const sunLight = new THREE.DirectionalLight(0xfff1dc, 3.8);
+const sunLight = new THREE.DirectionalLight(TH === 'city' ? 0xffc48a : 0xfff1dc, TH === 'city' ? 3.3 : 3.8);
 sunLight.castShadow = true; sunLight.shadow.mapSize.set(2048, 2048);
 Object.assign(sunLight.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 80 });
 sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.02;
@@ -83,11 +85,61 @@ function cloudTexture(seed) {
 const CLOUD_TEX = [1, 7, 23, 51, 97].map(cloudTexture);
 const clouds = new THREE.Group(); scene.add(clouds);
 function cloud(x, y, z, sc, op) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: pick(CLOUD_TEX), transparent: true, depthWrite: false, opacity: op ?? 1, fog: true })); m.position.set(x, y, z); m.scale.set(sc, sc * 0.62, 1); clouds.add(m); return m; }
+if (TH === 'sky') {
 for (let i = 0; i < 110; i++) { const z = rand(80, -900), x = rand(-320, 320); cloud(x, rand(-78, -60), z, rand(60, 110)); }
 for (let i = 0; i < 26; i++) { const side = Math.random() < 0.5 ? -1 : 1; cloud(side * rand(140, 420), rand(-20, 60), rand(-150, -1100), rand(140, 280), 0.95).material.fog = false; }
 for (let i = 0; i < 8; i++) cloud(rand(-200, 200), rand(150, 260), rand(-500, -1200), rand(160, 240), 0.8).material.fog = false;
 { const sea = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({ color: 0xf2f6fb, roughness: 1, map: tex(512, 512, (g, w, h) => { g.fillStyle = '#e9eff7'; g.fillRect(0, 0, w, h); for (let i = 0; i < 400; i++) { const x = Math.random() * w, y = Math.random() * h, rr = 8 + Math.random() * 40; const gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2); } }, [14, 14]) }));
   sea.rotation.x = -Math.PI / 2; sea.position.set(0, -80, -300); scene.add(sea); }
+}
+// evening city: skyline of lit windows around the rooftop track
+function windowTex(lit) {
+  const t = tex(256, 256, (g, w, h) => {
+    g.fillStyle = lit ? '#000000' : '#6f5d57'; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) {
+      const on = ((x * 7 + y * 13) % 5 === 0) || ((x + y * 3) % 7 === 0);
+      g.fillStyle = lit ? (on ? '#ffcf7a' : '#000000') : (on ? '#f3d9a4' : '#2c3342');
+      g.fillRect(x * 64 + 12, y * 32 + 7, 40, 19);
+    }
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const WIN_TEX = TH === 'city' ? windowTex(false) : null, WIN_LIT = TH === 'city' ? windowTex(true) : null;
+function facadeMat(w, h) {
+  const m = WIN_TEX.clone(), e = WIN_LIT.clone(); m.needsUpdate = e.needsUpdate = true; m.repeat.set(w / 8, h / 8); e.repeat.set(w / 8, h / 8);
+  return new THREE.MeshStandardMaterial({ map: m, emissiveMap: e, emissive: 0xffb45a, emissiveIntensity: 0.9, roughness: 0.85 });
+}
+function buildCity() {
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({ color: 0x3a3740, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(0, -46, -300); scene.add(ground);
+  const geos = [];
+  for (let i = 0; i < 260; i++) {
+    const side = Math.random() < 0.5 ? -1 : 1, x = side * rand(14, 280), z = rand(80, -1150);
+    const w = rand(10, 30), d = rand(10, 30), top = Math.random() < 0.25 ? rand(8, 70) : rand(-32, 6), h = top + 46;
+    const g = new THREE.BoxGeometry(w, h, d); const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / 8, uv.getY(k) * h / 8);
+    g.translate(x, -46 + h / 2, z); geos.push(g);
+  }
+  const mat = new THREE.MeshStandardMaterial({ map: WIN_TEX, emissiveMap: WIN_LIT, emissive: 0xffb45a, emissiveIntensity: 1.1, roughness: 0.85 });
+  const city = new THREE.Mesh(mergeGeometries(geos), mat); city.receiveShadow = true; scene.add(city);
+  for (let i = 0; i < 40; i++) { // rooftop water towers + antennas for silhouette
+    const x = (Math.random() < 0.5 ? -1 : 1) * rand(20, 200), z = rand(40, -900), y = rand(-20, 10);
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 3, 12), new THREE.MeshStandardMaterial({ color: 0x5b4032, roughness: 0.9 })); tank.position.set(x, y + 3.5, z); scene.add(tank);
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 9, 5), darkSteel0()); ant.position.set(x + 3, y + 4.5, z); scene.add(ant);
+  }
+}
+function darkSteel0() { return new THREE.MeshStandardMaterial({ color: 0x3b3f47, metalness: 0.7, roughness: 0.5 }); }
+function roofTex() {
+  const t = tex(512, 1024, (g, w, h) => {
+    g.fillStyle = '#8d8a86'; g.fillRect(0, 0, w, h);
+    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 30; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
+    g.strokeStyle = 'rgba(40,36,34,0.55)'; g.lineWidth = 3; for (let y = 0; y < h; y += 128) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); } for (let x = 0; x < w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    g.fillStyle = 'rgba(30,26,24,0.35)'; for (let i = 0; i < 18; i++) { g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(10, 40), rand(6, 20), rand(0, 3), 0, TAU); g.fill(); }
+    g.fillStyle = '#ffc21a'; g.fillRect(w * 0.035, 0, w * 0.018, h); g.fillRect(w * 0.947, 0, w * 0.018, h);
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+if (TH === 'city') buildCity();
+
 
 // ---------- load model from artifact assets ----------
 async function fetchWithProgress(url, onP) {
@@ -342,7 +394,7 @@ const asphalt = tex(512, 1024, (g, w, h) => {
   g.fillStyle = 'rgba(0,0,0,0.12)'; for (const u of [0.2, 0.5, 0.8]) g.fillRect(w * u - 18, 0, 36, h);
 });
 asphalt.wrapS = asphalt.wrapT = THREE.RepeatWrapping;
-const roadMat = new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.88, metalness: 0.02 });
+const roadMat = new THREE.MeshStandardMaterial({ map: TH === 'city' ? roofTex() : asphalt, roughness: 0.88, metalness: 0.02 });
 const steel = new THREE.MeshStandardMaterial({ color: 0x8a9099, metalness: 0.85, roughness: 0.35 });
 const darkSteel = new THREE.MeshStandardMaterial({ color: 0x3b3f47, metalness: 0.7, roughness: 0.5 });
 const stripeTex = tex(256, 64, (g, w, h) => { g.fillStyle = '#ffc21a'; g.fillRect(0, 0, w, h); g.fillStyle = '#16141c'; for (let i = -2; i < 12; i++) { g.beginPath(); g.moveTo(i * 32, 0); g.lineTo(i * 32 + 16, 0); g.lineTo(i * 32 + 16 + h, h); g.lineTo(i * 32 + h, h); g.fill(); } });
@@ -355,7 +407,12 @@ function roadStrip(s0, s1) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   const m = new THREE.Mesh(g, roadMat); m.receiveShadow = true; scene.add(m);
   const L = s1 - s0, mid = (s0 + s1) / 2, flat = !(s0 >= RAMP0 - 1 && s1 <= RAMP1 + 1);
-  if (flat) {
+  if (flat && TH === 'city') { // each road piece is the roof of a building; gaps are the alleys between them
+    const bw = HALF * 2 + 1.4, bh = 46; const bld = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, L), facadeMat(bw, bh)); bld.position.set(0, -bh / 2 - 0.02, -mid); bld.receiveShadow = true; scene.add(bld);
+    const conc = new THREE.MeshStandardMaterial({ color: 0xa39c94, roughness: 0.9 });
+    for (const sd of [-1, 1]) { const par = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.55, L), conc); par.position.set(sd * (HALF + 0.3), 0.27, -mid); par.castShadow = true; par.receiveShadow = true; scene.add(par);
+      for (let q = s0 + 6; q < s1 - 4; q += 17) { const ac = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 1.3), new THREE.MeshStandardMaterial({ color: 0xc9ccd1, metalness: 0.4, roughness: 0.5 })); ac.position.set(sd * (HALF + 1.2), 0.4, -q); ac.castShadow = true; scene.add(ac); } }
+  } else if (flat) {
     const under = new THREE.Mesh(new THREE.BoxGeometry(HALF * 2 + 0.6, 0.8, L), darkSteel); under.position.set(0, -0.42, -mid); under.receiveShadow = true; scene.add(under);
     for (const sd of [-1, 1]) {
       const curb = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, L), stripeMat(L)); curb.position.set(sd * (HALF + 0.05), 0.1, -mid); curb.castShadow = true; curb.receiveShadow = true; scene.add(curb);
@@ -414,7 +471,7 @@ const BOOSTS = L.boosts.map(([s, x]) => { const m = new THREE.Mesh(new THREE.Pla
 // ---------- real skateboard: kicktail deck, grip, graphic, trucks, wheels ----------
 const board = new THREE.Group(); scene.add(board);
 const wheels = [];
-{
+if (VEH === 'cart') buildCart(); else {
   const LEN = 1.12, WID = 0.3, T = 0.024;
   const outline = new THREE.Shape(); const r = WID / 2, hl = LEN / 2 - r;
   outline.moveTo(-r, -hl); outline.lineTo(-r, hl); outline.absarc(0, hl, r, Math.PI, 0, true); outline.lineTo(r, -hl); outline.absarc(0, -hl, r, 0, Math.PI, true);
@@ -458,7 +515,29 @@ const wheels = [];
     for (const x of [-0.135, 0.135]) { const w = new THREE.Group(); w.position.set(x, 0.056, z); const wm = new THREE.Mesh(wheelG, wheelMat); wm.castShadow = true; w.add(wm); const c = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.05, 12), coreMat); c.rotation.z = Math.PI / 2; w.add(c); board.add(w); wheels.push(w); }
   }
 }
-const BOARD_TOP = 0.135 + 0.026;
+const BOARD_TOP = VEH === 'cart' ? 0.44 : 0.135 + 0.026;
+// supermarket cart: chrome wire basket, red handle, four casters. Daggie stands in the basket.
+function buildCart() {
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 1, roughness: 0.2 });
+  const red = new THREE.MeshPhysicalMaterial({ color: 0xe0322b, roughness: 0.35, clearcoat: 1 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x1b1a20, roughness: 0.7 });
+  const W = 0.64, y0 = 0.4, y1 = 1.02, zf0 = -0.45, zb0 = 0.45, zf1 = -0.47, zb1 = 0.58, geos = [];
+  const bar = (x0, yy0, z0, x1, yy1, z1, r = 0.011) => { const a = new V3(x0, yy0, z0), b = new V3(x1, yy1, z1), len = a.distanceTo(b); if (len < 1e-4) return; const g = new THREE.CylinderGeometry(r, r, len, 6, 1); g.translate(0, len / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), b.clone().sub(a).normalize())); g.translate(a.x, a.y, a.z); geos.push(g); };
+  for (let i = 0; i <= 11; i++) { const t = i / 11; for (const sd of [-1, 1]) bar(sd * W / 2, y0, lerp(zf0, zb0, t), sd * (W / 2 + 0.03), y1, lerp(zf1, zb1, t)); }
+  for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x * 1.09, y1, zf1); bar(x, y0, zb0, x * 1.09, y1, zb1); }
+  for (const t of [0, 0.34, 0.67, 1]) { const y = lerp(y0, y1, t), zf = lerp(zf0, zf1, t), zb = lerp(zb0, zb1, t), hw = lerp(W / 2, W / 2 + 0.03, t); bar(-hw, y, zf, hw, y, zf, 0.013); bar(-hw, y, zb, hw, y, zb, 0.013); bar(-hw, y, zf, -hw, y, zb, 0.013); bar(hw, y, zf, hw, y, zb, 0.013); }
+  for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x, y0, zb0, 0.009); }
+  for (let i = 0; i <= 10; i++) { const z = lerp(zf0, zb0, i / 10); bar(-W / 2, y0, z, W / 2, y0, z, 0.009); }
+  for (const sd of [-1, 1]) { bar(sd * 0.27, 0.15, -0.44, sd * 0.27, 0.15, 0.52, 0.018); bar(sd * 0.27, 0.15, 0.52, sd * 0.3, y0, zb0, 0.016); bar(sd * 0.27, 0.15, -0.44, sd * 0.28, y0, zf0 + 0.04, 0.016); bar(sd * (W / 2 + 0.03), y1, zb1, sd * (W / 2 + 0.02), y1 + 0.1, zb1 + 0.14, 0.014); }
+  const cage = new THREE.Mesh(mergeGeometries(geos), chrome); cage.castShadow = true; board.add(cage);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, W + 0.12, 14), red); handle.rotation.z = Math.PI / 2; handle.position.set(0, y1 + 0.1, zb1 + 0.14); handle.castShadow = true; board.add(handle);
+  const flap = new THREE.Mesh(new THREE.BoxGeometry(W * 0.92, 0.02, 0.24), red); flap.position.set(0, y1 - 0.05, zb1 - 0.13); flap.rotation.x = -0.45; board.add(flap);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; board.add(plate);
+  for (const [x, z] of [[-0.27, -0.44], [0.27, -0.44], [-0.27, 0.52], [0.27, 0.52]]) {
+    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), chrome); fork.position.set(x, 0.11, z); board.add(fork);
+    const w = new THREE.Group(); w.position.set(x, 0.06, z); const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 16), black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); board.add(w); wheels.push(w);
+  }
+}
 // ---------- more obstacles ----------
 const hazard = (len) => stripeMat(len);
 const OBS = { balls: [], presses: [], barrels: [], hurdles: [], sweepers: [], walls: [], oils: [], tramps: [], spikes: [], fans: [], cones: [] };
@@ -614,18 +693,38 @@ function animateBooms(dt, t) {
 // delivery drone: carries Daggie in and drops him over the start
 const drone = new THREE.Group(); scene.add(drone);
 const rotors = [];
-{
-  const body = new THREE.Mesh(new RoundedBoxGeometry(1.3, 0.34, 1.3, 3, 0.1), stripeMat(1.3)); body.castShadow = true; drone.add(body);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 12, 0, TAU, 0, Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x16141c, roughness: 0.15, clearcoat: 1 })); dome.position.y = 0.16; drone.add(dome);
-  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), neon(0xff3a2a, 3)); eye.position.set(0, 0.05, -0.62); drone.add(eye);
+{ // X-frame heavy-lift quadcopter: carbon arms, motors, two-blade props with blur discs, skids, gimbal camera, nav lights, winch claw
+  const carbon = new THREE.MeshPhysicalMaterial({ color: 0x1d1f25, roughness: 0.35, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.2 });
+  const shell = new THREE.MeshPhysicalMaterial({ color: 0xf2f2ee, roughness: 0.3, clearcoat: 1 });
+  const alu = new THREE.MeshStandardMaterial({ color: 0xb8bec8, metalness: 0.9, roughness: 0.3 });
+  const body = new THREE.Mesh(new RoundedBoxGeometry(0.8, 0.26, 1.1, 4, 0.1), carbon); body.castShadow = true; drone.add(body);
+  const top = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.14, 0.86, 4, 0.07), shell); top.position.y = 0.17; top.castShadow = true; drone.add(top);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.02, 0.16), stripeMat(0.64)); stripe.position.set(0, 0.245, -0.18); drone.add(stripe);
+  const batt = new THREE.Mesh(new RoundedBoxGeometry(0.4, 0.1, 0.55, 2, 0.03), new THREE.MeshStandardMaterial({ color: 0x33363e, roughness: 0.6 })); batt.position.set(0, 0.29, 0.12); drone.add(batt);
   for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 1.1), darkSteel); arm.position.set(x * 0.55, 0, z * 0.55); arm.rotation.y = Math.atan2(x, z); drone.add(arm);
-    const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.18, 14), darkSteel); motor.position.set(x * 0.95, 0.08, z * 0.95); drone.add(motor);
-    const rot = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.015, 24), new THREE.MeshBasicMaterial({ color: 0xcfd6e0, transparent: true, opacity: 0.35, depthWrite: false })); rot.position.set(x * 0.95, 0.2, z * 0.95); drone.add(rot);
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.02, 0.1), darkSteel); blade.position.copy(rot.position); drone.add(blade); rotors.push(blade);
+    const ex = x * 0.95, ez = z * 0.95;
+    const armM = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 12), carbon); armM.position.set(ex * 0.5, 0.02, ez * 0.5); armM.lookAt(new V3(ex, 0.02, ez).add(drone.position)); armM.rotateX(Math.PI / 2); armM.castShadow = true; drone.add(armM);
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.16, 20), alu); motor.position.set(ex, 0.1, ez); motor.castShadow = true; drone.add(motor);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.012, 8, 24), new THREE.MeshStandardMaterial({ color: 0xe0322b, roughness: 0.4 })); ring.rotation.x = Math.PI / 2; ring.position.set(ex, 0.13, ez); drone.add(ring);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.72, 40), new THREE.MeshBasicMaterial({ color: 0x9aa3b0, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide })); disc.rotation.x = -Math.PI / 2; disc.position.set(ex, 0.23, ez); drone.add(disc);
+    const prop = new THREE.Group(); prop.position.set(ex, 0.22, ez);
+    for (const sd of [-1, 1]) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.012, 0.075), carbon); bl.position.x = sd * 0.35; bl.rotation.x = sd * 0.18; prop.add(bl); }
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 12), alu); prop.add(hub); drone.add(prop); rotors.push(prop);
+    const nav = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), neon(z < 0 ? (x < 0 ? 0xff2a2a : 0x2aff5a) : 0xffffff, 4)); nav.position.set(ex, 0.02, ez + (z > 0 ? 0.13 : -0.13)); drone.add(nav);
   }
-  for (const sd of [-1, 1]) { const hook = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 8, 16, Math.PI), steel); hook.position.set(sd * 0.12, -0.35, 0); hook.rotation.set(0, Math.PI / 2, sd > 0 ? Math.PI : 0); drone.add(hook); }
-  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), darkSteel); cable.position.y = -0.3; drone.add(cable);
+  for (const sd of [-1, 1]) { // landing skids
+    const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 8), carbon); leg1.position.set(sd * 0.32, -0.3, -0.25); leg1.rotation.z = sd * 0.35; drone.add(leg1);
+    const leg2 = leg1.clone(); leg2.position.z = 0.25; drone.add(leg2);
+    const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.95, 10), carbon); skid.rotation.x = Math.PI / 2; skid.position.set(sd * 0.39, -0.48, 0); drone.add(skid);
+  }
+  const gimbal = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), carbon); gimbal.position.set(0, -0.17, -0.45); drone.add(gimbal);
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.05, 20), new THREE.MeshPhysicalMaterial({ color: 0x0a1030, roughness: 0.05, clearcoat: 1, metalness: 0.5 })); lens.position.set(0, -0.17, -0.551); lens.rotation.y = Math.PI; drone.add(lens);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), neon(0xff3a2a, 4)); eye.position.set(0.13, -0.14, -0.53); drone.add(eye);
+  const winch = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 14), alu); winch.rotation.z = Math.PI / 2; winch.position.y = -0.2; drone.add(winch);
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.9, 6), carbon); cable.position.y = -1.2; drone.add(cable);
+  const claw = new THREE.Group(); claw.position.y = -2.15; drone.add(claw);
+  const cb = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.06, 0.1, 12), alu); claw.add(cb);
+  for (let i = 0; i < 3; i++) { const f = new THREE.Group(); f.rotation.y = i / 3 * TAU; const seg = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.24, 0.04), alu); seg.position.set(0.1, -0.1, 0); seg.rotation.z = 0.5; f.add(seg); claw.add(f); }
 }
 drone.visible = false;
 
@@ -672,17 +771,20 @@ const SOCIAL = L.social.map(([s, x, kind]) => {
 
 // ---------- boost gates: pick a side, get stronger or weaker ----------
 const GATE_S = L.gates;
-const GATE_GOOD = ['x2', '+1', '+2', 'x2'], GATE_BAD = ['-1', '-2', '÷2'];
-const GATE_INFO = {
-  'x2': ['x2', 'DOUBLE DAGGIES', 1], '+1': ['+1', 'ONE MORE DAGGIE', 1], '+2': ['+2', 'TWO MORE DAGGIES', 1],
-  '-1': ['-1', 'LOSE ONE', 0], '-2': ['-2', 'LOSE TWO', 0], '÷2': ['÷2', 'HALF OF THEM', 0],
+// both doors look equally good: purple A, orange B. What is behind each is random every run.
+const GATE_INFO = { A: ['?', 'DOOR A', 0x9b4dff, '#7a2ee8'], B: ['?', 'DOOR B', 0xff8a1f, '#e86f0c'] };
+const MYSTERY = {
+  'TNT RAIN': ['Crates falling from the sky!', 0], 'MOON GRAVITY': ['Floaty jumps for 6 s', 1], 'ROCKET BOOST': ['Full throttle!', 1],
+  'OIL SLICK': ['Slippery for 3 s', 0], 'SHIELD': ['One free hit', 1], 'ARM CANNON': ['3 shots', 1], 'REPAIR': ['All parts back', 1],
+  'SUPER JUMP': ['Jumps x1.5 for 6 s', 1], 'ANVIL': ['Look up!', 0], 'MATRIX MODE': ['Slow motion', 1],
 };
+const MYSTERY_KEYS = Object.keys(MYSTERY);
 const GATE_TEX = {};
 function gateTex(key) {
   if (GATE_TEX[key]) return GATE_TEX[key];
-  const [t1, t2, good] = GATE_INFO[key];
+  const [t1, t2, , bg] = GATE_INFO[key];
   return GATE_TEX[key] = tex(512, 220, (g, w, h) => {
-    g.fillStyle = good ? '#12b85e' : '#e2263f'; g.fillRect(0, 0, w, h);
+    g.fillStyle = bg; g.fillRect(0, 0, w, h);
     g.strokeStyle = '#ffffff'; g.lineWidth = 12; g.strokeRect(8, 8, w - 16, h - 16);
     g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = '700 ' + (t1.length > 9 ? 68 : t1.length > 6 ? 82 : 104) + 'px ' + FONT; g.fillText(t1, w / 2, h * 0.42);
@@ -694,40 +796,103 @@ const GATES = GATE_S.map((s, gi) => {
     const grp = new THREE.Group(); grp.position.set(sd * HALF / 2, 0, -s); scene.add(grp);
     const postMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     for (const px of [-HALF / 2 + 0.12, HALF / 2 - 0.12]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.4, 0.22), postMat); p.position.set(px, 1.7, 0); grp.add(p); }
-    const signMat = new THREE.MeshBasicMaterial({ map: gateTex('x2') });
+    const signMat = new THREE.MeshBasicMaterial({ map: gateTex('A') });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(HALF - 0.1, 1.2), signMat); sign.position.set(0, 3.9, 0); grp.add(sign);
     const back = new THREE.Mesh(sign.geometry, signMat); back.rotation.y = Math.PI; back.position.set(0, 3.9, -0.02); grp.add(back);
     const curMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     const cur = new THREE.Mesh(new THREE.PlaneGeometry(HALF - 0.36, 3.3), curMat); cur.position.set(0, 1.65, 0); grp.add(cur);
     return { grp, signMat, postMat, curMat, flash: 0 };
   });
-  return { s, gi, sides, keys: ['x2', '-1'], used: false };
+  return { s, gi, sides, keys: ['A', 'B'], fx: ['SHIELD', 'ANVIL'], used: false };
 });
 let GATE_LAYOUT = [];
 function layoutGates(lay) {
   GATE_LAYOUT = lay.map(a => a.slice());
   GATES.forEach((gt, i) => {
-    let [good, bad, goodLeft] = lay[i] || []; if (!GATE_INFO[good] || !GATE_INFO[bad]) { good = 'x2'; bad = '-1'; goodLeft = 1; }
-    gt.keys = goodLeft ? [good, bad] : [bad, good];
+    const [fa, fb] = lay[i] || []; gt.fx = [MYSTERY[fa] ? fa : 'SHIELD', MYSTERY[fb] ? fb : 'ANVIL'];
+    gt.keys = ['A', 'B'];
     gt.sides.forEach((sd, k) => {
-      const good = GATE_INFO[gt.keys[k]][2];
+      const col = GATE_INFO[gt.keys[k]][2];
       sd.signMat.map = gateTex(gt.keys[k]); sd.signMat.needsUpdate = true;
-      sd.postMat.color.copy(glowColor(good ? 0x3dff9a : 0xff4a5a, 2.2)); sd.curMat.color.set(good ? 0x3dff9a : 0xff4a5a);
+      sd.postMat.color.copy(glowColor(col, 2.2)); sd.curMat.color.set(col);
       sd.flash = 0;
     });
   });
 }
-function randomGates() { layoutGates(GATES.map(() => [pick(GATE_GOOD), pick(GATE_BAD), Math.random() < 0.5 ? 1 : 0])); for (const gt of GATES) gt.used = false; }
+function randomGates() { layoutGates(GATES.map(() => { const a = pick(MYSTERY_KEYS); let b = pick(MYSTERY_KEYS); while (b === a) b = pick(MYSTERY_KEYS); return [a, b]; })); for (const gt of GATES) gt.used = false; }
 function animateGates(t, dt) {
   for (const gt of GATES) for (const sd of gt.sides) { sd.flash *= Math.pow(0.05, dt); sd.curMat.opacity = 0.16 + Math.sin(t * 4 + gt.s) * 0.05 + sd.flash * 0.7; }
 }
-function gateFlash(i, side) { const sd = GATES[i].sides[side]; sd.flash = 1; const good = GATE_INFO[GATES[i].keys[side]][2]; burst(new V3((side ? 1 : -1) * HALF / 2, 1.8, -GATES[i].s), 60, good ? CONF : SPARK, 7); }
+function gateFlash(i, side) { const sd = GATES[i].sides[side]; sd.flash = 1; burst(new V3((side ? 1 : -1) * HALF / 2, 1.8, -GATES[i].s), 60, CONF, 7); }
+// what happened behind the door: big card on screen and in the video
+function revealFx(name, replay) {
+  const info = MYSTERY[name]; if (!info) return; if (!replay) recEvt('v', [name]);
+  const col = info[1] ? '#3dff9a' : '#ff6a7a';
+  const el = document.createElement('div'); el.className = 'reveal'; el.style.setProperty('--c', col);
+  const b = document.createElement('b'); b.textContent = name; const sm = document.createElement('small'); sm.textContent = info[0]; el.append(b, sm);
+  stage.appendChild(el); setTimeout(() => el.remove(), 1900);
+  OVL.items.push({ kind: 'reveal', t: performance.now(), text: name, sub: info[0], col });
+}
+// the surprises
+const FX = { grav: 1, gravT: 0, jump: 1, jumpT: 0, boostT: 0, rain: [], anvil: null };
+const TNT_MAT = sign('TNT', '#e0322b', '#ffffff', 256, 128);
+const RAIN = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.7, 0.7, 2, 0.05), TNT_MAT); m.castShadow = true; m.visible = false; scene.add(m); return { m, on: false, x: 0, s: 0, y: 0, vy: 0 }; });
+const ANVIL = new THREE.Group(); {
+  const iron = new THREE.MeshStandardMaterial({ color: 0x2f3238, metalness: 0.85, roughness: 0.35 });
+  const add = (w, h, d, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), iron); m.position.y = y; m.castShadow = true; ANVIL.add(m); };
+  add(0.9, 0.22, 0.55, 0.11); add(0.45, 0.3, 0.38, 0.37); add(1.15, 0.26, 0.55, 0.65);
+  const horn = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 14), iron); horn.rotation.z = Math.PI / 2; horn.position.set(0.82, 0.66, 0); horn.castShadow = true; ANVIL.add(horn);
+  const txt = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.14), sign('1000 KG', '#2f3238', '#ffc21a', 256, 72)); txt.position.set(0, 0.37, 0.2); ANVIL.add(txt);
+  ANVIL.visible = false; scene.add(ANVIL);
+}
+const ANVIL_RING = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.95, 32), new THREE.MeshBasicMaterial({ color: glowColor(0xff3a3a, 2), transparent: true, opacity: 0.8, depthWrite: false })); ANVIL_RING.rotation.x = -Math.PI / 2; ANVIL_RING.visible = false; scene.add(ANVIL_RING);
+function resetFx() { Object.assign(FX, { grav: 1, gravT: 0, jump: 1, jumpT: 0, boostT: 0 }); for (const r of RAIN) { r.on = false; r.m.visible = false; } FX.anvil = null; ANVIL.visible = false; ANVIL_RING.visible = false; }
+function applyFx(name) {
+  const now = performance.now();
+  if (name === 'TNT RAIN') { for (const r of RAIN) { Object.assign(r, { on: true, x: rand(-3.4, 3.4), s: R.s + rand(14, 55), vy: 0 }); r.y = rand(14, 24) + (r.s - R.s) * 0.15; r.m.visible = true; } }
+  else if (name === 'MOON GRAVITY') { FX.grav = 0.35; FX.gravT = 6; }
+  else if (name === 'ROCKET BOOST') { FX.boostT = 2.5; R.speed = Math.min(40, R.speed + 12); if (R.grounded) { R.grounded = false; R.vy = 4; } burst(new V3(R.x, R.y + 0.4, -R.s + 0.8), 60, SPARK, 8); tone(200, 1400, 0.6, 'sawtooth', 0.05); }
+  else if (name === 'OIL SLICK') { R.slip = 3; }
+  else if (name === 'SHIELD') { R.shield = true; tone(500, 1500, 0.3, 'sine', 0.06); }
+  else if (name === 'ARM CANNON') { equipCannon(); }
+  else if (name === 'REPAIR') { while (detached.length) reattach(); stumps.length = 0; setHP(100); burst(torso.getWorldPosition(new V3()), 50, CONF, 6); }
+  else if (name === 'SUPER JUMP') { FX.jump = 1.45; FX.jumpT = 6; }
+  else if (name === 'ANVIL') { const T = 1.6; FX.anvil = { x: R.x, s: R.s + Math.max(R.speed, 12) * T, y: 20 * T * T / 2 + 0.2, vy: 0, landed: false }; ANVIL.visible = true; ANVIL_RING.visible = true; tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
+  else if (name === 'MATRIX MODE') { slowUntil = now + 2200; slowK = 0.3; }
+}
+function stepFx(dt) {
+  if (FX.gravT > 0 && (FX.gravT -= dt) <= 0) FX.grav = 1;
+  if (FX.jumpT > 0 && (FX.jumpT -= dt) <= 0) FX.jump = 1;
+  if (FX.boostT > 0) FX.boostT -= dt;
+  for (const r of RAIN) {
+    if (!r.on) continue; r.vy -= 9.8 * dt; r.y += r.vy * dt; r.m.position.set(r.x, r.y + 0.35, -r.s); r.m.rotation.x += dt * 2; r.m.rotation.z += dt * 1.3;
+    const fl = trackH(r.s) ?? -90;
+    if (r.y <= fl) {
+      r.on = false; r.m.visible = false;
+      if (fl > -80) { explodeAt(new V3(r.x, fl + 0.5, -r.s)); if (state === 'ride' && Math.abs(R.x - r.x) < 2 && Math.abs(R.s - r.s) < 2.2 && R.y < 2.5) { R.grounded = false; R.vy = 8; setHP(HP - 10); graze({}, R.x >= r.x ? 1 : -1, Math.random() < 0.3); if (state !== 'ride') return; lastPop = 0; pop('KABOOM!', 'green'); } }
+    }
+  }
+  const A = FX.anvil;
+  if (A) {
+    if (!A.landed) { A.vy -= 20 * dt; A.y += A.vy * dt; const fl = trackH(A.s) ?? -90; if (A.y <= fl) { A.y = fl; A.landed = true; ANVIL_RING.visible = false; explodeVisualSmall(new V3(A.x, fl + 0.3, -A.s)); if (state === 'ride' && Math.abs(R.x - A.x) < 1.0 && Math.abs(R.s - A.s) < 1.2 && R.y < 2.2) { crash('anvil'); return; } } }
+    ANVIL.position.set(A.x, A.y, -A.s); ANVIL_RING.position.set(A.x, (trackH(A.s) ?? 0) + 0.02, -A.s);
+    if (A.landed && state === 'ride' && Math.abs(R.x - A.x) < 0.8 && Math.abs(R.s - A.s) < 0.45 && R.y < 0.9) { crash('anvil'); return; }
+  }
+}
+function explodeVisualSmall(c) { burst(c, 50, SPARK, 6); if (!reduceMotion) shake = Math.min(0.6, shake + 0.4); tone(90, 30, 0.35, 'sine', 0.35); clank(10); }
+function takeGate(i, side) {
+  const name = GATES[i].fx[side]; recEvt('g', [i, side]); gateFlash(i, side);
+  if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 450; slowK = 0.45;
+  revealFx(name, false); applyFx(name);
+  const good = MYSTERY[name][1]; setFace(good ? 'happy' : 'scared', 1200);
+  if (good) { tone(300, 1200, 0.35, 'square', 0.05); tone(600, 1800, 0.3, 'square', 0.04, 0.15); } else tone(700, 150, 0.45, 'sawtooth', 0.05);
+}
 
 // ---------- the flock: up to 5 Daggies ride together, loosely like a flock of birds ----------
 // (the old "versions" system is switched off; these stubs keep the hooks elsewhere harmless)
 const PW = { size: 1 }, FORM = { kind: '' };
 function powerHit() { return false; }
-function formMax() { return 34; }
+function formMax() { return FX.boostT > 0 ? 40 : 34; }
 function stepForm() {}
 function formRec() { return null; }
 function formApply() { for (const p of parts) if (!/^hand/.test(p.name)) p.visible = true; board.visible = true; }
@@ -742,7 +907,7 @@ function makeFollower(i) {
   rig.visible = false; bd.visible = false;
   return { i, rig, body, parts: fp, board: bd, state: 'off', x: 0, s: 0, y: 0, slot: 0, spawn: 1, boardFree: false, bv: new V3(), bw: new V3(), ph: rand(0, TAU) };
 }
-const FLOCK = Array.from({ length: 8 }, (_, i) => makeFollower(i));
+const FLOCK = []; // flock mode is switched off; makeFollower() is kept for later experiments
 const HIST = [];
 function flockCount() { return (state === 'crashed' || state === 'result' && cause !== '' ? 0 : 1) + FLOCK.filter(f => f.state === 'ride').length; }
 function updateFlockHUD() { const el = $('flockN'); if (el) el.textContent = String(flockCount()); }
@@ -879,7 +1044,7 @@ function applyFlockRec(f0, f1, a) {
   }
   for (const f of FLOCK) if (!seen.has(f)) { f.board.visible = false; for (const p of f.parts) p.visible = false; }
 }
-function takeGate(i, side) {
+function takeGateFlock(i, side) {
   const key = GATES[i].keys[side], good = GATE_INFO[key][2]; recEvt('g', [i, side]); gateFlash(i, side);
   if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 450; slowK = 0.45;
   const n = flockCount(), t = { 'x2': n * 2, '+1': n + 1, '+2': n + 2, '-1': n - 1, '-2': n - 2, '÷2': Math.floor(n / 2) }[key];
@@ -1085,7 +1250,8 @@ function recordFrame(dt) {
   const spl = []; splats.forEach((s, i) => { if (s.m.visible) spl.push(i, s.m.position.x, s.m.position.y, s.m.position.z, s.m.rotation.y, s.m.scale.x); });
   const DR = new Float32Array([drone.visible ? 1 : 0, drone.position.x, drone.position.y, drone.position.z, drone.rotation.x, drone.rotation.z]);
   const GX = { can: CANNON.on || (cannonG.visible && !!cannonG.parent) ? (CANNON.k === 'L' ? 1 : CANNON.k === 'R' ? 2 : (cannonG.parent === byName.foreL ? 1 : 2)) : 0, cs: cannonG.scale.x, sh: bubble.visible ? 1 : 0, dead: DESTR.map(dd => dd.obj.dead ? 1 : 0), pk: PICKS.map(p => p.taken ? 0 : 1), so: SOCIAL.map(p => p.taken ? 0 : 1), pj: PROJ.flatMap(p => p.on ? [p.m.position.x, p.m.position.y, p.m.position.z] : []), fm: formRec() };
-  REC.frames.push({ FL, GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
+  const FXR = new Float32Array([ANVIL.visible ? 1 : 0, ANVIL.position.x, ANVIL.position.y, ANVIL.position.z, ANVIL_RING.visible ? 1 : 0, ...RAIN.flatMap(r => r.on ? [r.m.position.x, r.m.position.y, r.m.position.z] : [])]);
+  REC.frames.push({ FXR, FL, GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
   REC.acc = 0; REC.cur = [];
 }
 // virtual director: plan hard cuts every ~2-3 s, choosing shots around what happens next
@@ -1096,7 +1262,7 @@ function planShots(rec) {
   const torsoI = parts.indexOf(torso) * 7;
   const firstOf = code => { const i = fr.findIndex(f => f.st === code); return i < 0 ? null : cum[i]; };
   const introEnd = firstOf(1) ?? 0, crashT = firstOf(3), passT = firstOf(2);
-  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|DAGGIE|DOUBLE|POOF|SURVIVED|MAX/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
+  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|TNT RAIN|MOON|ROCKET|OIL|REPAIR|SUPER|ANVIL|MATRIX|FLATTENED/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
   // highlight ranges: the drop, every big moment, and the crash or finish; calm riding is cut out
   let ranges = [[0, introEnd + 0.8]];
   for (const e of evTimes) ranges.push([Math.max(0, e - 1.0), e + 0.8]);
@@ -1163,6 +1329,7 @@ function fireEvents(f) {
     else if (k === 'x') explodeVisual(new V3(d[0], d[1], d[2]));
     else if (k === 'u') socialFx(d[0]);
     else if (k === 'g') gateFlash(d[0], d[1]);
+    else if (k === 'v') revealFx(d[0], true);
   }
 }
 function replayFrame(rdt) {
@@ -1192,6 +1359,7 @@ function applyRecFrame(P, dt, rdt) {
   const a = f1 === f0 ? 0 : clamp((P.t - P.cum[P.i]) / Math.max(1e-4, f1.dt), 0, 1);
   parts.forEach((p, i) => { const o = i * 7; _pa.fromArray(f0.P, o); _pb.fromArray(f1.P, o); p.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.P, o + 3); _qb.fromArray(f1.P, o + 3); p.quaternion.slerpQuaternions(_qa, _qb, a); });
   applyFlockRec(f0, f1, a);
+  if (f0.FXR) { const X = f0.FXR; ANVIL.visible = !!X[0]; ANVIL.position.set(X[1], X[2], X[3]); ANVIL_RING.visible = !!X[4]; if (X[4]) ANVIL_RING.position.set(X[1], (trackH(-X[3]) ?? 0) + 0.02, X[3]); RAIN.forEach((r, k) => { const o = 5 + k * 3; r.m.visible = o + 2 < X.length; if (r.m.visible) r.m.position.set(X[o], X[o + 1], X[o + 2]); }); } else { ANVIL.visible = false; ANVIL_RING.visible = false; for (const r of RAIN) r.m.visible = false; }
   _pa.fromArray(f0.B, 0); _pb.fromArray(f1.B, 0); board.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.B, 3); _qb.fromArray(f1.B, 3); board.quaternion.slerpQuaternions(_qa, _qb, a);
   simT = lerp(f0.simT, f1.simT, a);
   OBS.barrels.forEach((b, i) => { b.s = lerp(f0.bar[i], f1.bar[i], a); });
@@ -1386,7 +1554,7 @@ function composite() {
     cctx.fillStyle = 'rgba(255,255,255,0.07)'; for (let i = 0; i < 4; i++) cctx.fillRect(0, Math.random() * H, W, H * rand(0.004, 0.03));
     if (Math.floor(now / 250) % 2) strokeText('◀◀ REWIND', W * 0.3, H * 0.13, W * 0.075, '#ffffff');
   }
-  OVL.items = OVL.items.filter(it => now - it.t < (it.kind === 'pop' ? 1000 : 1200));
+  OVL.items = OVL.items.filter(it => now - it.t < (it.kind === 'pop' ? 1000 : it.kind === 'reveal' ? 1900 : 1200));
   for (const it of OVL.items) {
     const age = (now - it.t) / 1000;
     if (it.kind === 'pop') {
@@ -1395,6 +1563,12 @@ function composite() {
       const col = it.cls === 'green' ? '#3dff9a' : it.cls === 'lilac' ? '#e7b3ff' : '#ffc41f';
       strokeText(it.text, W / 2, H * (0.34 + it.slot * 0.09) - age * H * 0.05, W * 0.12 * k, col, -0.1);
       cctx.globalAlpha = 1;
+    } else if (it.kind === 'reveal') {
+      const k = Math.min(1, age / 0.2), sc = 0.6 + 0.4 * (1 - Math.pow(1 - k, 3)), bw = W * 0.86, bh = W * 0.3;
+      cctx.save(); cctx.globalAlpha = age > 1.5 ? Math.max(0, 1 - (age - 1.5) / 0.4) : Math.min(1, age / 0.12); cctx.translate(W / 2, H * 0.27); cctx.scale(sc, sc);
+      cctx.fillStyle = 'rgba(20,12,48,0.85)'; cctx.strokeStyle = it.col; cctx.lineWidth = W * 0.008; cctx.beginPath(); if (cctx.roundRect) cctx.roundRect(-bw / 2, -bh / 2, bw, bh, W * 0.04); else cctx.rect(-bw / 2, -bh / 2, bw, bh); cctx.fill(); cctx.stroke();
+      strokeText(it.text, 0, -bh * 0.1, W * 0.095, it.col); strokeText(it.sub, 0, bh * 0.27, W * 0.045, '#ffffff');
+      cctx.restore(); cctx.globalAlpha = 1;
     } else {
       if (age < 0.3 && !reduceMotion) { cctx.fillStyle = 'rgba(255,255,255,' + (0.35 * (1 - age / 0.3)).toFixed(3) + ')'; cctx.fillRect(0, 0, W, H); }
       const pulse = 1 + Math.sin(age * 14) * 0.06, s = Math.min(1, age / 0.18) * pulse, bw = W * (it.kind === 'like' ? 0.26 : 0.4), bh = W * 0.09;
@@ -1405,7 +1579,7 @@ function composite() {
     }
   }
 }
-const DROP_H = 14;
+const DROP_H = 10, INTRO_V = 14; // drop height, speed of the drone + the rolling board/cart during the intro
 // ---------- state & helpers ----------
 const tv = new V3(), tv2 = new V3(), tq = new THREE.Quaternion();
 let faceUntil = 0;
@@ -1429,8 +1603,8 @@ let state = 'intro', stateT = 0, testNo = 0, slowUntil = 0, slowK = 1, manualSlo
 let simT = 0, orbitA = 0, crouch = 0.45, crouchV = 0, bal = 0, lastXv = 0, stanceBlend = 0;
 function resetRun() {
   testNo++;
-  resetPower(); randomGates(); resetFlock();
-  Object.assign(R, { s: -9, x: 0, xT: 0, xv: 0, y: DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0 });
+  resetPower(); randomGates(); resetFlock(); resetFx();
+  Object.assign(R, { s: -13.5, x: 0, xT: 0, xv: 0, y: DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0 });
   trick = TRICKS[(testNo - 1) % TRICKS.length];
   for (const b of BOOSTS) b.used = false;
   for (const sw of SAWS) sw.near = false;
@@ -1440,7 +1614,7 @@ function resetRun() {
   for (const d of drops) { d.on = false; d.m.visible = false; }
   for (const s of splats) s.m.visible = false;
   dripUntil = 0; cleaning = false;
-  board.position.set(0, 0, 0); board.quaternion.identity(); BB.free = false;
+  board.position.set(0, 0, 13.5); board.quaternion.identity(); BB.free = false;
   state = 'intro'; stateT = performance.now(); cause = '';
   crouch = 0.45; crouchV = 0; stanceBlend = 0;
   setFace('scared'); slowUntil = 0; shake = 0;
@@ -1468,9 +1642,10 @@ function poseBody(t) {
     const acc = (R.xv - lastXv); lastXv = R.xv;
     bal += (clamp(-R.xv * 0.25 - acc * 0.4, -1, 1) - bal) * 0.15;
     if (R.grounded) {
-      const target = state === 'passed' ? 0.3 : R.speed > 24 ? 0.72 : 0.6;
+      const target = state === 'passed' ? 0.3 : R.speed > 24 ? 0.78 : 0.66;
       crouchV += ((target - crouch) * 90 - crouchV * 11) * (1 / 60); crouch = clamp(crouch + crouchV / 60, 0.1, 1.05);
       P = skatePose(crouch, bal, t, R.xv * 0.05);
+      P = blendPose(P, { upperL: [0.2, 0, SIDE.L * 0.85], upperR: [0.2, 0, SIDE.R * 0.85], foreL: [0.55, 0, 0], foreR: [0.55, 0, 0] }, clamp(0.4 + Math.abs(bal) * 0.35, 0, 0.8)); // arms out for balance
       if (state === 'passed') { P = blendPose(P, { torso: [-0.1, 0, 0], head: [-0.2, -0.6, 0], upperL: [0, 0, SIDE.L * 2.6], upperR: [0, 0, SIDE.R * 2.6], foreL: [0.2, 0, 0], foreR: [0.2, 0, 0] }, 0.85); }
       if (CANNON.on) { P['upper' + CANNON.k] = [0.05, 0, 1.45]; P['fore' + CANNON.k] = [0, 0, 0.05]; }
       solveStance(P, 1);
@@ -1496,8 +1671,8 @@ function placeRider(t) {
 function jointsNow() { daggie.updateMatrixWorld(true); const out = []; for (const [n, par] of RIG) if (par) out.push(jointWorld(n, new V3()).applyMatrix4(daggie.matrixWorld)); return out; }
 function crash(kind, saw) {
   if (state !== 'ride') return;
-  if (kind !== 'fall' && kind !== 'wear' && kind !== 'bones') { if (performance.now() < R.inv) return; if (R.shield) { shieldSave(); return; } if (powerHit(kind, saw)) return; }
-  if (kind !== 'fall' && flockSwap(kind)) return;
+  if (kind !== 'fall' && kind !== 'gap' && kind !== 'wear' && kind !== 'bones') { if (performance.now() < R.inv) return; if (R.shield) { shieldSave(); return; } if (powerHit(kind, saw)) return; }
+  if (kind !== 'fall' && kind !== 'gap' && flockSwap(kind)) return;
   state = 'crashed'; stateT = performance.now(); cause = kind; setHP(0);
   const now = stateT, vel = new V3(R.xv, R.vy, -R.speed);
   const jw = jointsNow(); const center = torso.getWorldPosition(new V3());
@@ -1526,7 +1701,7 @@ function crash(kind, saw) {
   setFace('hit', 1500);
   slowUntil = now + (reduceMotion ? 500 : 1600); slowK = 0.22;
   if (!reduceMotion) shake = 0.5;
-  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
+  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
   tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06);
   orbitA = Math.atan2(camera.position.x - center.x, camera.position.z - center.z);
 }
@@ -1549,7 +1724,7 @@ function showResult() {
   const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
   $('result').hidden = false;
 }
 function landImpact(v) { crouchV += Math.min(4.5, v * 0.35); }
@@ -1688,6 +1863,7 @@ function resetGadgets() {
 // ---------- physics ----------
 function stepRide(dt, now) {
   const px = R.x, ps0 = R.s;
+  stepFx(dt); if (state !== 'ride' && state !== 'passed') return;
   if (R.slip > 0) { R.slip -= dt; R.xT += Math.sin(simT * 7.3) * 5.5 * dt; }
   if (OBS.wind && R.s > OBS.wind.s0 && R.s < OBS.wind.s1) { R.xT += OBS.wind.force * dt; R.x += OBS.wind.force * 0.35 * dt; }
   R.x += (R.xT - R.x) * Math.min(1, dt * (FORM.kind === 'frozen' ? 1.4 : R.slip > 0 ? 2.5 : 6));
@@ -1705,8 +1881,9 @@ function stepRide(dt, now) {
     if (R.s > LAND0 && cause === '') { R.speed *= Math.pow(0.35, dt); if (R.s > LAND0 + 4 && !R.passedFlag) { R.passedFlag = true; passed(); } }
   } else {
     R.air += dt;
-    R.vy -= 9.8 * dt; R.y += R.vy * dt; R.s += R.speed * dt;
+    R.vy -= 9.8 * FX.grav * (R.vy < 0 ? 1.35 : 1) * dt; R.y += R.vy * dt; R.s += R.speed * dt;
     const h = trackH(R.s);
+    if (h !== null && R.y < h - 0.5) { crash('gap'); return; } // fell into the gap and hit the far wall
     if (h !== null && R.y <= h && R.vy <= 0) {
       const hard = -R.vy; R.grounded = true; R.y = h; R.slope = 0; landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10);
       if (R.slam) { R.slam = false; for (const n of TNTS) if (n.alive && Math.hypot(n.x - R.x, n.s - R.s) < 3.2) { n.alive = false; n.g.visible = false; explodeAt(new V3(n.x, 0.6, -n.s)); } burst(new V3(R.x, h + 0.1, -R.s), 50, SPARK, 8); pop('SLAM!', 'lilac'); if (!reduceMotion) shake = 0.5; tone(90, 35, 0.35, 'sine', 0.3); for (const c of OBS.cones) if (!c.hit && Math.hypot(c.x0 - R.x, c.s0 - R.s) < 4) { c.hit = true; c.v.set((c.x0 - R.x) * 3, rand(5, 8), (R.s - c.s0) * 2); c.w.set(rand(-12, 12), 0, rand(-12, 12)); } }
@@ -1838,7 +2015,7 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
 function action() {
   if (state === 'result') { resetRun(); return; }
   if (state === 'intro') { if (R.carry) R.carryT = 99; else R.vy = Math.min(R.vy, -16); return; }
-  if (state === 'ride' && R.grounded) { R.grounded = false; R.vy = R.speed * R.slope + (FORM.kind === 'skeleton' ? 8 : 6.5); crouchV -= 3; if (FORM.kind === 'skeleton') tone(900, 500, 0.1, 'square', 0.05); tone(300, 700, 0.15, 'triangle', 0.05); setFace('wow', 700); }
+  if (state === 'ride' && R.grounded) { R.grounded = false; R.vy = R.speed * R.slope + 7.2 * FX.jump; crouchV -= 3; if (FORM.kind === 'skeleton') tone(900, 500, 0.1, 'square', 0.05); tone(300, 700, 0.15, 'triangle', 0.05); setFace('wow', 700); }
   else if (state === 'ride' && !R.grounded && !R.slam) { R.slam = true; R.vy = Math.min(R.vy, -17); crouchV += 2; tone(700, 150, 0.2, 'triangle', 0.06); setFace('scared', 600); }
 }
 $('bNew').onclick = () => { initAudio(); startRoll(); resetRun(); };
@@ -1927,20 +2104,21 @@ function frame() {
   if (keys.ArrowRight || keys.KeyD) R.xT = clamp(R.xT + 8 * dt, -3.8, 3.8);
   const t = (now - stateT) / 1000;
   if (state === 'intro') {
-    drone.visible = true; for (const r of rotors) r.rotation.y += sdt * 40;
+    drone.visible = true; rotors.forEach((r, i) => { r.rotation.y += sdt * (i % 2 ? -70 : 70); });
+    R.s += INTRO_V * sdt; // the board/cart is already rolling; drone and Daggie keep pace above it
+    board.position.set(0, trackH(R.s) ?? 0, -R.s); board.rotation.set(0, 0, 0); for (const w of wheels) w.rotation.x -= INTRO_V / 0.056 * sdt;
     if (R.carry) {
-      R.carryT += sdt; const k = clamp(R.carryT / 0.8, 0, 1), e = 1 - Math.pow(1 - k, 3);
-      R.s = -9 * (1 - e); R.y = DROP_H;
-      drone.position.set(0, DROP_H + 2.55, -R.s); drone.rotation.set(-0.25 * (1 - k), 0, Math.sin(simT * 3) * 0.05);
-      if (k >= 1) { R.carry = false; R.s = 0; R.vy = 0; tone(700, 300, 0.12, 'square', 0.05); pop('DROP!', 'lilac'); setFace('scared', 900); }
+      R.carryT += sdt; R.y = DROP_H;
+      drone.position.set(R.x, DROP_H + 2.55, -R.s); drone.rotation.set(-0.16, 0, Math.sin(simT * 3) * 0.04);
+      if (R.carryT >= 0.55) { R.carry = false; R.vy = 0; tone(700, 300, 0.12, 'square', 0.05); pop('DROP!', 'lilac'); setFace('scared', 900); }
     } else {
       R.vy -= 9.8 * sdt; R.y += R.vy * sdt;
-      drone.position.y += sdt * 7; drone.position.z -= sdt * 9; drone.rotation.x = -0.3;
+      drone.position.y += sdt * 7; drone.position.z -= sdt * (INTRO_V + 5); drone.rotation.x = -0.35;
     }
     if (!R.carry && R.y <= 0) {
-      R.y = 0; R.vy = 0; R.grounded = true; R.speed = 14; state = 'ride'; stateT = now; drone.visible = false;
+      R.y = 0; R.vy = 0; R.grounded = true; R.speed = INTRO_V; state = 'ride'; stateT = now; drone.visible = false;
       crouch = 0.9; crouchV = 0; landImpact(6);
-      burst(new V3(0, 0.2, 0), 40, SPARK, 7); tone(150, 45, 0.3, 'sine', 0.3); pop(trick.name, 'lilac'); setFace('wow', 1100);
+      burst(new V3(0, 0.2, -R.s), 40, SPARK, 7); tone(150, 45, 0.3, 'sine', 0.3); pop(trick.name, 'lilac'); setFace('wow', 1100);
       if (!reduceMotion) shake = 0.45; slowUntil = now + 450; slowK = 0.35;
     }
   }

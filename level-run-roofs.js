@@ -1,0 +1,35 @@
+// Level: City Roofs (mode RUN). Daggie rides a supermarket cart across evening rooftops.
+// Gaps are the alleys between buildings: jump them or fall. Same obstacle types as the sky track.
+export const LEVEL = {
+  id: 'roofs',
+  name: 'City Roofs',
+  title: ['CAN HE SURVIVE', 'THE ROOFTOP RUN?'],
+  theme: 'city',
+  vehicle: 'cart',
+  track: {
+    half: 4.2,
+    gaps: [[70, 80], [160, 171], [250, 261], [345, 357]], // alleys: jump or hit the wall
+    ramp: [470, 480], rampH: 1.6,
+    land: [504, 640],
+  },
+  bigSaw: { s: 494, r: 4.0, y: 0.5 },
+  signs: [[2, 'ROOF RUN'], [62, 'MIND THE GAP'], [150, 'JUMP!'], [240, 'NO RETURNS'], [335, 'LAST AISLE'], [462, 'JUMP!'], [508, 'CHECKOUT']],
+  saws: [[40, -2.2, 1.3], [110, -2.4, 1.3], [110, 2.4, 1.3], [205, 0, 1.5, 2.8, 2.0], [300, -2.6, 1.3], [300, 2.6, 1.3], [428, 0, 1.6, 3.1, 2.4], [455, -2.7, 1.3], [455, 2.7, 1.3]],
+  boosts: [[125, 0], [462, 0]],
+  balls: [[135, 0], [380, 1.2]],
+  presses: [{ s: 225, blocks: [[-2.2, 0], [2.2, 1.3]] }],
+  barrels: [[-2.4, 445], [0.2, 460], [2.4, 475], [-1, 490]],
+  hurdles: [55, 320],
+  sweepers: [185],
+  walls: [[95, 1.3], [400, 1.7]],
+  oils: [[120, 0]],
+  tramps: [[235, 0]],
+  spikes: [[412, 419]],
+  wind: { s0: 280, s1: 300, fans: [285, 296], force: 3.4 },
+  cones: [[-2.8, 22], [-1.4, 25], [0, 22], [1.4, 25], [2.8, 22], [-2.1, 28], [0.7, 28], [2.1, 31], [-0.7, 31]],
+  tnts: [[33, 2.6], [178, 1.4], [310, -2.5], [440, 2.4]],
+  spares: [[140, 2.4], [268, 0], [372, -1.6]],
+  picks: [[62, -1.2, 'cannon'], [215, -2.4, 'shield'], [330, 1.4, 'cannon']],
+  social: [[128, -2.2, 'like'], [361, 0, 'sub']],
+  gates: [45, 195, 365],
+};

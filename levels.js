@@ -6,7 +6,7 @@ export const MODES = [
     id: 'run', title: 'RUN', sub: 'Survive the track', page: 'run.html',
     levels: [
       { id: 'sky', name: 'Sky Track', ride: 'Skateboard', file: 'level-run-sky.js', ready: true },
-      { id: 'roofs', name: 'City Roofs', ride: 'Shopping cart', ready: false },
+      { id: 'roofs', name: 'City Roofs', ride: 'Shopping cart', file: 'level-run-roofs.js', ready: true },
       { id: 'bath', name: 'Bathtub Rush', ride: 'Bathtub', ready: false },
     ],
   },
