@@ -1323,6 +1323,7 @@ function startFilm(rec, fromResult, record) {
 function endFilm() {
   if (!PLAY) return;
   const back = PLAY.fromResult; PLAY = null; $('hook').classList.remove('show');
+  head.visible = true; // the helmet camera hides the head during its shot; bring it back whatever shot the film ended on
   if (recorder) stopRecorder().then(showVideoCard); drone.visible = false; grade.uniforms.sat.value = 1.32; $('rew').hidden = true; camera.fov = baseFov(); camera.updateProjectionMatrix();
   stage.classList.remove('filming', 'clean');
   if (back) { state = 'result'; $('result').hidden = false; } else resetRun();
@@ -1615,6 +1616,7 @@ function resetRun() {
   trick = TRICKS[(testNo - 1) % TRICKS.length];
   for (const b of BOOSTS) b.used = false;
   for (const sw of SAWS) sw.near = false;
+  for (const p of parts) p.visible = true; // clean slate: nothing stays hidden from a previous film
   resetObstacles(); resetDamage(); resetGadgets(); for (const n of TNTS) { n.alive = true; n.g.visible = true; } for (const sw of SAWS) sw.grazed = false;
   for (const p of parts) { daggie.attach(p); p.position.copy(p.userData.restPos); p.quaternion.copy(p.userData.restQuat); p.scale.set(1, 1, 1); p.userData.v.set(0, 0, 0); p.userData.w.set(0, 0, 0); }
   for (const d of debris) { d.on = false; d.m.visible = false; }
