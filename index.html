@@ -124,7 +124,7 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 </head>
 <body>
 <div id="stage">
-  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track · v2.0 (Transform gates)</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div><p class="help">Drag to dodge · Tap to jump · Tap in the air to slam · Orange crate: arm cannon · Blue crate: shield · Green crate: repair · Gates: green = strong form, red = weak form</p></div></div>
+  <div class="loader" id="loader"><div class="box"><h1>Crash Test <b>Daggie</b></h1><div>Saw Run · Sky Test Track · v2.2 (Daggie versions)</div><div class="track"><div id="loadBar"></div></div><div id="loadTxt">Starting…</div><p class="help">Drag to dodge · Tap to jump · Tap in the air to slam · Orange crate: arm cannon · Blue crate: shield · Green crate: repair · Gates: green = strong Daggie, red = weak Daggie</p></div></div>
   <canvas id="game" aria-label="Saw Run: Daggie skates a floating track above the clouds, dodging spinning saws"></canvas>
   <div class="hook" id="hook"><span>CAN HE SURVIVE</span><span>THE SAW RUN?</span></div>
   <div class="pops" id="pops"></div>
@@ -849,10 +849,10 @@ const SOCIAL = [[160, -2.0, 'like'], [344, 0, 'sub']].map(([s, x, kind]) => {
 
 // ---------- boost gates: pick a side, get stronger or weaker ----------
 const GATE_S = [270, 318, 364];
-const GATE_PAIRS = [['tank', 'egg'], ['rocket', 'ice'], ['ball', 'duck']];
+const GATE_PAIRS = [['muscle', 'skeleton'], ['chrome', 'rusty'], ['fire', 'frozen']];
 const GATE_INFO = {
-  tank: ['TANK', 'SMASH EVERYTHING', 1], rocket: ['ROCKET', 'FLY OVER IT ALL', 1], ball: ['STEEL BALL', 'ROLL THROUGH', 1],
-  egg: ['EGG', 'ONE HIT = CRACK', 0], ice: ['ICE CUBE', 'NO CONTROL', 0], duck: ['RUBBER DUCK', 'SLOW + SQUEAKY', 0],
+  muscle: ['MUSCLE', 'SMASH + TOUGH', 1], chrome: ['CHROME', 'SAW-PROOF + FAST', 1], fire: ['ON FIRE', 'TNT-PROOF', 1],
+  skeleton: ['SKELETON', 'ONE TOUCH = BONES', 0], rusty: ['RUSTY', 'FALLING APART', 0], frozen: ['FROZEN', 'SLIPPERY + BRITTLE', 0],
 };
 const GATE_TEX = {};
 function gateTex(key) {
@@ -871,14 +871,14 @@ const GATES = GATE_S.map((s, gi) => {
     const grp = new THREE.Group(); grp.position.set(sd * HALF / 2, 0, -s); scene.add(grp);
     const postMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     for (const px of [-HALF / 2 + 0.12, HALF / 2 - 0.12]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.4, 0.22), postMat); p.position.set(px, 1.7, 0); grp.add(p); }
-    const signMat = new THREE.MeshBasicMaterial({ map: gateTex('tank') });
+    const signMat = new THREE.MeshBasicMaterial({ map: gateTex('muscle') });
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(HALF - 0.1, 1.2), signMat); sign.position.set(0, 3.9, 0); grp.add(sign);
     const back = new THREE.Mesh(sign.geometry, signMat); back.rotation.y = Math.PI; back.position.set(0, 3.9, -0.02); grp.add(back);
     const curMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     const cur = new THREE.Mesh(new THREE.PlaneGeometry(HALF - 0.36, 3.3), curMat); cur.position.set(0, 1.65, 0); grp.add(cur);
     return { grp, signMat, postMat, curMat, flash: 0 };
   });
-  return { s, gi, sides, keys: ['tank', 'egg'], used: false };
+  return { s, gi, sides, keys: ['muscle', 'skeleton'], used: false };
 });
 let GATE_LAYOUT = [[0, 1], [1, 0], [2, 1]];
 function layoutGates(L) {
@@ -900,148 +900,128 @@ function animateGates(t, dt) {
 }
 function gateFlash(i, side) { const sd = GATES[i].sides[side]; sd.flash = 1; const good = GATE_INFO[GATES[i].keys[side]][2]; burst(new V3((side ? 1 : -1) * HALF / 2, 1.8, -GATES[i].s), 60, good ? CONF : SPARK, 7); }
 
-// ---------- transformations: each gate turns Daggie into something else ----------
+// ---------- Daggie versions: each gate turns him into another version of himself ----------
 const PW = { size: 1 };
-const FORM_LIST = ['', 'tank', 'rocket', 'ball', 'egg', 'duck', 'ice'];
-const FORM_DUR = { tank: 7, rocket: 2.6, ball: 7, egg: 6, duck: 6, ice: 4.5 };
-const FORM_MAX = { tank: 24, rocket: 36, ball: 36, egg: 30, duck: 17, ice: 30 };
-const FORM_END = { tank: 'POWER DOWN', rocket: 'OUT OF FUEL!', ball: 'POWER DOWN', egg: 'HATCHED!', duck: 'UN-DUCKED!', ice: 'MELTED!' };
-const FORM_HIDE = { tank: 1, rocket: 1, ball: 1, egg: 1, duck: 1, ice: 0 };
-const FORM = { kind: '', t: 0, scale: 1, scaleV: 0, roll: 0 };
-const FORM_ROOT = new THREE.Group(); scene.add(FORM_ROOT);
-const yellowPaint = new THREE.MeshPhysicalMaterial({ color: 0xffc21a, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.1 });
+const VAR_LIST = ['', 'muscle', 'skeleton', 'chrome', 'rusty', 'fire', 'frozen'];
+const FORM_MAX = { muscle: 30, chrome: 38, rusty: 22, frozen: 24 };
+const FORM = { kind: '', t: 0, n: 0, fx: 0 };
+const PART_EXT = {}; for (const p of parts) { const bb = p.userData.mesh.geometry.boundingBox, e = new V3().subVectors(bb.max, bb.min); const ax = e.x >= e.y && e.x >= e.z ? 0 : e.y >= e.z ? 1 : 2; PART_EXT[p.name] = { e, ax, bb }; }
+function noiseTex(w, h, draw) { const t = tex(w, h, draw); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
+const rustTex = noiseTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#8a3f1c'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1800; i++) { const r = Math.random() * 16 + 2; g.fillStyle = pick(['rgba(160,74,28,.55)', 'rgba(94,40,18,.6)', 'rgba(196,110,48,.45)', 'rgba(60,30,20,.5)', 'rgba(210,160,60,.25)']); g.beginPath(); g.arc(Math.random() * w, Math.random() * h, r, 0, TAU); g.fill(); }
+});
+rustTex.repeat.set(3, 3);
+const fireTex = noiseTex(256, 256, (g, w, h) => { g.fillStyle = '#ff7a1a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 500; i++) { g.fillStyle = pick(['rgba(255,220,80,.6)', 'rgba(255,60,20,.6)', 'rgba(40,10,0,.7)']); g.beginPath(); g.arc(Math.random() * w, Math.random() * h, Math.random() * 14 + 3, 0, TAU); g.fill(); } });
+fireTex.repeat.set(2, 2);
+const VAR_MAT = {
+  chrome: new THREE.MeshPhysicalMaterial({ color: 0xe8edf3, metalness: 1, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.8 }),
+  rusty: new THREE.MeshStandardMaterial({ map: rustTex, color: 0xffffff, metalness: 0.55, roughness: 0.92 }),
+  fire: new THREE.MeshStandardMaterial({ color: 0x1c0a04, roughness: 0.6, emissive: 0xffffff, emissiveMap: fireTex, emissiveIntensity: 1.6 }),
+  frozen: new THREE.MeshPhysicalMaterial({ color: 0xc9eeff, roughness: 0.12, metalness: 0.05, clearcoat: 1, transparent: true, opacity: 0.86, emissive: 0x1a4a70, emissiveIntensity: 0.35, envMapIntensity: 1.8 }),
+  skeleton: new THREE.MeshPhysicalMaterial({ color: 0x9fd6ff, roughness: 0.1, transparent: true, opacity: 0.17, depthWrite: false, emissive: 0x16304a, emissiveIntensity: 0.4 }),
+};
+// muscle: thicker across, not longer
+const MUSCLE_K = { upper: 1.6, fore: 1.5, hand: 1.25, thigh: 1.42, shin: 1.3, foot: 1.1, torso: 1.3, pelvis: 1.15, head: 1 };
+function muscleScale(p) { const k = MUSCLE_K[p.name.replace(/[LR]$/, '')] || 1, ax = PART_EXT[p.name].ax, v = new V3(k, k, k); v.setComponent(ax, 1.04); return v; }
+// skeleton bones + frozen icicles, built inside every part and hidden until needed
 const blackPaint = new THREE.MeshStandardMaterial({ color: 0x1b1a20, roughness: 0.7 });
-const screenMat = new THREE.MeshBasicMaterial({ map: faceTex, color: glowColor(0xffffff, 1.4) });
-function screen(w, x, y, z, ry) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.69), screenMat); m.position.set(x, y, z); m.rotation.y = ry || 0; return m; }
-function shadowAll(g) { g.traverse(o => { if (o.isMesh) o.castShadow = true; }); }
-const FG = {};
-{ // TANK
-  const g = new THREE.Group(); FG.tank = g; g.userData.wheels = [];
-  const body = new THREE.Mesh(new RoundedBoxGeometry(1.7, 0.6, 2.4, 3, 0.1), yellowPaint); body.position.y = 0.68; g.add(body);
-  const band = new THREE.Mesh(new THREE.BoxGeometry(1.73, 0.16, 2.43), stripeMat(2.4)); band.position.y = 0.72; g.add(band);
-  for (const sd of [-1, 1]) {
-    const tr = new THREE.Mesh(new RoundedBoxGeometry(0.44, 0.56, 2.7, 3, 0.18), blackPaint); tr.position.set(sd * 1.0, 0.3, 0); g.add(tr);
-    for (let i = 0; i < 5; i++) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.08, 16), darkSteel); w.rotation.z = Math.PI / 2; w.position.set(sd * 1.23, 0.3, -1 + i * 0.5); g.add(w); g.userData.wheels.push(w); }
-  }
-  const tur = new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.5, 1.15, 3, 0.12), yellowPaint); tur.position.set(0, 1.2, 0.1); g.add(tur);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 1.6, 16), darkSteel); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 1.25, -1.2); g.add(barrel);
-  const muz = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.04, 8, 20), neon(0xff5a3a, 3)); muz.position.set(0, 1.25, -2.0); g.add(muz);
-  g.add(screen(0.82, 0, 1.22, 0.69));
+const boneMat = new THREE.MeshStandardMaterial({ color: 0xf1e8d2, roughness: 0.55 });
+const icicleMat = new THREE.MeshPhysicalMaterial({ color: 0xe6f8ff, roughness: 0.05, transparent: true, opacity: 0.85, clearcoat: 1, emissive: 0x2a6a9a, emissiveIntensity: 0.3 });
+const ALIGN = [q => q.setFromAxisAngle(new V3(0, 0, 1), Math.PI / 2), q => q.identity(), q => q.setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2)];
+const RING = [q => q.setFromAxisAngle(new V3(0, 1, 0), Math.PI / 2), q => q.setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2), q => q.identity()];
+const BONES = [], ICICLES = [];
+for (const p of parts) {
+  const { e, ax } = PART_EXT[p.name], L = e.getComponent(ax), side = [0, 1, 2].filter(i => i !== ax).map(i => e.getComponent(i)), w = Math.min(...side), base = p.name.replace(/[LR]$/, '');
+  const g = new THREE.Group(); g.visible = false; p.add(g); BONES.push(g);
+  const along = (len, r) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, len, 10), boneMat); ALIGN[ax](m.quaternion); return m; };
+  const knob = (off, r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), boneMat); const v = new V3(); v.setComponent(ax, off); m.position.copy(v); return m; };
+  if (['upper', 'fore', 'thigh', 'shin'].includes(base)) { g.add(along(L * 0.82, Math.max(0.022, w * 0.12))); g.add(knob(L * 0.42, Math.max(0.035, w * 0.2)), knob(-L * 0.42, Math.max(0.035, w * 0.2))); }
+  else if (base === 'hand' || base === 'foot') { const m = new THREE.Mesh(new THREE.BoxGeometry(e.x * 0.5, e.y * 0.5, e.z * 0.5), boneMat); g.add(m); }
+  else if (base === 'torso') { g.add(along(L * 0.95, Math.max(0.03, w * 0.08))); for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(w * 0.42, Math.max(0.014, w * 0.045), 8, 28), boneMat); RING[ax](r.quaternion); const v = new V3(); v.setComponent(ax, L * (0.05 + i * 0.12)); r.position.copy(v); r.scale.set(1.25, 1, 1); g.add(r); } }
+  else if (base === 'pelvis') { const r = new THREE.Mesh(new THREE.TorusGeometry(w * 0.4, Math.max(0.02, w * 0.08), 8, 24), boneMat); RING[ax](r.quaternion); g.add(r); }
+  else if (base === 'head') { const sk = new THREE.Mesh(new THREE.SphereGeometry(w * 0.3, 20, 14), boneMat); sk.scale.set(1, 1.1, 1.05); g.add(sk); for (const sd of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(w * 0.07, 10, 8), blackPaint); eye.position.set(sd * w * 0.1, w * 0.03, -w * 0.26); g.add(eye); } }
+  const ic = new THREE.Group(); ic.visible = false; p.add(ic); ICICLES.push(ic);
+  if (/upper|fore|torso|head|thigh/.test(base)) { const bb = PART_EXT[p.name].bb; for (let i = 0; i < 3; i++) { const h = rand(0.08, 0.2); const c = new THREE.Mesh(new THREE.ConeGeometry(h * 0.22, h, 8), icicleMat); c.rotation.x = Math.PI; c.position.set(rand(bb.min.x, bb.max.x) * 0.7, bb.min.y - h * 0.4, rand(bb.min.z, bb.max.z) * 0.7); ic.add(c); } }
 }
-{ // ROCKET
-  const g = new THREE.Group(); FG.rocket = g; const c = new THREE.Group(); c.position.y = 0.9; c.rotation.x = 0.08; g.add(c);
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 2.4, 28), yellowPaint); body.rotation.x = Math.PI / 2; c.add(body);
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.3, 28), stripeMat(2.7)); band.rotation.x = Math.PI / 2; band.position.z = 0.55; c.add(band);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 28), new THREE.MeshPhysicalMaterial({ color: 0xe0322b, roughness: 0.3, clearcoat: 1 })); nose.rotation.x = -Math.PI / 2; nose.position.z = -1.65; c.add(nose);
-  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 0.6), blackPaint); const h = new THREE.Group(); h.rotation.z = i / 4 * TAU + Math.PI / 4; f.position.set(0, 0.62, 0); h.add(f); h.position.z = 1.0; c.add(h); }
-  const noz = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 20), darkSteel); noz.rotation.x = Math.PI / 2; noz.position.z = 1.32; c.add(noz);
-  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.4, 20), new THREE.MeshBasicMaterial({ color: glowColor(0xff8a2a, 3.5), transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
-  flame.rotation.x = Math.PI / 2; flame.position.z = 2.15; c.add(flame); g.userData.flame = flame;
-  c.add(screen(0.62, 0.43, 0.05, -0.45, Math.PI / 2));
+let varShown = 0;
+function setVariantVisual(code) {
+  if (code === varShown) return; varShown = code; const k = VAR_LIST[code];
+  for (const p of parts) { const m = p.userData.mesh; m.material = VAR_MAT[k] || bodyMat; if (k === 'muscle') m.scale.copy(muscleScale(p)); else m.scale.set(1, 1, 1); }
+  for (const g of BONES) g.visible = k === 'skeleton';
+  for (const g of ICICLES) g.visible = k === 'frozen';
 }
-{ // STEEL BALL
-  const g = new THREE.Group(); FG.ball = g; const roll = new THREE.Group(); roll.position.y = 0.92; g.add(roll); g.userData.roll = roll;
-  roll.add(new THREE.Mesh(new THREE.SphereGeometry(0.9, 36, 24), new THREE.MeshStandardMaterial({ color: 0x2a2c33, metalness: 0.9, roughness: 0.28 })));
-  for (const r of [0, Math.PI / 2]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.91, 0.07, 10, 48), yellowPaint); t.rotation.y = r; roll.add(t); }
-  g.add(screen(0.62, 0, 0.98, 0.9));
-}
-{ // EGG
-  const g = new THREE.Group(); FG.egg = g; const pts = [];
-  for (let i = 0; i <= 28; i++) { const a = i / 28 * Math.PI, y = (1 - Math.cos(a)) * 1.0; pts.push(new THREE.Vector2(Math.max(0.001, Math.sin(a) * 0.74 * (1.08 - 0.2 * y)), y)); }
-  const egg = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), new THREE.MeshPhysicalMaterial({ color: 0xfff1d6, roughness: 0.45, clearcoat: 0.5 })); g.add(egg); g.userData.egg = egg;
-  const sc = screen(0.66, 0.2, 0.95, 0.66, 0.3); egg.add(sc);
-}
-{ // RUBBER DUCK
-  const g = new THREE.Group(); FG.duck = g; const d = new THREE.Group(); g.add(d); g.userData.d = d;
-  const duckMat = new THREE.MeshPhysicalMaterial({ color: 0xffd62e, roughness: 0.3, clearcoat: 1 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 22), duckMat); body.scale.set(1, 0.78, 1.25); body.position.y = 0.62; d.add(body);
-  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.5, 16), duckMat); tail.position.set(0, 0.95, 0.95); tail.rotation.x = 0.9; d.add(tail);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 28, 20), duckMat); head.position.set(0, 1.4, -0.5); d.add(head);
-  const beak = new THREE.Mesh(new THREE.SphereGeometry(0.28, 20, 12), new THREE.MeshPhysicalMaterial({ color: 0xff7a1a, roughness: 0.3, clearcoat: 1 })); beak.scale.set(1.1, 0.4, 1.3); beak.position.set(0, 1.32, -0.98); d.add(beak);
-  for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), blackPaint); e.position.set(sd * 0.24, 1.55, -0.88); d.add(e); }
-  d.add(screen(0.5, 0.52, 1.42, -0.4, Math.PI / 2 - 0.3));
-}
-{ // ICE CUBE (Daggie stays visible, frozen inside)
-  const g = new THREE.Group(); FG.ice = g;
-  const geo = new RoundedBoxGeometry(1.6, 2.75, 1.6, 3, 0.12);
-  const cube = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color: 0xcdefff, roughness: 0.06, metalness: 0, transparent: true, opacity: 0.36, clearcoat: 1, envMapIntensity: 2, depthWrite: false })); cube.position.y = 1.38; g.add(cube);
-  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.6, 2.75, 1.6)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })); edges.position.y = 1.38; g.add(edges);
-}
-for (const k in FG) { shadowAll(FG[k]); FG[k].visible = false; FORM_ROOT.add(FG[k]); }
-function hideDaggie(h) { for (const p of parts) p.visible = !h; board.visible = !h; }
+function syncForm() {}
+function hideDaggie() {}
 function startForm(kind) {
-  if (FORM.kind) FG[FORM.kind].visible = false;
-  if (CANNON.on) unequipCannon();
-  FORM.kind = kind; FORM.t = FORM_DUR[kind]; FORM.scale = 0.05; FORM.scaleV = 0; FORM.roll = 0;
-  FG[kind].visible = true; hideDaggie(!!FORM_HIDE[kind]); syncForm();
-  if (kind === 'rocket') { R.grounded = false; R.vy = 3; R.speed = Math.max(R.speed, 28); }
-  if (kind === 'ice') { R.xT = R.x; }
-  burst(rider.position.clone().add(new V3(0, 1.2, 0)), 70, CONF, 7);
+  FORM.kind = kind; FORM.t = 3.5; FORM.n = 0; FORM.fx = 0; setVariantVisual(VAR_LIST.indexOf(kind));
+  const c = torso.getWorldPosition(new V3()); burst(c, 70, kind === 'fire' ? SPARK : CONF, 7);
 }
 function endForm(msg, violent) {
-  const k = FORM.kind; if (!k) return; FORM.kind = ''; FG[k].visible = false; hideDaggie(false);
-  const c = rider.position.clone().add(new V3(0, 1.1, 0));
-  burst(c, violent ? 60 : 40, violent ? SPARK : CONF, violent ? 8 : 6);
-  if (violent) { const few = debris.filter(d => !d.on).slice(0, 10); for (const d of few) { d.on = true; d.ground = false; d.m.visible = true; d.m.scale.setScalar(2.4); d.m.position.copy(c); d.v.set(rand(-4, 4), rand(3, 7), -R.speed * rand(0.4, 0.7)); d.w.set(rand(-20, 20), rand(-20, 20), rand(-20, 20)); } clank(8); if (!reduceMotion) shake = Math.min(0.6, shake + 0.3); }
+  if (!FORM.kind) return; FORM.kind = ''; setVariantVisual(0);
+  const c = torso.getWorldPosition(new V3()); burst(c, violent ? 60 : 40, violent ? SPARK : CONF, violent ? 8 : 6);
   if (msg) { lastPop = 0; pop(msg, 'lilac'); setFace(violent ? 'hit' : 'wow', 900); tone(violent ? 1800 : 500, violent ? 300 : 1500, 0.25, violent ? 'square' : 'sine', 0.05); }
 }
-function syncForm() {
-  if (!FORM.kind) return;
-  FORM_ROOT.position.copy(rider.position); FORM_ROOT.rotation.set(rider.rotation.x, 0, rider.rotation.z * 0.5);
-  FORM_ROOT.scale.setScalar(Math.max(0.05, FORM.scale));
-}
 function stepForm(dt) {
-  if (!FORM.kind) return;
-  for (let i = 0; i < 4; i++) { const h = dt / 4; FORM.scaleV += ((1 - FORM.scale) * 170 - FORM.scaleV * 10) * h; FORM.scale += FORM.scaleV * h; }
-  const g = FG[FORM.kind], sp = state === 'ride' ? R.speed : 0;
-  if (FORM.kind === 'ball') { FORM.roll -= sp * dt / 0.9; g.userData.roll.rotation.x = FORM.roll; }
-  if (FORM.kind === 'tank') for (const w of g.userData.wheels) w.rotation.x -= sp * dt / 0.19;
-  if (FORM.kind === 'rocket') { const f = g.userData.flame; f.scale.set(1, 0.8 + Math.random() * 0.5, 1); }
-  if (FORM.kind === 'egg') g.userData.egg.rotation.z = Math.sin(simT * 9) * 0.1;
-  if (FORM.kind === 'duck') { g.userData.d.position.y = Math.abs(Math.sin(simT * 7)) * 0.12; g.userData.d.rotation.z = Math.sin(simT * 7) * 0.08; }
-  if (state === 'ride') { FORM.t -= dt; if (FORM.t <= 0) { const k = FORM.kind; endForm(FORM_END[k], k === 'ice'); } }
+  const k = FORM.kind; if (!k) return;
+  if (k === 'fire') {
+    VAR_MAT.fire.emissiveIntensity = 1.5 + Math.sin(simT * 13) * 0.35 + Math.random() * 0.2; fireTex.offset.y -= dt * 0.8;
+    FORM.fx += dt; if (FORM.fx > 0.05 && (state === 'ride' || state === 'passed')) { FORM.fx = 0; const pp = pick(parts); if (!pp.userData.detached) burst(pp.getWorldPosition(new V3()), 3, SPARK, 1.5); }
+  }
+  if (k === 'frozen') { FORM.fx += dt; if (FORM.fx > 0.12 && state === 'ride') { FORM.fx = 0; burst(torso.getWorldPosition(new V3()), 1, CONF, 0.6); } }
+  if (k === 'rusty' && state === 'ride') {
+    FORM.t -= dt; if (Math.random() < dt * 0.8) tone(rand(900, 1400), rand(600, 900), 0.18, 'square', 0.025);
+    if (FORM.t <= 0 && FORM.n < 2) { FORM.t = 3.5; const n = ['handL', 'handR', 'foreL', 'foreR'].find(x => !byName[x].userData.detached); if (n) { FORM.n++; detachPart(n, Math.random() < 0.5 ? -1 : 1); setHP(HP - 10); lastPop = 0; pop('RUSTED OFF!', 'lilac'); setFace('worried', 900); clank(6); } }
+  }
 }
-function formRec() { if (!FORM.kind) return null; const g = FG[FORM.kind]; return [FORM_LIST.indexOf(FORM.kind), FORM_ROOT.position.x, FORM_ROOT.position.y, FORM_ROOT.position.z, FORM_ROOT.rotation.x, FORM_ROOT.rotation.z, FORM_ROOT.scale.x, FORM.roll, g.userData.egg ? g.userData.egg.rotation.z : g.userData.d ? g.userData.d.position.y : 0]; }
+function formRec() { return FORM.kind ? [VAR_LIST.indexOf(FORM.kind)] : null; }
 function formApply(fm) {
-  const k = fm ? FORM_LIST[fm[0]] : '';
-  for (const n in FG) FG[n].visible = n === k;
-  const hid = !!(k && FORM_HIDE[k]);
-  for (const p of parts) { if (hid) p.visible = false; else if (!/^hand/.test(p.name)) p.visible = true; }
-  board.visible = !hid;
-  if (!k) return;
-  FORM_ROOT.position.set(fm[1], fm[2], fm[3]); FORM_ROOT.rotation.set(fm[4], 0, fm[5]); FORM_ROOT.scale.setScalar(fm[6]);
-  const g = FG[k];
-  if (k === 'ball') g.userData.roll.rotation.x = fm[7];
-  if (k === 'egg') g.userData.egg.rotation.z = fm[8];
-  if (k === 'duck') g.userData.d.position.y = fm[8];
-  if (k === 'rocket') g.userData.flame.scale.set(1, 0.8 + Math.random() * 0.5, 1);
+  setVariantVisual(fm ? fm[0] : 0);
+  for (const p of parts) if (!/^hand/.test(p.name)) p.visible = true;
+  board.visible = true;
 }
-function resetPower() { if (FORM.kind) FG[FORM.kind].visible = false; FORM.kind = ''; hideDaggie(false); }
-function formMax() { return FORM.kind ? FORM_MAX[FORM.kind] : 34; }
+function resetPower() { FORM.kind = ''; setVariantVisual(0); }
+function formMax() { return FORM_MAX[FORM.kind] || 34; }
 function takeGate(i, side) {
   const key = GATES[i].keys[side], good = GATE_INFO[key][2]; recEvt('g', [i, side]); gateFlash(i, side);
   if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 600; slowK = 0.3;
   startForm(key); lastPop = 0;
-  pop({ tank: 'TANK MODE!', rocket: 'ROCKET MODE!', ball: 'STEEL BALL!', egg: "HE'S AN EGG!", duck: 'QUACK!', ice: 'FROZEN!' }[key], good ? 'green' : 'lilac');
-  if (good) { tone(300, 1200, 0.35, 'square', 0.05); tone(600, 1800, 0.3, 'square', 0.04, 0.15); } else if (key === 'duck') { tone(1400, 900, 0.15, 'square', 0.07); tone(1400, 900, 0.15, 'square', 0.07, 0.2); } else tone(700, 150, 0.45, 'sawtooth', 0.05);
+  pop({ muscle: 'MUSCLE DAGGIE!', skeleton: 'SKELETON!', chrome: 'CHROME DAGGIE!', rusty: 'RUSTY!', fire: 'ON FIRE!', frozen: 'FROZEN!' }[key], good ? 'green' : 'lilac');
+  setFace(good ? 'happy' : 'scared', 1200);
+  if (good) { tone(300, 1200, 0.35, 'square', 0.05); tone(600, 1800, 0.3, 'square', 0.04, 0.15); } else tone(700, 150, 0.45, 'sawtooth', 0.05);
 }
-const SMASHABLE = { hurdle: 1, barrel: 1, wall: 1, sweeper: 1 };
+const SMASHABLE = { hurdle: 1, barrel: 1 };
 function smashObj(obj, txt) { const d = DESTR.find(dd => dd.obj === obj); if (!d || obj.dead) return false; killDestr(d, torso.getWorldPosition(new V3())); R.kills = (R.kills || 0) + 1; lastPop = 0; pop(txt, 'green'); setFace('happy', 900); if (!reduceMotion) shake = 0.6; return true; }
-// returns true when the current form took the hit instead of Daggie
+// a strong version takes one big hit, then breaks back to normal Daggie, who gets hurt: nothing is invincible
+function formBreak(msg) {
+  const c = torso.getWorldPosition(new V3());
+  endForm(msg, true); explodeVisual(c); burst(c, 70, SPARK, 10);
+  const now = performance.now(); R.inv = now + 900; R.grounded = false; R.vy = Math.max(R.vy, 6); R.speed *= 0.8; slowUntil = now + 700; slowK = 0.3;
+  const target = [...(Math.random() < 0.5 ? ['foreL', 'foreR'] : ['foreR', 'foreL']), 'upperL', 'upperR', 'head'].find(n => !byName[n].userData.detached);
+  setHP(HP - 30); if (target) detachPart(target, Math.random() < 0.5 ? -1 : 1);
+  if (HP <= 0) crash('wear');
+}
 function powerHit(kind, obj) {
   const f = FORM.kind; if (!f) return false;
-  const now = performance.now(), isBall = !!obj && OBS.balls.includes(obj), isSaw = !!obj && SAWS.includes(obj);
-  if (f === 'rocket') { if (!isBall) return true; endForm('ROCKET DOWN!', true); R.inv = now + 900; return true; }
-  if (f === 'egg') { crash('egg'); return true; }
-  if (f === 'duck') { endForm('SQUEAK!', false); tone(1500, 800, 0.2, 'square', 0.07); return false; }
-  if (f === 'ice') { endForm('ICE SHATTERED!', true); R.inv = now + 900; R.grounded = false; R.vy = Math.max(R.vy, 5); return true; }
-  if (SMASHABLE[kind] && obj && !obj.dead) { smashObj(obj, f === 'tank' ? 'TANK SMASH!' : 'STRIKE!'); R.inv = now + 300; return true; }
-  if (f === 'tank' && kind === 'spikes') { R.inv = now + 300; return true; }
-  if (f === 'tank' && (isSaw || isBall || kind === 'graze')) { if (isSaw) smashObj(obj, 'SAW BROKEN!'); else { lastPop = 0; pop('CLANG!', 'green'); clank(8); } R.inv = now + 500; return true; }
-  if (f === 'ball' && kind === 'graze' && !isSaw && !isBall) { R.inv = now + 300; return true; }
-  endForm(f === 'tank' ? 'TANK WRECKED!' : 'BALL POPPED!', true);
-  R.inv = now + 900; R.grounded = false; R.vy = Math.max(R.vy, 5.5); R.speed *= 0.9; slowUntil = now + 450; slowK = 0.35;
-  return true;
+  const now = performance.now(), isSaw = kind === 'saw' || kind === 'big' || (!!obj && SAWS.includes(obj));
+  if (f === 'muscle') {
+    if (SMASHABLE[kind] && obj && !obj.dead) { smashObj(obj, 'MUSCLE SMASH!'); R.inv = now + 300; return true; }
+    if (isSaw) return false;
+    if (kind === 'graze') { setHP(HP - 10); lastPop = 0; pop('TOO STRONG!', 'green'); clank(8); R.inv = now + 500; if (HP <= 0) crash('wear'); return true; }
+    formBreak('MUSCLES GAVE OUT!'); return true;
+  }
+  if (f === 'chrome') {
+    if (!isSaw) return false;
+    if (kind === 'graze') { setHP(HP - 5); burst(torso.getWorldPosition(new V3()), 40, SPARK, 7); lastPop = 0; pop('SCRATCHED!', 'green'); tone(2400, 1200, 0.25, 'sawtooth', 0.05); R.inv = now + 400; return true; }
+    formBreak('CHROME CRACKED!'); return true;
+  }
+  if (f === 'fire') { if (kind === 'graze') return false; formBreak('FIRE OUT!'); return true; }
+  if (f === 'skeleton') { if (kind === 'graze') { crash('bones'); return true; } return false; }
+  if (f === 'frozen') {
+    if (kind === 'graze') { const n = ['handL', 'handR', 'footL', 'footR'].find(x => !byName[x].userData.detached); if (n) { detachPart(n, Math.random() < 0.5 ? -1 : 1); burst(torso.getWorldPosition(new V3()), 30, CONF, 6); } lastPop = 0; pop('SHATTERED!', 'lilac'); }
+    return false;
+  }
+  return false;
 }
 // ---------- particles ----------
 const SPN = 500, spPos = new Float32Array(SPN * 3), spCol = new Float32Array(SPN * 3), spVel = Array.from({ length: SPN }, () => new V3()), spLife = new Float32Array(SPN);
@@ -1233,13 +1213,14 @@ function recordFrame(dt) {
   REC.acc = 0; REC.cur = [];
 }
 // virtual director: plan hard cuts every ~2-3 s, choosing shots around what happens next
-const SHOTS = ['chase', 'front', 'fixed', 'wheel', 'side', 'dutch', 'low', 'drone', 'wide', 'top'];
+const SHOTS = ['chase', 'helmet', 'roadside', 'orbit360', 'side', 'lowchase', 'drone', 'wide', 'helmet', 'roadside'];
+const SHOT_LEN = { orbit360: 2.8, roadside: 2.4, helmet: 2.2, landing: 1.2, side: 1.8, drone: 1.8, wide: 1.8, chase: 1.8, lowchase: 1.8 };
 function planShots(rec) {
   const fr = rec.frames, cum = []; let t = 0; for (const f of fr) { cum.push(t); t += f.dt; } const total = t;
   const torsoI = parts.indexOf(torso) * 7;
   const firstOf = code => { const i = fr.findIndex(f => f.st === code); return i < 0 ? null : cum[i]; };
   const introEnd = firstOf(1) ?? 0, crashT = firstOf(3), passT = firstOf(2);
-  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|TANK|ROCKET|STEEL|EGG|QUACK|FROZEN|CRACK|SQUEAK|FUEL|WRECKED|POPPED|SHATTER|MELT|SMASH|BROKEN|CLANG|STRIKE/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
+  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|MUSCLE|SKELETON|CHROME|RUSTY|RUSTED|FIRE|FROZEN|SHATTER|SMASH|STRONG|SCRATCHED|CRACKED|GAVE|BONES/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
   // highlight ranges: the drop, every big moment, and the crash or finish; calm riding is cut out
   let ranges = [[0, introEnd + 0.8]];
   for (const e of evTimes) ranges.push([Math.max(0, e - 1.0), e + 0.8]);
@@ -1253,13 +1234,19 @@ function planShots(rec) {
   for (const [a, b] of merged) {
     let tt = a;
     while (tt < b - 0.15) {
-      let seg = Math.min(b, tt + rand(0.9, 1.4)), type;
+      let seg, type;
       if (tt < introEnd - 0.1) { type = 'intro'; seg = Math.min(b, introEnd - 0.05); }
       else if (crashT != null && tt >= crashT - 0.95 && tt < crashT) { type = 'face'; seg = crashT + 0.05; }
       else if (crashT != null && tt >= crashT) { type = 'orbit'; seg = b; }
-      else if (crashT != null && seg > crashT - 0.95) { seg = crashT - 0.95; if (seg - tt < 0.3) { tt = seg; continue; } type = pick(SHOTS.filter(s => s !== last)); }
-      else if (Math.abs(tt - introEnd) < 0.2) type = 'landing';
-      else { const air = airAt((tt + seg) / 2), hasEv = evTimes.some(e => e >= tt && e <= seg); type = air ? (last === 'side' ? 'wide' : 'side') : hasEv ? pick(['front', 'low', 'wheel', 'dutch'].filter(s => s !== last)) : pick(SHOTS.filter(s => s !== last)); }
+      else {
+        const air = airAt(tt + 0.6), hasEv = evTimes.some(e => e >= tt && e <= tt + 1.8);
+        if (Math.abs(tt - introEnd) < 0.2) type = 'landing';
+        else if (air) type = pick(['side', 'roadside', 'orbit360'].filter(x => x !== last));
+        else if (hasEv) type = pick(['helmet', 'roadside', 'lowchase', 'chase', 'helmet'].filter(x => x !== last));
+        else type = pick(SHOTS.filter(x => x !== last));
+        seg = Math.min(b, tt + (SHOT_LEN[type] || 1.8));
+        if (crashT != null && seg > crashT - 0.95) { seg = crashT - 0.95; if (seg - tt < 0.3) { tt = seg; continue; } }
+      }
       shots.push({ t0: tt, type }); last = type; tt = seg;
     }
   }
@@ -1320,6 +1307,8 @@ function replayFrame(rdt) {
   // camera crew
   cameraCrew(P, dt);
 }
+const _im = [new Map(), new Map()]; let _imK = 0;
+function idxMap(arr, step) { const m = _im[_imK = 1 - _imK]; m.clear(); for (let o = 0; o < arr.length; o += step) m.set(arr[o], o); return m; }
 function applyRecFrame(P, dt, rdt) {
   const fr = P.rec.frames;
   const f0 = fr[P.i], f1 = fr[Math.min(P.i + 1, fr.length - 1)];
@@ -1328,13 +1317,15 @@ function applyRecFrame(P, dt, rdt) {
   _pa.fromArray(f0.B, 0); _pb.fromArray(f1.B, 0); board.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.B, 3); _qb.fromArray(f1.B, 3); board.quaternion.slerpQuaternions(_qa, _qb, a);
   simT = lerp(f0.simT, f1.simT, a);
   OBS.barrels.forEach((b, i) => { b.s = lerp(f0.bar[i], f1.bar[i], a); });
-  OBS.cones.forEach((c, i) => { const o = i * 6; c.g.position.set(lerp(f0.con[o], f1.con[o], a), lerp(f0.con[o + 1], f1.con[o + 1], a), lerp(f0.con[o + 2], f1.con[o + 2], a)); c.g.rotation.set(f0.con[o + 3], f0.con[o + 4], f0.con[o + 5]); });
+  OBS.cones.forEach((c, i) => { const o = i * 6; c.g.position.set(lerp(f0.con[o], f1.con[o], a), lerp(f0.con[o + 1], f1.con[o + 1], a), lerp(f0.con[o + 2], f1.con[o + 2], a)); c.g.rotation.set(lerp(f0.con[o + 3], f1.con[o + 3], a), lerp(f0.con[o + 4], f1.con[o + 4], a), lerp(f0.con[o + 5], f1.con[o + 5], a)); });
   TNTS.forEach((n, i) => { n.alive = !!(f0.tnt & (1 << i)); n.g.visible = n.alive; });
   SPARES.forEach((s, i) => { s.taken = !(f0.spr & (1 << i)); s.m.visible = !s.taken; });
   for (const d of debris) d.m.visible = false;
-  for (let o = 0; o < f0.deb.length; o += 9) { const m = debris[f0.deb[o]].m; m.visible = true; m.position.set(f0.deb[o + 1], f0.deb[o + 2], f0.deb[o + 3]); m.quaternion.set(f0.deb[o + 4], f0.deb[o + 5], f0.deb[o + 6], f0.deb[o + 7]); m.scale.setScalar(f0.deb[o + 8]); }
+  const d1 = idxMap(f1.deb, 9);
+  for (let o = 0; o < f0.deb.length; o += 9) { const m = debris[f0.deb[o]].m, o1 = d1.get(f0.deb[o]); m.visible = true; m.position.set(f0.deb[o + 1], f0.deb[o + 2], f0.deb[o + 3]); m.quaternion.set(f0.deb[o + 4], f0.deb[o + 5], f0.deb[o + 6], f0.deb[o + 7]); if (o1 != null) { _pb.set(f1.deb[o1 + 1], f1.deb[o1 + 2], f1.deb[o1 + 3]); m.position.lerp(_pb, a); _qb.set(f1.deb[o1 + 4], f1.deb[o1 + 5], f1.deb[o1 + 6], f1.deb[o1 + 7]); m.quaternion.slerp(_qb, a); } m.scale.setScalar(f0.deb[o + 8]); }
   for (const d of drops) d.m.visible = false;
-  for (let o = 0; o < f0.drp.length; o += 10) { const m = drops[f0.drp[o]].m; m.visible = true; m.position.set(f0.drp[o + 1], f0.drp[o + 2], f0.drp[o + 3]); m.quaternion.set(f0.drp[o + 4], f0.drp[o + 5], f0.drp[o + 6], f0.drp[o + 7]); m.scale.set(f0.drp[o + 8], f0.drp[o + 9], f0.drp[o + 8]); }
+  const r1 = idxMap(f1.drp, 10);
+  for (let o = 0; o < f0.drp.length; o += 10) { const m = drops[f0.drp[o]].m, o1 = r1.get(f0.drp[o]); m.visible = true; m.position.set(f0.drp[o + 1], f0.drp[o + 2], f0.drp[o + 3]); if (o1 != null) { _pb.set(f1.drp[o1 + 1], f1.drp[o1 + 2], f1.drp[o1 + 3]); m.position.lerp(_pb, a); } m.quaternion.set(f0.drp[o + 4], f0.drp[o + 5], f0.drp[o + 6], f0.drp[o + 7]); m.scale.set(f0.drp[o + 8], f0.drp[o + 9], f0.drp[o + 8]); }
   for (const s of splats) s.m.visible = false;
   for (let o = 0; o < f0.spl.length; o += 6) { const s = splats[f0.spl[o]]; s.m.visible = true; s.t = 1; s.m.position.set(f0.spl[o + 1], f0.spl[o + 2], f0.spl[o + 3]); s.m.rotation.y = f0.spl[o + 4]; s.m.scale.setScalar(f0.spl[o + 5]); }
   faceMode = f0.face;
@@ -1348,43 +1339,50 @@ function applyRecFrame(P, dt, rdt) {
     formApply(G.fm);
     bubble.visible = !!G.sh; if (bubble.visible) { torso.getWorldPosition(bubble.position); bubble.material.opacity = 0.14; }
   }
-  if (f0.DR) { drone.visible = !!f0.DR[0]; drone.position.set(f0.DR[1], f0.DR[2], f0.DR[3]); drone.rotation.set(f0.DR[4], 0, f0.DR[5]); for (const r of rotors) r.rotation.y += rdt * 40; }
+  if (f0.DR) { drone.visible = !!f0.DR[0]; drone.position.set(f0.DR[1], f0.DR[2], f0.DR[3]); if (f1.DR) drone.position.lerp(_pb.set(f1.DR[1], f1.DR[2], f1.DR[3]), a); drone.rotation.set(f0.DR[4], 0, f0.DR[5]); for (const r of rotors) r.rotation.y += rdt * 40; }
   for (const sw of SAWS) { if (sw.A) { sw.x = sw.x0 + Math.sin(simT * sw.w + sw.ph) * sw.A; sw.g.position.x = sw.x; } sw.g.rotation.z = -14 * simT; }
   BIG.rotation.z = -6 * simT;
   animateObstacles(simT, dt, -1e9); animateBooms(dt, simT);
   for (const sp of SPARES) if (!sp.taken) { sp.m.position.set(sp.x, 1.2 + Math.sin(simT * 3 + sp.s) * 0.18, -sp.s); sp.m.rotation.set(0.4, simT * 1.8, 0.2); }
   drawFace(performance.now()); updateSparks(Math.abs(dt));
 }
+function recTorsoAt(P, t, out) { const fr = P.rec.frames, ti = parts.indexOf(torso) * 7; let i = 0; while (i < fr.length - 1 && P.cum[i + 1] <= t) i++; return out.fromArray(fr[i].P, ti); }
 function cameraCrew(P, dt) {
   const fr = P.rec.frames;
   while (P.shotI < P.shots.length - 1 && P.shots[P.shotI + 1].t0 <= P.t) { P.shotI++; P.cut = true; }
-  const shot = P.shots[Math.max(0, P.shotI)], T = torso.position;
-  const tgt = tv.copy(T);
-  if (P.cut) { P.cut = false; snapCam = true; if (shot.type === 'fixed') P.fixed.set(T.x + 3.4, 1.3, T.z - 17); if (shot.type === 'orbit') P.orbitA = Math.atan2(camera.position.x - T.x, camera.position.z - T.z); if (shot.type === 'intro') P.fixed.set(2.6, 1.4, -7.5); }
-  let pos = new V3(), look = new V3();
-  switch (shot ? shot.type : 'chase') {
+  const shot = P.shots[Math.max(0, P.shotI)], T = torso.position, type = shot ? shot.type : 'chase';
+  const tgt = tv.copy(T), st = P.t - (shot ? shot.t0 : 0);
+  if (P.cut) {
+    P.cut = false; snapCam = true;
+    if (type === 'orbit') P.orbitA = Math.atan2(camera.position.x - T.x, camera.position.z - T.z);
+    if (type === 'orbit360') P.orbitA = rand(0, TAU);
+    if (type === 'intro') P.fixed.set(2.6, 1.4, -7.5);
+    if (type === 'roadside') { const fut = recTorsoAt(P, P.t + 1.1, new V3()), sd = Math.random() < 0.5 ? -1 : 1; P.fixed.set(sd * (HALF + rand(1.8, 3.2)), rand(0.7, 1.6), fut.z - rand(1, 3)); }
+  }
+  const pos = new V3(), look = new V3(); let fov = baseFov();
+  switch (type) {
     case 'intro': pos.copy(P.fixed); look.copy(tgt).add(new V3(0, 0.3, 0)); break;
-    case 'landing': pos.set(tgt.x - 3.2, 0.6, tgt.z - 2.6); look.copy(tgt); break;
-    case 'front': pos.set(tgt.x + 1.1, tgt.y + 0.7, tgt.z - 4.3); look.set(tgt.x, tgt.y + 0.6, tgt.z); break;
-    case 'fixed': pos.copy(P.fixed); look.copy(tgt); break;
-    case 'side': pos.set(tgt.x + 7.5, tgt.y + 0.9, tgt.z + 0.6); look.set(tgt.x, tgt.y + 0.2, tgt.z - 1.5); break;
-    case 'low': pos.set(tgt.x - 1.8, 0.3, tgt.z - 3.4); look.set(tgt.x, tgt.y + 0.6, tgt.z); break;
-    case 'wheel': pos.set(tgt.x + 1.9, Math.max(0.28, tgt.y - 0.8), tgt.z - 2.8); look.set(tgt.x, tgt.y - 0.3, tgt.z); break;
-    case 'face': { const H = head.userData.detached ? torso.position : head.position; const fw = new V3(0, 0, -1).applyQuaternion(head.userData.detached ? torso.quaternion : head.quaternion); fw.y = 0; if (fw.lengthSq() < 0.01) fw.set(0, 0, -1); fw.normalize(); pos.copy(H).addScaledVector(fw, 1.5).add(new V3(0.25, 0.15, 0)); look.copy(H); break; }
-    case 'dutch': pos.set(tgt.x - 1.8, tgt.y + 0.4, tgt.z - 3.8); look.set(tgt.x, tgt.y + 0.5, tgt.z); break;
-    case 'wide': pos.set(tgt.x - 10, tgt.y + 3, tgt.z - 5); look.set(tgt.x, tgt.y, tgt.z - 2); break;
-    case 'top': pos.set(tgt.x, tgt.y + 5, tgt.z + 1.8); look.set(tgt.x, tgt.y, tgt.z - 0.6); break;
-    case 'drone': pos.set(tgt.x * 0.3, tgt.y + 10.5, tgt.z + 5); look.set(tgt.x, tgt.y, tgt.z - 4); break;
-    case 'hero': pos.set(tgt.x + 2.5, tgt.y + 0.9, tgt.z - 6); look.set(tgt.x, tgt.y + 0.5, tgt.z); break;
-    case 'orbit': P.orbitA += dt * 0.35; pos.set(T.x + Math.sin(P.orbitA) * 7, Math.max(T.y + 2.6, floorAt(T.x, T.z) + 1.8), T.z + Math.cos(P.orbitA) * 7); look.copy(T); break;
+    case 'landing': pos.set(tgt.x - 2.8, Math.max(0.7, tgt.y + 0.4), tgt.z + 3.4); look.set(tgt.x, tgt.y + 0.5, tgt.z - 4); break;
+    case 'helmet': { // GoPro on the helmet, looking down the track
+      const hidden = !head.visible || head.position.distanceTo(T) > 1.4;
+      pos.copy(hidden ? tv2.copy(T).add(new V3(0, 0.9, 0.3)) : head.position).add(new V3(rand(-0.008, 0.008), 0.3 + rand(-0.008, 0.008), 0.14));
+      look.copy(pos).add(new V3(0, -0.6, -8)); fov = Math.max(baseFov(), 96); break; }
+    case 'roadside': { // rally camera on the verge: waits ahead, pans and zooms as he blasts past
+      pos.copy(P.fixed); look.set(tgt.x, tgt.y + 0.6, tgt.z); const d = pos.distanceTo(tgt); fov = clamp(12 + d * 2.2, 14, baseFov()); break; }
+    case 'orbit360': P.orbitA += dt * TAU / 2.6; pos.set(T.x + Math.sin(P.orbitA) * 4.4, T.y + 1.4, T.z + Math.cos(P.orbitA) * 4.4); look.set(T.x, T.y + 0.4, T.z); break;
+    case 'side': pos.set(tgt.x + 7, tgt.y + 1.1, tgt.z + 1.5); look.set(tgt.x, tgt.y + 0.4, tgt.z - 3); break;
+    case 'lowchase': pos.set(tgt.x + 0.9, Math.max(0.3, tgt.y + 0.1), tgt.z + 2.7); look.set(tgt.x, tgt.y + 0.6, tgt.z - 7); fov = baseFov() + 8; break;
+    case 'drone': pos.set(tgt.x * 0.3, tgt.y + 8.5, tgt.z + 7.5); look.set(tgt.x, tgt.y, tgt.z - 10); break;
+    case 'wide': pos.set(tgt.x - 9, tgt.y + 3, tgt.z + 5); look.set(tgt.x, tgt.y, tgt.z - 7); break;
+    case 'face': { const H = head.userData.detached ? torso.position : head.position; const fw = new V3(0, 0, -1).applyQuaternion(head.userData.detached ? torso.quaternion : head.quaternion); fw.y = 0; if (fw.lengthSq() < 0.01) fw.set(0, 0, -1); fw.normalize(); pos.copy(H).addScaledVector(fw, 1.5).add(new V3(0.25, 0.15, 0)); look.copy(H); fov = baseFov() - 16 - Math.min(10, st * 14); break; }
+    case 'orbit': P.orbitA += dt * 1.3; pos.set(T.x + Math.sin(P.orbitA) * 6.5, Math.max(T.y + 2.4, floorAt(T.x, T.z) + 1.6), T.z + Math.cos(P.orbitA) * 6.5); look.copy(T); break;
     default: pos.set(tgt.x * 0.7, tgt.y + 2.2, tgt.z + 6.6); look.set(tgt.x * 0.85, tgt.y + 0.4, tgt.z - 9);
   }
   wantPos.copy(pos); wantLook.copy(look);
-  P.roll = shot && shot.type === 'dutch' ? 0.35 : 0;
-  P.fov = shot && shot.type === 'face' ? baseFov() - 16 - Math.min(10, (P.t - shot.t0) * 14) : shot && (shot.type === 'front' || shot.type === 'wheel' || shot.type === 'dutch') ? baseFov() - Math.min(12, (P.t - shot.t0) * 10) : baseFov();
+  P.roll = 0; P.fov = fov; P.rigid = type !== 'roadside' && type !== 'face' && type !== 'orbit';
   if (P.crashT != null && !P.replayed && P.t > P.total + 0.2) {
     P.replayed = true; P.inReplay = true; P.t = Math.max(0, P.crashT - 0.5); P.i = 0; while (P.i < fr.length - 1 && P.cum[P.i + 1] <= P.t) P.i++; P.fired = P.i;
-    P.shots = [{ t0: 0, type: pick(['low', 'side', 'front']) }]; P.shotI = -1; P.total = Math.min(P.total, P.crashT + 1.3); lastPop = 0; pop('REPLAY', 'lilac');
+    P.shots = [{ t0: 0, type: pick(['helmet', 'side', 'orbit360']) }]; P.shotI = -1; P.total = Math.min(P.total, P.crashT + 1.3); lastPop = 0; pop('REPLAY', 'lilac');
   } else if (P.t > P.total + 0.4) { if (LOOP) startRewind(); else endFilm(); }
 }
 
@@ -1612,8 +1610,7 @@ function placeRider(t) {
 function jointsNow() { daggie.updateMatrixWorld(true); const out = []; for (const [n, par] of RIG) if (par) out.push(jointWorld(n, new V3()).applyMatrix4(daggie.matrixWorld)); return out; }
 function crash(kind, saw) {
   if (state !== 'ride') return;
-  if (kind !== 'fall' && kind !== 'wear' && kind !== 'egg') { if (performance.now() < R.inv) return; if (R.shield) { shieldSave(); return; } if (powerHit(kind, saw)) return; }
-  if (FORM.kind) endForm('', false);
+  if (kind !== 'fall' && kind !== 'wear' && kind !== 'bones') { if (performance.now() < R.inv) return; if (R.shield) { shieldSave(); return; } if (powerHit(kind, saw)) return; }
   state = 'crashed'; stateT = performance.now(); cause = kind; setHP(0);
   const now = stateT, vel = new V3(R.xv, R.vy, -R.speed);
   const jw = jointsNow(); const center = torso.getWorldPosition(new V3());
@@ -1630,19 +1627,19 @@ function crash(kind, saw) {
     if (kind === 'ball') { const dir = saw && saw.pos ? Math.sign(R.x - saw.pos.x) || 1 : 1; u.v.x += dir * rand(6, 11); u.v.y += rand(2, 4); u.v.z *= 0.5; }
     if (kind === 'press') { u.v.y = rand(-1, 0.5); u.v.x += rand(-5, 5); u.v.z += rand(-3, 3); }
     if (kind === 'spikes') { u.v.y += rand(4, 7); }
-    if (kind === 'egg') { u.v.x += rand(-5, 5); u.v.y += rand(2, 5); u.v.z += rand(-4, 4); }
+    if (kind === 'bones') { u.v.x += rand(-5, 5); u.v.y += rand(2, 5); u.v.z += rand(-4, 4); }
     if (kind === 'sweeper') { u.v.x += rand(-7, 7); u.v.y += rand(2, 4); if (leg) u.v.z *= 0.2; }
     if (p === head) u.v.y += 2.5;
     u.w.set(rand(-10, 10), rand(-8, 8), rand(-10, 10));
   }
   BB.free = true; BB.v.copy(vel).multiplyScalar(0.8).add(new V3(rand(-2, 2), rand(2, 4), 0)); BB.w.set(rand(-12, 12), rand(-6, 6), rand(-12, 12));
   spawnDebris(center, jw, vel);
-  if (kind === 'egg') { burst(center, 120, CONF, 12); }
+  if (kind === 'bones') { burst(center, 60, CONF, 8); for (let i = 0; i < 6; i++) tone(rand(600, 1100), rand(300, 500), 0.08, 'square', 0.05, i * 0.07); }
   burst(center, 70, SPARK, 10); burst(center, 30, CONF, 6);
   setFace('hit', 1500);
   slowUntil = now + (reduceMotion ? 500 : 1600); slowK = 0.22;
   if (!reduceMotion) shake = 0.5;
-  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', egg: 'CRACK!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
+  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
   tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06);
   orbitA = Math.atan2(camera.position.x - center.x, camera.position.z - center.z);
 }
@@ -1664,7 +1661,7 @@ function showResult() {
   $('rClose').textContent = String(R.close);
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', egg: 'Egg cracked' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart' }[cause] || cause);
   $('result').hidden = false;
 }
 function landImpact(v) { crouchV += Math.min(4.5, v * 0.35); }
@@ -1805,14 +1802,12 @@ function stepRide(dt, now) {
   const px = R.x, ps0 = R.s;
   if (R.slip > 0) { R.slip -= dt; R.xT += Math.sin(simT * 7.3) * 5.5 * dt; }
   if (OBS.wind && R.s > OBS.wind.s0 && R.s < OBS.wind.s1) { R.xT += OBS.wind.force * dt; R.x += OBS.wind.force * 0.35 * dt; }
-  if (FORM.kind === 'duck') R.xT += Math.sin(simT * 5.3) * 2.2 * dt;
-  R.x += (R.xT - R.x) * Math.min(1, dt * (FORM.kind === 'ice' ? 0.5 : R.slip > 0 ? 2.5 : 6));
+  R.x += (R.xT - R.x) * Math.min(1, dt * (FORM.kind === 'frozen' ? 1.4 : R.slip > 0 ? 2.5 : 6));
   if (R.grounded && Math.abs(R.x) > HALF + 0.05) { R.grounded = false; R.vy = 0; pop('WHOA!', 'lilac'); setFace('scared', 1500); }
   R.xv = (R.x - px) / dt;
-  if (FORM.kind === 'rocket') { R.air = 0.5; R.grounded = false; R.vy = 0; R.y += (3.2 - R.y) * Math.min(1, dt * 3); R.speed = Math.min(36, R.speed + 25 * dt); R.s += R.speed * dt; }
-  else if (R.grounded) {
+  if (R.grounded) {
     R.air = 0;
-    R.speed = Math.min(formMax(), R.speed + (0.6 + (FORM.kind === 'ball' ? 3 : 0) - 9.8 * R.slope * 0.8) * dt);
+    R.speed = Math.min(formMax(), R.speed + (0.6 + (FORM.kind === 'chrome' ? 2 : 0) - 9.8 * R.slope * 0.8) * dt);
     R.s += R.speed * dt;
     const h = trackH(R.s);
     if (h === null) {
@@ -1822,7 +1817,7 @@ function stepRide(dt, now) {
     if (R.s > LAND0 && cause === '') { R.speed *= Math.pow(0.35, dt); if (R.s > LAND0 + 4 && !R.passedFlag) { R.passedFlag = true; passed(); } }
   } else {
     R.air += dt;
-    R.vy -= 9.8 * (FORM.kind === 'duck' ? 0.45 : 1) * dt; R.y += R.vy * dt; R.s += R.speed * dt;
+    R.vy -= 9.8 * dt; R.y += R.vy * dt; R.s += R.speed * dt;
     const h = trackH(R.s);
     if (h !== null && R.y <= h && R.vy <= 0) {
       const hard = -R.vy; R.grounded = true; R.y = h; R.slope = 0; landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10);
@@ -1891,7 +1886,7 @@ function stepRide(dt, now) {
   for (const n of TNTS) if (n.alive && Math.abs(R.s - n.s) < 0.75 && Math.abs(R.x - n.x) < 0.8 && R.y < 0.95) {
     n.alive = false; n.g.visible = false; explodeAt(new V3(n.x, 0.6, -n.s)); R.tnt = (R.tnt || 0) + 1;
     R.grounded = false; R.vy = 9; R.xT += (R.x >= n.x ? 1 : -1) * 1.6; if (!reduceMotion) shake = 0.8;
-    setHP(HP - 10); graze({}, R.x >= n.x ? 1 : -1, Math.random() < 0.25); if (state !== 'ride') return; lastPop = 0; pop('KABOOM!', 'green');
+    if (FORM.kind === 'fire') { lastPop = 0; pop('FIREPROOF!', 'green'); setFace('happy', 900); } else { setHP(HP - 10); graze({}, R.x >= n.x ? 1 : -1, Math.random() < 0.25); if (state !== 'ride') return; lastPop = 0; pop('KABOOM!', 'green'); }
   }
   for (const so of SOCIAL) if (!so.taken && Math.abs(R.s - so.s) < 1 && Math.abs(R.x - so.x) < 1.2 && R.y < 2.4) { so.taken = true; so.m.visible = false; socialFx(so.kind); burst(so.m.position, 12, CONF, 4); }
   for (const pk of PICKS) if (!pk.taken && Math.abs(R.s - pk.s) < 1 && Math.abs(R.x - pk.x) < 1 && R.y < 2.4) {
@@ -1954,10 +1949,9 @@ const keys = {};
 window.addEventListener('keydown', e => { initAudio(); startRoll(); if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); if (!e.repeat) action(); } keys[e.code] = true; });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 function action() {
-  if (state === 'ride' && (FORM.kind === 'rocket' || FORM.kind === 'ice')) return;
   if (state === 'result') { resetRun(); return; }
   if (state === 'intro') { if (R.carry) R.carryT = 99; else R.vy = Math.min(R.vy, -16); return; }
-  if (state === 'ride' && R.grounded) { R.grounded = false; R.vy = R.speed * R.slope + (FORM.kind === 'tank' ? 3 : 6.5); crouchV -= 3; if (FORM.kind === 'duck') tone(1400, 900, 0.15, 'square', 0.06); tone(300, 700, 0.15, 'triangle', 0.05); setFace('wow', 700); }
+  if (state === 'ride' && R.grounded) { R.grounded = false; R.vy = R.speed * R.slope + (FORM.kind === 'skeleton' ? 8 : 6.5); crouchV -= 3; if (FORM.kind === 'skeleton') tone(900, 500, 0.1, 'square', 0.05); tone(300, 700, 0.15, 'triangle', 0.05); setFace('wow', 700); }
   else if (state === 'ride' && !R.grounded && !R.slam) { R.slam = true; R.vy = Math.min(R.vy, -17); crouchV += 2; tone(700, 150, 0.2, 'triangle', 0.06); setFace('scared', 600); }
 }
 $('bNew').onclick = () => { initAudio(); startRoll(); resetRun(); };
@@ -2017,10 +2011,11 @@ function frame() {
   const dt = Math.min(0.05, clock.getDelta());
   if (state === 'replay') {
     replayFrame(dt);
+    if (PLAY) PLAY.shotSnap = snapCam;
     if (snapCam) { camPos.copy(wantPos); camLook.copy(wantLook); snapCam = false; }
-    const fc = 1 - Math.exp(-dt * 9); camPos.lerp(wantPos, fc); camLook.lerp(wantLook, Math.min(1, fc * 1.4));
+    const fc = 1 - Math.exp(-dt * 9); if (PLAY && PLAY.rigid) { camPos.copy(wantPos); camLook.lerp(wantLook, Math.min(1, fc * 2.5)); } else { camPos.lerp(wantPos, fc); camLook.lerp(wantLook, Math.min(1, fc * 1.4)); }
     camera.position.copy(camPos); camera.lookAt(camLook); if (PLAY && PLAY.roll) camera.rotateZ(PLAY.roll);
-    const wf = PLAY ? PLAY.fov : baseFov(); if (Math.abs(camera.fov - wf) > 0.05) { camera.fov += (wf - camera.fov) * (snapCam ? 1 : 0.25); camera.updateProjectionMatrix(); }
+    const wf = PLAY ? PLAY.fov : baseFov(); if (Math.abs(camera.fov - wf) > 0.05) { camera.fov += (wf - camera.fov) * (PLAY && PLAY.shotSnap ? 1 : 0.25); camera.updateProjectionMatrix(); }
     sunLight.position.copy(camLook).addScaledVector(SUN, 40); sunLight.target.position.copy(camLook);
     composer.render(); if (PLAY && PLAY.wantRec) { PLAY.wantRec = false; startRecorder(); } if (recorder) composite(); requestAnimationFrame(frame); return;
   }
@@ -2069,7 +2064,7 @@ function frame() {
     if (state === 'ride' && t > 1.4) $('hook').classList.remove('show');
     if (state === 'passed' && t > 3.2) showResult();
   }
-  if (state === 'intro' || state === 'ride' || state === 'passed') { placeRider(simT); if (FORM.kind !== 'ice') poseBody(simT); syncForm(); }
+  if (state === 'intro' || state === 'ride' || state === 'passed') { placeRider(simT); poseBody(simT); }
   if (state === 'crashed' || (state === 'result' && cause !== '')) {
     let n = 0; acc += sdt;
     while (acc >= 1 / 120 && n < 8) { stepParts(1 / 120); stepDebris(1 / 120, now); acc -= 1 / 120; n++; }
@@ -2109,7 +2104,7 @@ requestAnimationFrame(frame);
 </script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});</script>
 <script>
-const BUILD = '2.0';
+const BUILD = '2.2';
 // if GitHub has a newer index.html than the one running, offer a one-tap update
 setTimeout(async () => {
   try {
