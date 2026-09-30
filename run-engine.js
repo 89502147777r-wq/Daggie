@@ -2321,8 +2321,8 @@ function frame(vts) {
 // RAGDOLL-CORE-START (pure math, no three.js: position-based dynamics on joint points)
 class RagCore {
   constructor(n) {
-    this.n = n; this.x = new Float64Array(n * 3); this.o = new Float64Array(n * 3); this.r = new Float64Array(n).fill(0.07); this.inv = new Float64Array(n).fill(1);
-    this.cn = new Float64Array(n * 3); this.cf = new Uint8Array(n);
+    const cap = n + 24; this.n = n; this.x = new Float64Array(cap * 3); this.o = new Float64Array(cap * 3); this.r = new Float64Array(cap).fill(0.07); this.inv = new Float64Array(cap).fill(1); this.segs = [];
+    this.cn = new Float64Array(cap * 3); this.cf = new Uint8Array(cap);
     this.links = []; this.hinges = []; this.pins = []; this.groups = {}; this.broken = []; this.onFloor = new Uint8Array(n); this.cyls = []; this.box = null; this.floor = () => 0; this.g = -9.8; this.frame = null;
   }
   set(i, x, y, z) { const k = i * 3; this.x[k] = this.o[k] = x; this.x[k + 1] = this.o[k + 1] = y; this.x[k + 2] = this.o[k + 2] = z; }
@@ -2349,7 +2349,10 @@ class RagCore {
     x[B] += d[0] * c * 0.6; x[B + 1] += d[1] * c * 0.6; x[B + 2] += d[2] * c * 0.6;
     x[A] -= d[0] * c * 0.2; x[A + 1] -= d[1] * c * 0.2; x[A + 2] -= d[2] * c * 0.2; x[C] -= d[0] * c * 0.2; x[C + 1] -= d[1] * c * 0.2; x[C + 2] -= d[2] * c * 0.2;
   }
-  initCart() { const B = this.box; this.inCart = new Uint8Array(this.n); for (let i = 0; i < this.n; i++) { const k = i * 3, q = B.toLocal(this.x[k], this.x[k + 1], this.x[k + 2]); this.inCart[i] = Math.abs(q[0]) < B.hw && q[2] > B.zf && q[2] < B.zb && q[1] > B.y0 - 0.05 && q[1] < B.y1 ? 1 : 0; } }
+  // the middle of a bone also collides: a thigh or a forearm can no longer slip between the wires while its two ends stay outside
+  seg(a, b, r) { const i = this.n + this.segs.length; this.segs.push({ a, b, i }); this.r[i] = r; this.segMid(this.segs[this.segs.length - 1]); return i; }
+  segMid(s) { const A = s.a * 3, B = s.b * 3, I = s.i * 3; for (let q = 0; q < 3; q++) { this.x[I + q] = (this.x[A + q] + this.x[B + q]) / 2; this.o[I + q] = (this.o[A + q] + this.o[B + q]) / 2; } }
+  initCart() { const B = this.box; const m = this.n + this.segs.length; this.inCart = new Uint8Array(m); for (const s of this.segs) this.segMid(s); for (let i = 0; i < m; i++) { const k = i * 3, q = B.toLocal(this.x[k], this.x[k + 1], this.x[k + 2]); this.inCart[i] = Math.abs(q[0]) < B.hw && q[2] > B.zf && q[2] < B.zb && q[1] > B.y0 - 0.05 && q[1] < B.y1 ? 1 : 0; } }
   // push a point out of the cart walls, the post and the floor; remember the contact normal for the velocity fix
   contact(i, nx, ny, nz) { const k = i * 3; this.cn[k] = nx; this.cn[k + 1] = ny; this.cn[k + 2] = nz; this.cf[i] = 1; }
   collide(i) {
@@ -2419,6 +2422,7 @@ class RagCore {
       if (dirs) for (const h of this.hinges) if (h.on !== false) this.solveHinge(h, dirs);
       for (const p of this.pins) if (p.on) { const t = p.target(), k = p.i * 3, dx = (t[0] - x[k]) * p.stiff, dy = (t[1] - x[k + 1]) * p.stiff, dz = (t[2] - x[k + 2]) * p.stiff; x[k] += dx; x[k + 1] += dy; x[k + 2] += dz; p.tens = (p.tens || 0) + Math.hypot(dx, dy, dz); }
       for (let i = 0; i < n; i++) this.collide(i);
+      for (const s of this.segs) { this.segMid(s); const I = s.i * 3, mx = x[I], my = x[I + 1], mz = x[I + 2]; this.cf[s.i] = 0; this.collide(s.i); const dx = x[I] - mx, dy = x[I + 1] - my, dz = x[I + 2] - mz; if (dx || dy || dz) { for (const e of [s.a, s.b]) { const E = e * 3; x[E] += dx; x[E + 1] += dy; x[E + 2] += dz; } } }
     }
     // contacts are inelastic: remove the speed going into the surface, add some friction along it
     for (let i = 0; i < n; i++) if (this.cf[i]) {
@@ -2447,7 +2451,7 @@ class CartSim {
     if (v < 20) { this.mode = 'pivot'; this.pw = [0, this.bz + this.br]; this.vz = v * 0.1; this.w = Math.min(14, v * 0.35); return; }
     this.knocked = true; this.cyls.length = 0; this.burst = v > 22; this.box.frontOpen = this.burst;
     const c = [0.55 * this.S, 0], w = this.toWorld(0, c[0], c[1]); this.pl = c; this.pw = [w[1], w[2]];
-    this.mode = 'free'; this.vz = -0.45 * v; this.vy = 1.5 + v * 0.04; this.w = Math.min(18, v * 0.22);
+    this.mode = 'free'; this.vz = -0.3 * v; this.vy = 1.5 + v * 0.04; this.w = Math.min(18, v * 0.22);
   }
   savePrev() { this.prev = { a: this.a, pw: this.pw.slice(), pl: this.pl.slice() }; }
   toLocalPrev(X, Y, Z) { const p = this.prev || this, c = Math.cos(p.a), s = Math.sin(p.a), yy = Y - p.pw[0], zz = Z - p.pw[1]; return [X - this.lane, yy * c - zz * s + p.pl[0], yy * s + zz * c + p.pl[1]]; }
@@ -2507,6 +2511,9 @@ function ragBody(core, rest, now, fwdRest, T) {
   // hitting something very hard can rip the limb that took the hit
   core.limbOf = RAG_NAMES.map(n => /^(sh|el|wr|ha)L/.test(n) ? 'armL' : /^(sh|el|wr|ha)R/.test(n) ? 'armR' : /^(hip|kn|an|to)L/.test(n) ? 'legL' : /^(hip|kn|an|to)R/.test(n) ? 'legR' : n === 'top' ? 'head' : null);
   core.tearSpeed = T.tearSpeed || 0;
+  // bone middles that collide with the cart walls: upper and lower arms and legs, belly, chest, neck
+  for (const s of ['L', 'R']) { core.seg(I['sh' + s], I['el' + s], 0.07); core.seg(I['el' + s], I['wr' + s], 0.06); core.seg(I['hip' + s], I['kn' + s], 0.09); core.seg(I['kn' + s], I['an' + s], 0.07); }
+  core.seg(I.pel, I.waist, 0.14); core.seg(I.waist, I.chest, 0.15); core.seg(I.chest, I.neck, 0.1); core.seg(I.neck, I.top, 0.12);
   // hinges: knees bend forward only, elbows backward only
   for (const s of ['L', 'R']) { core.hinges.push({ a: I['hip' + s], b: I['kn' + s], c: I['an' + s], dir: 'fwd', min: 0.0 }); core.hinges.push({ a: I['sh' + s], b: I['el' + s], c: I['wr' + s], dir: 'back', min: 0.0 }); }
   // body frame for the hinges: forward is stored relative to the torso axes
@@ -2558,7 +2565,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   for (const s of [-1, 1]) {
     const side = s < 0 ? (SIDE.L < 0 ? 'L' : 'R') : (SIDE.L < 0 ? 'R' : 'L'), hi = I['ha' + side], wi = I['wr' + side];
     core.skipBox[hi] = 1; core.skipBox[wi] = 1; // a gripping hand and wrist reach over the rim
-    core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.6, maxErr: RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 20 ? 0.03 + Math.random() * 0.04 : 0, target: () => CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, -0.12) });
+    core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.6, maxErr: RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 26 ? 0.03 + Math.random() * 0.04 : 0, target: () => CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, -0.12) });
   }
   core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
   const pk0 = I.pel * 3, seatY = CART.toLocal(core.x[pk0], core.x[pk0 + 1], core.x[pk0 + 2])[1];
@@ -2907,7 +2914,7 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
-const LAB_SPEEDS = [15, 40, 80, 130, 200]; // mph for levels 1..5: stays in, hangs on, thrown out, flies far, loses limbs
+const LAB_SPEEDS = [15, 50, 80, 130, 200]; // mph for levels 1..5: stays in, hangs on, thrown out, flies far, loses limbs
 const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
