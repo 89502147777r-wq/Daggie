@@ -5,7 +5,7 @@
 export const LEVEL = {
   id: 'roofs',
   name: 'City Roofs',
-  title: ['CAN HE SURVIVE', 'THE ROOFTOP RUN?'],
+  title: ['PIZZA DELIVERY', 'ACROSS THE ROOFS'],
   theme: 'city',
   vehicle: 'cart',
   track: {
@@ -39,5 +39,6 @@ export const LEVEL = {
   spares: [[112, 2.4], [262, -1.6], [420, 0]],
   picks: [[56, 1.4, 'cannon'], [184, -2.4, 'shield'], [342, 2.6, 'cannon']],
   social: [[132, -2.2, 'like'], [318, 0, 'sub']],
+  delivery: { item: 'pizza', slices: 8, time: 50, tip: 20 }, // the order Daggie carries to Penny's door
   gates: [76, 216, 424],
 };

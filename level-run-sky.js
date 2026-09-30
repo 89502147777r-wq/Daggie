@@ -4,7 +4,7 @@
 export const LEVEL = {
   id: 'sky',
   name: 'Sky Track',
-  title: ['CAN HE SURVIVE', 'THE SAW RUN?'], // opening hook, also burned into the video
+  title: ['CAN HE DELIVER', 'THE PIZZA?'], // opening hook, also burned into the video
   theme: 'sky',        // world around the track (only 'sky' exists for now)
   vehicle: 'skate',    // what Daggie rides (only 'skate' exists for now)
   track: {
@@ -32,5 +32,6 @@ export const LEVEL = {
   spares: [[132, 2.4], [232, -1.6], [350, 0]],
   picks: [[62, -1.2, 'cannon'], [178, -2.4, 'shield'], [250, 1.4, 'cannon']],
   social: [[160, -2.0, 'like'], [344, 0, 'sub']],
+  delivery: { item: 'pizza', slices: 8, time: 45, tip: 20 }, // the order Daggie carries to Penny's door
   gates: [94, 270, 364],   // mystery doors A / B: a random surprise behind each
 };
