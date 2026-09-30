@@ -394,8 +394,8 @@ function trackH(s) {
   if (s <= LAND1) return 0;
   return null;
 }
-const STAND_H = 0.9, STAND_R = 1.35;
-function floorAt(x, z) { if (MODE === 'lab') return x * x + z * z < STAND_R * STAND_R ? STAND_H : 0; const h = trackH(-z); if (h === null || Math.abs(x) > HALF) return -90; return h; }
+const STAND_H = 0.9, STAND_R = 1.35; let LABNOSTAND = false;
+function floorAt(x, z) { if (MODE === 'lab') return !LABNOSTAND && x * x + z * z < STAND_R * STAND_R ? STAND_H : 0; const h = trackH(-z); if (h === null || Math.abs(x) > HALF) return -90; return h; }
 const asphalt = tex(512, 1024, (g, w, h) => {
   g.fillStyle = '#3b3e46'; g.fillRect(0, 0, w, h);
   const id = g.getImageData(0, 0, w, h), d = id.data;
@@ -546,7 +546,7 @@ function makeCartMesh(S, wheelsOut) {
   for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x, y0, zb0, 0.009); }
   for (let i = 0; i <= 10; i++) { const z = lerp(zf0, zb0, i / 10); bar(-W / 2, y0, z, W / 2, y0, z, 0.009); }
   for (const sd of [-1, 1]) { bar(sd * 0.27, 0.15, -0.44, sd * 0.27, 0.15, 0.52, 0.018); bar(sd * 0.27, 0.15, 0.52, sd * 0.3, y0, zb0, 0.016); bar(sd * 0.27, 0.15, -0.44, sd * 0.28, y0, zf0 + 0.04, 0.016); bar(sd * (W / 2 + 0.03), y1, zb1, sd * (W / 2 + 0.02), y1 + 0.1, zb1 + 0.14, 0.014); }
-  const cage = new THREE.Mesh(mergeGeometries(geos), chrome); cage.castShadow = true; g.add(cage);
+  const cage = new THREE.Mesh(mergeGeometries(geos), chrome); cage.castShadow = true; cage.name = 'cage'; cage.geometry.userData.orig = cage.geometry.attributes.position.array.slice(); g.add(cage);
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, W + 0.12, 14), red); handle.rotation.z = Math.PI / 2; handle.position.set(0, y1 + 0.1, zb1 + 0.14); handle.castShadow = true; g.add(handle);
   const flap = new THREE.Mesh(new THREE.BoxGeometry(W * 0.92, 0.02, 0.24), red); flap.position.set(0, y1 - 0.05, zb1 - 0.13); flap.rotation.x = -0.45; g.add(flap);
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; g.add(plate);
@@ -2274,10 +2274,261 @@ function frame(vts) {
 }
 
 // =====================================================================
+// REAL BODY PHYSICS: Daggie's joints as points, bones as links, hinges that only bend the right way,
+// hands that grip the cart until the pull is too strong, arms / legs / head that tear off on hard hits.
+// The same numbers were tuned offline: <=20 mph he stays in, 25-30 almost flies out,
+// 35-40 flies out but hangs on by his hands, 45+ he is thrown out, 100+ limbs tear off.
+// =====================================================================
+// RAGDOLL-CORE-START (pure math, no three.js: position-based dynamics on joint points)
+class RagCore {
+  constructor(n) {
+    this.n = n; this.x = new Float64Array(n * 3); this.o = new Float64Array(n * 3); this.r = new Float64Array(n).fill(0.07); this.inv = new Float64Array(n).fill(1);
+    this.cn = new Float64Array(n * 3); this.cf = new Uint8Array(n);
+    this.links = []; this.hinges = []; this.pins = []; this.groups = {}; this.broken = []; this.onFloor = new Uint8Array(n); this.cyls = []; this.box = null; this.floor = () => 0; this.g = -9.8; this.frame = null;
+  }
+  set(i, x, y, z) { const k = i * 3; this.x[k] = this.o[k] = x; this.x[k + 1] = this.o[k + 1] = y; this.x[k + 2] = this.o[k + 2] = z; }
+  vel(i, vx, vy, vz, dt) { const k = i * 3; this.o[k] = this.x[k] - vx * dt; this.o[k + 1] = this.x[k + 1] - vy * dt; this.o[k + 2] = this.x[k + 2] - vz * dt; }
+  dist(a, b) { const A = a * 3, B = b * 3; return Math.hypot(this.x[B] - this.x[A], this.x[B + 1] - this.x[A + 1], this.x[B + 2] - this.x[A + 2]); }
+  // type 0 = keep length, 1 = at least, 2 = at most. group: breakable joint name
+  link(a, b, stiff = 1, type = 0, len = null, group = null, breakAt = 0) { const L = { a, b, len: len ?? this.dist(a, b), stiff, type, group, breakAt, on: true }; this.links.push(L); if (group) (this.groups[group] = this.groups[group] || []).push(L); return L; }
+  // a cut separates a set of points (an arm, a leg, the head) from the rest when its trigger link is stretched too far
+  cut(name, set, a, b, ratio) { this.cuts = this.cuts || []; this.cuts.push({ name, set: new Set(set), a, b, len: this.dist(a, b), ratio, done: false }); }
+  breakGroup(name) { const c = (this.cuts || []).find(q => q.name === name); if (!c || c.done) return; c.done = true; for (const L of this.links) if (L.on && (c.set.has(L.a) !== c.set.has(L.b))) L.on = false; this.hinges = this.hinges.filter(h => !(c.set.has(h.a) !== c.set.has(h.b) || c.set.has(h.b) !== c.set.has(h.c))); this.broken.push(name); if (this.onBreak) this.onBreak(name); }
+  solveLink(L) {
+    const A = L.a * 3, B = L.b * 3, x = this.x, dx = x[B] - x[A], dy = x[B + 1] - x[A + 1], dz = x[B + 2] - x[A + 2], d = Math.hypot(dx, dy, dz) || 1e-9;
+    if (L.type === 1 && d >= L.len) return; if (L.type === 2 && d <= L.len) return;
+    const wa = this.inv[L.a], wb = this.inv[L.b], w = wa + wb; if (!w) return;
+    const k = (d - L.len) / d * L.stiff / w;
+    x[A] += dx * k * wa; x[A + 1] += dy * k * wa; x[A + 2] += dz * k * wa; x[B] -= dx * k * wb; x[B + 1] -= dy * k * wb; x[B + 2] -= dz * k * wb;
+  }
+  // hinge: middle point b must stick out along `dir` (knees forward, elbows back) — no bending the wrong way
+  solveHinge(h, dirs) {
+    const x = this.x, A = h.a * 3, B = h.b * 3, C = h.c * 3, d = dirs[h.dir];
+    const mx = (x[A] + x[C]) / 2, my = (x[A + 1] + x[C + 1]) / 2, mz = (x[A + 2] + x[C + 2]) / 2;
+    const s = (x[B] - mx) * d[0] + (x[B + 1] - my) * d[1] + (x[B + 2] - mz) * d[2];
+    if (s >= h.min) return; const c = (h.min - s);
+    x[B] += d[0] * c * 0.6; x[B + 1] += d[1] * c * 0.6; x[B + 2] += d[2] * c * 0.6;
+    x[A] -= d[0] * c * 0.2; x[A + 1] -= d[1] * c * 0.2; x[A + 2] -= d[2] * c * 0.2; x[C] -= d[0] * c * 0.2; x[C + 1] -= d[1] * c * 0.2; x[C + 2] -= d[2] * c * 0.2;
+  }
+  initCart() { const B = this.box; this.inCart = new Uint8Array(this.n); for (let i = 0; i < this.n; i++) { const k = i * 3, q = B.toLocal(this.x[k], this.x[k + 1], this.x[k + 2]); this.inCart[i] = Math.abs(q[0]) < B.hw && q[2] > B.zf && q[2] < B.zb && q[1] > B.y0 && q[1] < B.y1 ? 1 : 0; } }
+  // push a point out of the cart walls, the post and the floor; remember the contact normal for the velocity fix
+  contact(i, nx, ny, nz) { const k = i * 3; this.cn[k] = nx; this.cn[k + 1] = ny; this.cn[k + 2] = nz; this.cf[i] = 1; }
+  collide(i) {
+    const x = this.x, k = i * 3, r = this.r[i];
+    for (const c of this.cyls) { if (x[k + 1] > c.h + r) continue; const dx = x[k] - c.x, dz = x[k + 2] - c.z, d = Math.hypot(dx, dz); if (d < c.r + r) { const f = (c.r + r) / (d || 1e-6); x[k] = c.x + dx * f; x[k + 2] = c.z + dz * f; this.contact(i, dx / (d || 1), 0, dz / (d || 1)); } }
+    const B = this.box;
+    if (B && B.on) {
+      const L = B.toLocal(x[k], x[k + 1], x[k + 2]);
+      const inN = Math.abs(L[0]) < B.hw && L[2] > B.zf && L[2] < B.zb && L[1] > B.y0 && L[1] < B.y1, was = this.inCart[i];
+      if (L[1] < B.y1 && L[1] > B.y0 - 0.3) {
+        let n = null;
+        if (was && !inN) { // inside: the wire walls hold it in
+          const m = 0.012;
+          if (L[0] > B.hw - m) { L[0] = B.hw - m; n = [-1, 0, 0]; } else if (L[0] < -B.hw + m) { L[0] = -B.hw + m; n = [1, 0, 0]; }
+          if (L[2] < B.zf + m) { L[2] = B.zf + m; n = [0, 0, 1]; } else if (L[2] > B.zb - m) { L[2] = B.zb - m; n = [0, 0, -1]; }
+          if (L[1] < B.y0 + m) { L[1] = B.y0 + m; n = [0, 1, 0]; }
+        } else if (!was && inN) { // outside: bounce off the outer face it came from
+          const P = B.toLocal(this.o[k], this.o[k + 1], this.o[k + 2]);
+          const m = 0.012;
+          if (P[2] <= B.zf) { L[2] = B.zf - m; n = [0, 0, -1]; } else if (P[2] >= B.zb) { L[2] = B.zb + m; n = [0, 0, 1]; } else if (P[0] <= -B.hw) { L[0] = -B.hw - m; n = [-1, 0, 0]; } else if (P[0] >= B.hw) { L[0] = B.hw + m; n = [1, 0, 0]; } else if (P[1] >= B.y1 - 0.02) { n = null; } else { L[1] = B.y0 - m; n = [0, -1, 0]; }
+        }
+        if (n) { const w = B.toWorld(L[0], L[1], L[2]); x[k] = w[0]; x[k + 1] = w[1]; x[k + 2] = w[2]; const nw = B.dirWorld(n[0], n[1], n[2]); this.contact(i, nw[0], nw[1], nw[2]); }
+      }
+      const L2 = B.toLocal(x[k], x[k + 1], x[k + 2]); this.inCart[i] = Math.abs(L2[0]) < B.hw && L2[2] > B.zf && L2[2] < B.zb && L2[1] > B.y0 - 0.01 && L2[1] < B.y1 ? 1 : (L2[1] >= B.y1 ? 0 : this.inCart[i] && Math.abs(L2[0]) <= B.hw + 0.01 && L2[2] >= B.zf - 0.01 && L2[2] <= B.zb + 0.01 ? 1 : 0);
+    }
+    const fy = this.floor(x[k], x[k + 2]) + r;
+    if (x[k + 1] < fy && x[k + 1] > fy - 1.2) { x[k + 1] = fy; this.contact(i, 0, 1, 0); this.onFloor[i] = 1; } else this.onFloor[i] = 0;
+  }
+  // settle the starting pose onto the skeleton's own lengths without creating speed
+  settle(n = 60) { const x = this.x; for (let it = 0; it < n; it++) { const dirs = this.frame ? this.frame(this) : null; for (const L of this.links) if (L.on) this.solveLink(L); if (dirs) for (const h of this.hinges) this.solveHinge(h, dirs); for (const p of this.pins) if (p.on) { const t = p.target(), k = p.i * 3; x[k] += (t[0] - x[k]) * p.stiff; x[k + 1] += (t[1] - x[k + 1]) * p.stiff; x[k + 2] += (t[2] - x[k + 2]) * p.stiff; } for (let i = 0; i < this.n; i++) this.collide(i); } this.o.set(this.x); }
+  step(dt, iters = 8) {
+    this.dt = dt;
+    const x = this.x, o = this.o, n = this.n, g = this.g * dt * dt;
+    // breakable joints tear when a hit stretches them too far
+    for (const c of (this.cuts || [])) if (!c.done && this.dist(c.a, c.b) > c.len * c.ratio) this.breakGroup(c.name);
+    for (const p of this.pins) if (p.on) { const t = p.target(), k = p.i * 3, e = Math.hypot(x[k] - t[0], x[k + 1] - t[1], x[k + 2] - t[2]); p.err = e; if (e > p.maxErr) { p.on = false; if (this.onRelease) this.onRelease(p); } }
+    for (let i = 0; i < n; i++) {
+      const k = i * 3; if (!this.inv[i]) continue;
+      const fr = 0.999;
+      const vx = (x[k] - o[k]) * fr, vy = (x[k + 1] - o[k + 1]) * 0.999, vz = (x[k + 2] - o[k + 2]) * fr;
+      o[k] = x[k]; o[k + 1] = x[k + 1]; o[k + 2] = x[k + 2];
+      x[k] += vx; x[k + 1] += vy + g; x[k + 2] += vz;
+    }
+    const dirs = this.frame ? this.frame(this) : null;
+    this.cf.fill(0);
+    for (let it = 0; it < iters; it++) {
+      for (const L of this.links) if (L.on) this.solveLink(L);
+      if (dirs) for (const h of this.hinges) if (h.on !== false) this.solveHinge(h, dirs);
+      for (const p of this.pins) if (p.on) { const t = p.target(), k = p.i * 3; x[k] += (t[0] - x[k]) * p.stiff; x[k + 1] += (t[1] - x[k + 1]) * p.stiff; x[k + 2] += (t[2] - x[k + 2]) * p.stiff; }
+      for (let i = 0; i < n; i++) this.collide(i);
+    }
+    // contacts are inelastic: remove the speed going into the surface, add some friction along it
+    for (let i = 0; i < n; i++) if (this.cf[i]) {
+      const k = i * 3, nx = this.cn[k], ny = this.cn[k + 1], nz = this.cn[k + 2];
+      let vx = x[k] - o[k], vy = x[k + 1] - o[k + 1], vz = x[k + 2] - o[k + 2]; const vn = vx * nx + vy * ny + vz * nz;
+      if (vn < 0) { vx -= nx * vn; vy -= ny * vn; vz -= nz * vn; if (this.limbOf && this.tearSpeed && -vn / this.dt > this.tearSpeed) { const g = this.limbOf[i]; if (g && Math.random() < 0.6) this.breakGroup(g); } }
+      const f = this.friction ?? 0.75; vx *= f; vz *= f; if (Math.abs(ny) < 0.7) vy *= f;
+      o[k] = x[k] - vx; o[k + 1] = x[k + 1] - vy; o[k + 2] = x[k + 2] - vz;
+    }
+  }
+}
+// RAGDOLL-CORE-END
+
+
+// RAGDOLL-BODY-START (pure: builds Daggie's joint skeleton on a RagCore)
+const RAG_NAMES = ['pel', 'waist', 'chest', 'neck', 'top', 'shL', 'elL', 'wrL', 'haL', 'shR', 'elR', 'wrR', 'haR', 'hipL', 'knL', 'anL', 'toL', 'hipR', 'knR', 'anR', 'toR'];
+const RAG_R = { pel: 0.14, waist: 0.13, chest: 0.15, neck: 0.08, top: 0.12, sh: 0.08, el: 0.06, wr: 0.05, ha: 0.05, hip: 0.09, kn: 0.07, an: 0.06, to: 0.05 };
+function ragBody(core, rest, now, fwdRest, T) {
+  // rest / now: name -> [x,y,z]. rest gives bone lengths, now gives the starting pose. T: tuning (break ratios, grip)
+  const I = {}; RAG_NAMES.forEach((n, i) => { I[n] = i; core.set(i, ...now[n]); core.r[i] = RAG_R[n.replace(/[LR]$/, '')]; });
+  for (const n of ['pel', 'waist', 'chest']) core.inv[I[n]] = 0.5; core.inv[I.top] = 0.8;
+  const d = (a, b) => Math.hypot(rest[a][0] - rest[b][0], rest[a][1] - rest[b][1], rest[a][2] - rest[b][2]);
+  const L = (a, b, s = 1, type = 0, len = null, group = null, br = 0) => core.link(I[a], I[b], s, type, len ?? d(a, b), group, br);
+  // bones
+  for (const [a, b] of [['pel', 'waist'], ['waist', 'chest'], ['chest', 'neck'], ['neck', 'top']]) L(a, b);
+  for (const s of ['L', 'R']) { L('sh' + s, 'el' + s); L('el' + s, 'wr' + s); L('wr' + s, 'ha' + s); L('hip' + s, 'kn' + s); L('kn' + s, 'an' + s); L('an' + s, 'to' + s); }
+  // torso and pelvis blocks (slightly soft so the spine can bend)
+  for (const [a, b] of [['chest', 'shL'], ['chest', 'shR'], ['shL', 'shR'], ['neck', 'shL'], ['neck', 'shR'], ['waist', 'shL'], ['waist', 'shR']]) L(a, b, 0.9);
+  for (const [a, b] of [['pel', 'hipL'], ['pel', 'hipR'], ['hipL', 'hipR'], ['waist', 'hipL'], ['waist', 'hipR']]) L(a, b, 0.95);
+  L('chest', 'pel', 0.25); L('shL', 'hipL', 0.35); L('shR', 'hipR', 0.35); L('shL', 'hipR', 0.2); L('shR', 'hipL', 0.2);
+  L('top', 'shL', 0.4); L('top', 'shR', 0.4);
+  // joint limits: nothing folds flat into itself
+  L('chest', 'pel', 1, 1, d('chest', 'pel') * 0.82); L('top', 'chest', 1, 1, d('top', 'chest') * 0.85);
+  for (const s of ['L', 'R']) { L('sh' + s, 'wr' + s, 1, 1, (d('sh' + s, 'el' + s) + d('el' + s, 'wr' + s)) * 0.3); L('hip' + s, 'an' + s, 1, 1, (d('hip' + s, 'kn' + s) + d('kn' + s, 'an' + s)) * 0.28); }
+  // tearing: arms at the shoulder, legs at the hip, the head at the neck
+  for (const s of ['L', 'R']) {
+    core.cut('arm' + s, ['sh' + s, 'el' + s, 'wr' + s, 'ha' + s].map(n => I[n]), I.chest, I['sh' + s], T.armBreak);
+    core.cut('leg' + s, ['hip' + s, 'kn' + s, 'an' + s, 'to' + s].map(n => I[n]), I.pel, I['hip' + s], T.legBreak);
+  }
+  core.cut('head', [I.neck, I.top], I.chest, I.neck, T.headBreak);
+  // hitting something very hard can rip the limb that took the hit
+  core.limbOf = RAG_NAMES.map(n => /^(sh|el|wr|ha)L/.test(n) ? 'armL' : /^(sh|el|wr|ha)R/.test(n) ? 'armR' : /^(hip|kn|an|to)L/.test(n) ? 'legL' : /^(hip|kn|an|to)R/.test(n) ? 'legR' : n === 'top' ? 'head' : null);
+  core.tearSpeed = T.tearSpeed || 0;
+  // hinges: knees bend forward only, elbows backward only
+  for (const s of ['L', 'R']) { core.hinges.push({ a: I['hip' + s], b: I['kn' + s], c: I['an' + s], dir: 'fwd', min: 0.0 }); core.hinges.push({ a: I['sh' + s], b: I['el' + s], c: I['wr' + s], dir: 'back', min: 0.0 }); }
+  // body frame for the hinges: forward is stored relative to the torso axes
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], nrm = v => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }, cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const basis = (up, side) => { const u = nrm(up), s0 = nrm(side), w = nrm(cr(s0, u)), s = cr(u, w); return [s, u, w]; };
+  const B0 = basis(sub(rest.chest, rest.pel), sub(rest.shR, rest.shL)), fl = [dot(fwdRest, B0[0]), dot(fwdRest, B0[1]), dot(fwdRest, B0[2])];
+  const P = n => { const k = I[n] * 3; return [core.x[k], core.x[k + 1], core.x[k + 2]]; };
+  core.frame = () => { const B = basis(sub(P('chest'), P('pel')), sub(P('shR'), P('shL'))), f = nrm([B[0][0] * fl[0] + B[1][0] * fl[1] + B[2][0] * fl[2], B[0][1] * fl[0] + B[1][1] * fl[1] + B[2][1] * fl[2], B[0][2] * fl[0] + B[1][2] * fl[1] + B[2][2] * fl[2]]); return { fwd: f, back: [-f[0], -f[1], -f[2]] }; };
+  core.I = I;
+  return I;
+}
+// RAGDOLL-BODY-END
+
+
+const RAG_TUNE = { armBreak: 1.6, legBreak: 2.0, headBreak: 1.6, grip: 0.3, tearSpeed: 30 };
+// which two points drive each body part, and which two points give its sideways axis
+const RAG_PARTS = { pelvis: ['pel', 'waist', 'hipL', 'hipR'], torso: ['waist', 'chest', 'shL', 'shR'], head: ['neck', 'top', 'shL', 'shR'] };
+for (const s of ['L', 'R']) Object.assign(RAG_PARTS, { ['upper' + s]: ['sh' + s, 'el' + s, 'shL', 'shR'], ['fore' + s]: ['el' + s, 'wr' + s, 'shL', 'shR'], ['hand' + s]: ['wr' + s, 'ha' + s, 'shL', 'shR'], ['thigh' + s]: ['hip' + s, 'kn' + s, 'hipL', 'hipR'], ['shin' + s]: ['kn' + s, 'an' + s, 'hipL', 'hipR'], ['foot' + s]: ['an' + s, 'to' + s, 'hipL', 'hipR'] });
+function ragPoints(world) { // the 21 points, from the rig at rest (model space) or from the posed parts (world)
+  const P = {}, piv = (n, o) => world ? byName[n].localToWorld(o.copy(NODE[n].p).sub(byName[n].userData.restPos)) : o.copy(NODE[n].p);
+  const cen = (n, o) => world ? byName[n].getWorldPosition(o) : o.copy(byName[n].userData.restPos);
+  const a = new V3(), b = new V3(), put = (k, v) => { P[k] = [v.x, v.y, v.z]; };
+  put('pel', cen('pelvis', a)); put('waist', piv('torso', a)); put('neck', piv('head', a)); put('top', cen('head', b).multiplyScalar(2).sub(piv('head', a)));
+  const sl = piv('upperL', new V3()), sr = piv('upperR', new V3()), w = piv('torso', new V3()), ch = sl.clone().add(sr).multiplyScalar(0.5); ch.lerp(w, 0.2); put('chest', ch);
+  for (const s of ['L', 'R']) {
+    put('sh' + s, piv('upper' + s, a)); put('el' + s, piv('fore' + s, a)); put('wr' + s, piv('hand' + s, a)); put('ha' + s, cen('hand' + s, b).multiplyScalar(2).sub(piv('hand' + s, a)));
+    put('hip' + s, piv('thigh' + s, a)); put('kn' + s, piv('shin' + s, a)); put('an' + s, piv('foot' + s, a)); put('to' + s, cen('foot' + s, b).multiplyScalar(2).sub(piv('foot' + s, a)));
+  }
+  return P;
+}
+const _rm0 = new THREE.Matrix4(), _rm1 = new THREE.Matrix4(), _rq = new THREE.Quaternion(), _rv = new V3(), _ra = new V3(), _rb = new V3(), _rc = new V3();
+function ragBasis(A, B, C, D, out) { // x along the bone, z = bone x side, y completes
+  const x = _ra.set(B[0] - A[0], B[1] - A[1], B[2] - A[2]).normalize(), side = _rb.set(D[0] - C[0], D[1] - C[1], D[2] - C[2]).normalize();
+  let z = _rc.crossVectors(x, side); if (z.lengthSq() < 1e-6) z.set(0, 0, 1).cross(x); z.normalize(); const y = new V3().crossVectors(z, x);
+  return out.makeBasis(x.clone(), y, z.clone());
+}
+let RAGSIM = null;
+function ragStart(vel) { // turn the posed body into a physics body moving at `vel`
+  daggie.updateMatrixWorld(true);
+  const now = ragPoints(true), rest = ragPoints(false), core = new RagCore(RAG_NAMES.length);
+  const fw = FACE_N ? [FACE_N.x, FACE_N.y, FACE_N.z] : [0, 0, 1];
+  core.floor = floorAt; core.box = LABCART.box; core.cyls = LABCART.cyls;
+  const I = ragBody(core, rest, now, fw, RAG_TUNE); core.initCart();
+  for (const s of [-1, 1]) core.pins.push({ i: I[s < 0 ? (SIDE.L < 0 ? 'haL' : 'haR') : (SIDE.L < 0 ? 'haR' : 'haL')], on: true, stiff: 0.6, maxErr: RAG_TUNE.grip, target: () => LABCART.box.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, -0.12) });
+  core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
+  const restB = {}, corr = {}; for (const n in RAG_PARTS) { const q = RAG_PARTS[n]; restB[n] = ragBasis(rest[q[0]], rest[q[1]], rest[q[2]], rest[q[3]], new THREE.Matrix4()); }
+  // keep each part's own twist: remember how its real rotation differs from the one rebuilt from the points
+  for (const p of parts) { const q = RAG_PARTS[p.name]; if (!q) continue; ragBasis(now[q[0]], now[q[1]], now[q[2]], now[q[3]], _rm1); _rm0.copy(restB[p.name]).transpose(); _rm1.multiply(_rm0); const rec = new THREE.Quaternion().setFromRotationMatrix(_rm1); corr[p.name] = rec.invert().multiply(p.getWorldQuaternion(new THREE.Quaternion())); }
+  for (const p of parts) scene.attach(p);
+  core.onBreak = g => { const k = I[{ armL: 'shL', armR: 'shR', legL: 'hipL', legR: 'hipR', head: 'neck' }[g]] * 3, pos = new V3(core.x[k], core.x[k + 1], core.x[k + 2]);
+    for (let i = 0; i < 16; i++) spawnDrop(pos.clone(), new V3(rand(-2, 2), rand(0.5, 3), rand(-2, 2)), rand(0.012, 0.024)); burst(pos, 50, SPARK, 8); clank(10); tone(1500, 300, 0.25, 'sawtooth', 0.06);
+    lastPop = 0; pop({ armL: 'ARM OFF!', armR: 'ARM OFF!', legL: 'LEG OFF!', legR: 'LEG OFF!', head: 'HEADLESS!' }[g], 'lilac'); setFace('hit', 1500); };
+  core.onRelease = () => { lastPop = 0; pop('LET GO!', 'lilac'); setFace('scared', 1500); };
+  RAGSIM = { core, I, rest, restB, corr, t: 0 };
+}
+function ragSimStep(dt) {
+  const S = RAGSIM; if (!S) return; S.t += dt;
+  // fixed 1/240 s physics steps (the grip and tearing limits were tuned at this rate), also in slow motion
+  S.acc = (S.acc || 0) + dt; let n = 0;
+  while (S.acc >= 1 / 240 && n < 12) { labCartStep(1 / 240); S.core.step(1 / 240, 10); S.acc -= 1 / 240; n++; }
+  if (n === 12) S.acc = 0;
+  ragApply();
+}
+function ragApply() { // move every mesh part to where its points are
+  const S = RAGSIM, c = S.core, P = n => { const k = S.I[n] * 3; return [c.x[k], c.x[k + 1], c.x[k + 2]]; };
+  for (const p of parts) {
+    const q = RAG_PARTS[p.name]; if (!q) continue;
+    ragBasis(P(q[0]), P(q[1]), P(q[2]), P(q[3]), _rm1);
+    _rm0.copy(S.restB[p.name]).transpose(); _rm1.multiply(_rm0); _rq.setFromRotationMatrix(_rm1); if (S.corr[p.name]) _rq.multiply(S.corr[p.name]);
+    p.quaternion.copy(_rq);
+    const a = P(q[0]); _rv.copy(p.userData.restPos).sub(new V3(...S.rest[q[0]])).applyQuaternion(_rq); p.position.set(a[0] + _rv.x, a[1] + _rv.y, a[2] + _rv.z);
+  }
+}
+// ---- the test cart (the player's cart mesh), its crash with the bollard, dents that grow with speed ----
+const LABCART = { z: 0, vz: 0, pitch: 0, w: 0, hit: false, zfOut: -0.64 * CART_S / 1.35 * 1.0, v: 0, cyls: [], box: null };
+LABCART.box = {
+  on: true, hw: (0.32) * CART_S, y0: 0.4 * CART_S, y1: 1.02 * CART_S, zf: -0.45 * CART_S, zb: 0.45 * CART_S,
+  toWorld(x, y, z) { const c = Math.cos(-LABCART.pitch), sn = Math.sin(-LABCART.pitch), zr = z - LABCART.zfOut; return [x + LAB_LANE, y * c - zr * sn, LABCART.z + LABCART.zfOut + y * sn + zr * c]; },
+  toLocal(x, y, z) { const zr = z - LABCART.z - LABCART.zfOut, c = Math.cos(LABCART.pitch), sn = Math.sin(LABCART.pitch); return [x - LAB_LANE, y * c - zr * sn, LABCART.zfOut + y * sn + zr * c]; },
+  dirWorld(x, y, z) { const c = Math.cos(-LABCART.pitch), sn = Math.sin(-LABCART.pitch); return [x, y * c - z * sn, y * sn + z * c]; },
+};
+const LAB_LANE = 0, BOLLARD_Z = -8, BOLLARD_R = 0.16, BOLLARD_H = 1.1;
+let BOLLARD = null;
+function labCartPlace() { const w = LABCART.box.toWorld(0, 0, 0); board.position.set(w[0], w[1], w[2]); board.rotation.set(-LABCART.pitch, 0, 0); }
+function labCartStep(dt) {
+  const C = LABCART;
+  if (!C.hit) { C.z += C.vz * dt; if (C.z + C.zfOut <= BOLLARD_Z + BOLLARD_R) labImpact(); }
+  else { C.z += C.vz * dt; C.vz *= Math.pow(0.05, dt); C.w -= 20 * Math.cos(C.pitch) * dt; C.pitch += C.w * dt; if (C.pitch < 0) { C.pitch = 0; C.w = -C.w * 0.25; } if (C.pitch > Math.PI) { C.pitch = Math.PI; C.w = 0; } }
+  labCartPlace();
+}
+function labDent(v) { // crumple the front of the basket; deeper and wider the faster it hit
+  const cage = board.getObjectByName('cage'); if (!cage) return;
+  const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 45, 0.02, 0.55), R = 0.12 + Math.min(0.3, v / 90);
+  for (let i = 0; i < a.length; i += 3) {
+    const x = a[i], y = a[i + 1], z = a[i + 2]; if (z > -0.2) continue;
+    const fx = Math.max(0, 1 - Math.abs(x) / R), fy = clamp((y - 0.1) / 0.9, 0, 1), fz = clamp((-z - 0.2) / 0.27, 0, 1), k = fx * fx * (3 - 2 * fx) * fz;
+    if (k <= 0) continue; a[i + 2] = z + depth * k * (0.55 + 0.45 * fy); a[i + 1] = y - depth * 0.25 * k * fy; a[i] = x * (1 + depth * 0.3 * k);
+  }
+  pos.needsUpdate = true; cage.geometry.computeVertexNormals(); cage.geometry.computeBoundingSphere();
+  if (v > 40) for (const w of wheels.slice(0, 2)) { w.visible = false; const wp = w.getWorldPosition(new V3()); burst(wp, 20, SPARK, 6); }
+}
+function labCartReset() {
+  const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
+  for (const w of wheels) w.visible = true;
+  Object.assign(LABCART, { hit: false, pitch: 0, w: 0, vz: 0, z: BOLLARD_Z + BOLLARD_R - LABCART.zfOut + 14 }); labCartPlace();
+}
+function labImpact() {
+  const C = LABCART, v = C.v; C.hit = true; C.z = BOLLARD_Z + BOLLARD_R - C.zfOut; C.vz = v * 0.1; C.w = Math.min(14, v * 0.35);
+  labDent(v); ragStart(new V3(0, 0, -v));
+  const bp = new V3(LAB_LANE, 0.8, BOLLARD_Z); burst(bp, 60 + v * 2, SPARK, 6 + v * 0.1); clank(12); tone(90, 30, 0.4, 'sine', 0.4); tone(1600, 400, 0.3, 'sawtooth', 0.05);
+  if (!reduceMotion) shake = Math.min(0.9, 0.2 + v * 0.012);
+  slowUntil = performance.now() + 1200; slowK = 0.3; setFace('scared', 2000); lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac');
+}
+function labBollardOutcome() {
+  const S = RAGSIM, c = S.core, torn = c.broken.length, inCart = c.inCart[S.I.pel], held = c.pins.some(p => p.on);
+  const txt = inCart ? (S.maxY > 0.95 * CART_S ? 'almost flew out' : 'stayed in the cart') : held ? 'flew out but held on' : 'was thrown out';
+  LAB.lost = torn; return txt + (torn ? ', ' + torn + ' limb' + (torn > 1 ? 's' : '') + ' torn off' : '');
+}
+
+// =====================================================================
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
 const LAB_INFO = {
+  bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
   fart: { title: 'FART POWER', ask: 'How high does he fly?' },
   sock: { title: 'SOCK SIZE', ask: 'How big a foot can he take?' },
   anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
@@ -2311,7 +2562,8 @@ function brrt(power) { // the fart sound: a wobbling low buzz, longer and deeper
 function buildLab() {
   labBuilt = true;
   for (let i = TRACK_OBJ0; i < TRACK_OBJ1; i++) scene.children[i].visible = false; // the lab has no track
-  BIG.visible = false; board.visible = false;
+  BIG.visible = false; board.visible = LAB.machine === 'bollard';
+  { const bm = new THREE.Group(), st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2; st.castShadow = true; bm.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H; bm.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = bm; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
   scene.fog = new THREE.Fog(0x2a2733, 60, 260);
   const conc = tex(512, 512, (g, w, h) => {
     g.fillStyle = '#6f6c70'; g.fillRect(0, 0, w, h);
@@ -2319,9 +2571,9 @@ function buildLab() {
     g.strokeStyle = 'rgba(30,28,34,0.5)'; g.lineWidth = 4; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(w, x); g.stroke(); }
   });
   conc.wrapS = conc.wrapT = THREE.RepeatWrapping; conc.repeat.set(10, 10);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ map: conc, roughness: 0.92 }));
-  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(STAND_R + 0.4, STAND_R + 1.0, 48), stripeMat(8)); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.01; scene.add(ring);
+  conc.repeat.set(10, 50); const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 400), new THREE.MeshStandardMaterial({ map: conc, roughness: 0.92 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.z = 180; floor.receiveShadow = true; scene.add(floor);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(STAND_R + 0.4, STAND_R + 1.0, 48), stripeMat(8)); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.01; ring.visible = !(L.machines || []).every(m => m === 'bollard'); scene.add(ring);
   const wallT = tex(512, 512, (g, w, h) => { g.fillStyle = '#3d3a45'; g.fillRect(0, 0, w, h); g.strokeStyle = '#2a2830'; g.lineWidth = 8; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } g.fillStyle = '#8b8894'; for (let x = 20; x < w; x += 128) for (let y = 20; y < h; y += 118) { g.beginPath(); g.arc(x, y, 5, 0, TAU); g.fill(); g.beginPath(); g.arc(x + 88, y, 5, 0, TAU); g.fill(); } });
   wallT.wrapS = wallT.wrapT = THREE.RepeatWrapping; wallT.repeat.set(8, 3);
   const wm = new THREE.MeshStandardMaterial({ map: wallT, roughness: 0.8, metalness: 0.2, side: THREE.DoubleSide });
@@ -2331,8 +2583,9 @@ function buildLab() {
   const warn = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('DO NOT TRY THIS', '#e0322b', '#ffffff', 768, 192)); warn.position.set(-10, 5, -19.85); scene.add(warn);
   const warn2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('LEVEL 1 - 100', '#16141c', '#3dff9a', 768, 192)); warn2.position.set(10, 5, -19.85); scene.add(warn2);
   for (let i = 0; i < 5; i++) { const lamp = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: glowColor(0xfff3dc, 2.2) })); lamp.position.set(-12 + i * 6, 13.6, -8); scene.add(lamp); }
-  const stand = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R, STAND_R + 0.2, STAND_H, 40), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.8, roughness: 0.35 })); stand.position.y = STAND_H / 2; stand.castShadow = stand.receiveShadow = true; scene.add(stand);
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 0.01, STAND_R + 0.01, 0.16, 40, 1, true), stripeMat(8)); band.position.y = STAND_H - 0.1; scene.add(band);
+  LABNOSTAND = (L.machines || []).every(m => m === 'bollard');
+  const stand = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R, STAND_R + 0.2, STAND_H, 40), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.8, roughness: 0.35 })); stand.position.y = STAND_H / 2; stand.castShadow = stand.receiveShadow = true; stand.visible = !LABNOSTAND; scene.add(stand);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 0.01, STAND_R + 0.01, 0.16, 40, 1, true), stripeMat(8)); band.position.y = STAND_H - 0.1; band.visible = !LABNOSTAND; scene.add(band);
   const gt = gasTex();
   for (let i = 0; i < 40; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: gt, transparent: true, depthWrite: false, opacity: 0 })); m.visible = false; scene.add(m); GAS.push({ m, on: false, age: 0, life: 1, size: 1, v: new V3() }); }
   // the giant stinky sock (origin at the sole)
@@ -2394,7 +2647,7 @@ function labUI() {
   if (!labBuilt) return;
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
   $('labKnob').style.left = ((LAB.level - 1) / 99 * 100) + '%';
-  $('labLvl').textContent = 'LEVEL ' + LAB.level;
+  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB.level * 2 + ' MPH' : 'LEVEL ' + LAB.level;
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labRec').setAttribute('aria-pressed', String(REC_MODE));
@@ -2404,7 +2657,8 @@ function labReset() {
   if (!labBuilt) buildLab();
   if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z);
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
-  drone.visible = false; board.visible = false; BB.free = false; board.position.set(0, -50, 0);
+  drone.visible = false; BB.free = false; RAGSIM = null;
+  if (LAB.machine === 'bollard') { board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); }
   state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0;
   if (LEG) { LEG.visible = false; }
   setFace('idle', 0); snapCam = true;
@@ -2415,7 +2669,8 @@ function labStart() {
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
-  if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
+  if (LAB.machine === 'bollard') { LAB.phase = 'roll'; LABCART.v = lv * 2 * 0.447; LABCART.vz = -LABCART.v; LABCART.z = BOLLARD_Z + BOLLARD_R - LABCART.zfOut + Math.max(10, LABCART.v * 1.4); labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
+  else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
   else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
   lastPop = 0; pop('LEVEL ' + lv, 'lilac');
@@ -2441,6 +2696,12 @@ function labStep(dt, now) {
   if (state === 'lab') { if (now - stateT > 2500) $('hook').classList.remove('show'); if (LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } }
   const lv = LAB.level, P = LAB.phase; LAB.t += dt;
   const butt = () => byName.pelvis.getWorldPosition(new V3()).add(new V3(0, -0.3, 0));
+  if (LAB.machine === 'bollard') {
+    if (P === 'roll' && state === 'ride') { labCartStep(dt); for (const w of wheels) w.rotation.x -= LABCART.v / WHEEL_R * dt; if (LABCART.hit) { LAB.phase = 'crash'; LAB.t = 0; } }
+    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.phase = 'done'; labFinish(txt); } }
+    else if (P === 'done' && RAGSIM) ragSimStep(dt);
+    return;
+  }
   if (LAB.machine === 'fart') {
     if (P === 'charge') {
       R.x = rand(-1, 1) * 0.015 * (1 + lv / 25) * (LAB.t / 0.7);
@@ -2490,6 +2751,7 @@ function labStep(dt, now) {
   }
 }
 function labPose(t) {
+  if (LAB.machine === 'bollard') { if (!RAGSIM) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
   rider.position.set(R.x, R.y, 0); rider.rotation.set(0, LAB_YAW, 0);
   let P;
   if (LAB.phase === 'air') { rootQ.setFromEuler(new THREE.Euler(LAB.spin * 0.7, LAB.spin * 0.4, LAB.spin * 0.2)); P = flailPose(t * 1.4); }
@@ -2506,6 +2768,11 @@ function labPose(t) {
 }
 function labCam(now, dt) {
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
+  if (m === 'bollard') {
+    if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 4.6, 1.9, Math.max(z + 1.5, BOLLARD_Z + 4)); wantLook.set(LAB_LANE, 1.0, Math.min(z - 1.5, BOLLARD_Z + 2)); return state === 'ride' ? 12 : 3; }
+    const c = RAGSIM.core, k = RAGSIM.I.pel * 3, px = c.x[k], py = c.x[k + 1], pz = c.x[k + 2], spread = Math.min(12, Math.abs(pz - BOLLARD_Z) * 0.5 + py * 0.4);
+    wantPos.set(LAB_LANE + 5 + spread * 0.6, 1.8 + spread * 0.35, (pz + BOLLARD_Z) / 2 + 3 + spread * 0.3); wantLook.set(px * 0.5 + LAB_LANE * 0.5, Math.max(0.8, py * 0.7), (pz + BOLLARD_Z) / 2); return 4;
+  }
   const face = new V3(Math.sin(LAB_YAW + Math.atan2(FACE_N ? FACE_N.x : 0, FACE_N ? FACE_N.z : 1)), 0, Math.cos(LAB_YAW + Math.atan2(FACE_N ? FACE_N.x : 0, FACE_N ? FACE_N.z : 1)));
   const side = new V3(face.z, 0, -face.x);
   if (m === 'fart' && LAB.phase === 'air') { const y = T.y; wantPos.copy(face).multiplyScalar(6 + Math.min(40, y * 0.25)).addScaledVector(side, 2).setY(Math.max(1.6, Math.min(y * 0.55, y - 2))); wantLook.set(T.x, y, T.z); return 6; }
@@ -2516,7 +2783,7 @@ function labCam(now, dt) {
 }
 function labDone() {
   if (!labBuilt) return;
-  const survived = LAB.text === 'survived', lost = cause ? 15 : LAB.lost;
+  const survived = LAB.text === 'survived' || LAB.text === 'stayed in the cart', lost = LAB.machine === 'bollard' ? 0 : cause ? 15 : LAB.lost;
   $('labRes').innerHTML = '';
   const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
   $('labRes').append(b, document.createTextNode(survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')));

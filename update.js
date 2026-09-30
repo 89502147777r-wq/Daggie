@@ -1,6 +1,6 @@
 // Version of the game files on this device. version.json on GitHub always holds the newest number.
 // When they differ, a button offers a one-tap update. Always change BOTH when releasing.
-const BUILD = '4.5';
+const BUILD = '4.6';
 setTimeout(async () => {
   try {
     const v = await (await fetch('version.json?check=' + Date.now(), { cache: 'no-store' })).json();

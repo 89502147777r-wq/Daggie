@@ -4,10 +4,10 @@ export const LEVEL = {
   id: 'crash',
   mode: 'lab',
   name: 'Crash Lab',
-  title: ['LEVEL 1 TO 100', 'NOBODY SURVIVES MAX'],
+  title: ['CART vs BOLLARD', 'AT DIFFERENT SPEEDS'],
   theme: 'lab',
-  vehicle: 'none',
-  machines: ['fart', 'sock', 'anvil'], // FART POWER, SOCK SIZE, ANVIL HEIGHT
+  vehicle: 'cart',
+  machines: ['bollard'], // CART vs BOLLARD: speed = level x 2 mph
   track: { half: 4.2, gaps: [], ramp: [2000, 2010], rampH: 0, land: [2030, 2040] },
   bigSaw: { s: 3000, r: 4.0, y: -60 },
   signs: [], saws: [], boosts: [], balls: [], presses: [], barrels: [], carts: [], hurdles: [], sweepers: [], walls: [],

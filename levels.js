@@ -13,7 +13,7 @@ export const MODES = [
   {
     id: 'lab', title: 'LAB', sub: 'Crash tests: level 1 to 100', page: 'run.html',
     levels: [
-      { id: 'crash', name: 'Crash Lab', ride: 'Fart power · Stinky sock · Anvil', file: 'level-lab-crash.js', ready: true },
+      { id: 'crash', name: 'Cart vs Bollard', ride: 'Speed test: 2 to 200 mph', file: 'level-lab-crash.js', ready: true },
     ],
   },
   {
