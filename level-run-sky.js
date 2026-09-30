@@ -29,7 +29,7 @@ export const LEVEL = {
   wind: { s0: 218, s1: 246, fans: [224, 238], force: 3.4 },
   cones: [[-2.8, 22], [-1.4, 25], [0, 22], [1.4, 25], [2.8, 22], [-2.1, 28], [0.7, 28], [2.1, 31], [-0.7, 31]], // [x, s]
   tnts: [[33, 2.6], [110, -2.5], [168, 1.4], [420, 2.4], [303, -2.5], [303, 2.5]],
-  spares: [[132, 2.4], [232, -1.6], [350, 0]],
+  spares: [[132, 2.4], [232, -1.6]], // no crate right after SUBSCRIBE, so its text doesn't cover the call to subscribe
   picks: [[62, -1.2, 'cannon'], [178, -2.4, 'shield'], [250, 1.4, 'cannon']],
   social: [[160, -2.0, 'like'], [344, 0, 'sub']],
   delivery: { item: 'pizza', slices: 8, time: 45, tip: 20 }, // the order Daggie carries to Penny's door
