@@ -3063,15 +3063,15 @@ function labPosters() {
   const oldFace = faceMode;
   const imgs = shots.map(([bg, pose, face, extra]) => { setFace(face, 99999); return posterShot(bg, pose, extra); });
   setFace(oldFace, 0);
-  // both walls, full length: big posters every 10 m. poster-1.jpg … poster-20.jpg in the repo replace the photos automatically
+  // both walls, full length: big posters every 10 m. poster-1.jpg … poster-26.jpg in the repo replace the photos automatically
   const boards = [];
   for (const side of [-1, 1]) for (let k = 0; k < 13; k++) {
-    const z = BOLLARD_Z + 36 - k * 10.5, i = ((side < 0 ? 0 : 13) + k) % 20, sh = shots[i % shots.length]; // 26 places, 20 different posters
+    const z = BOLLARD_Z + 36 - k * 10.5, i = ((side < 0 ? 0 : 13) + k) % 26, sh = shots[i % shots.length]; // 26 places, 26 different posters
     const bd = posterBoard(imgs[i % shots.length], sh[4], sh[5], side * 19.75, z, side < 0 ? Math.PI / 2 : -Math.PI / 2, sh[6], 2);
     bd.position.set(side * 19.75, 7.2, z); boards.push({ bd, i });
   }
   const loader = new THREE.TextureLoader();
-  for (let i = 0; i < 20; i++) loader.load('poster-' + (i + 1) + '.jpg?v=' + (typeof BUILD !== 'undefined' ? BUILD : ''), t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  for (let i = 0; i < 26; i++) loader.load('poster-' + (i + 1) + '.jpg?v=' + (typeof BUILD !== 'undefined' ? BUILD : ''), t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     for (const b of boards) if (b.i === i) { b.bd.userData.photo.material.map = t; b.bd.userData.photo.material.needsUpdate = true; b.bd.userData.photo.scale.set(1, 1.02, 1); b.bd.userData.text.visible = false; } }, undefined, () => {});
   const acc = posterBoard(null, 'DAYS WITHOUT', 'AN ACCIDENT', -19.75, BOLLARD_Z - 0.75, Math.PI / 2, ['#f4f1ea', '#16141c', '#e0322b', '0'], 0.85); acc.position.set(-19.7, 2.4, BOLLARD_Z - 0.75); // fits in the gap between two big posters
 }
