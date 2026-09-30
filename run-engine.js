@@ -867,7 +867,7 @@ const ANVIL_RING = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.95, 32), new THR
 function resetFx() { Object.assign(FX, { grav: 1, gravT: 0, jump: 1, jumpT: 0, boostT: 0 }); for (const r of RAIN) { r.on = false; r.m.visible = false; } FX.anvil = null; ANVIL.visible = false; ANVIL_RING.visible = false; }
 function applyFx(name) {
   const now = performance.now();
-  if (name === 'TNT RAIN') { for (const r of RAIN) { Object.assign(r, { on: true, x: rand(-3.4, 3.4), s: R.s + rand(14, 55), vy: 0 }); r.y = rand(14, 24) + (r.s - R.s) * 0.15; r.m.visible = true; } }
+  if (name === 'TNT RAIN') { RAIN.forEach((r, i) => { Object.assign(r, { on: true, x: rand(-3.4, 3.4), vy: 0, lead: 4 + i * 3.5 + rand(0, 2.5) }); r.y = rand(12, 20) + i * 1.5; r.s = R.s + Math.max(R.speed, 12) * Math.sqrt(2 * r.y / 9.8) + r.lead; r.m.visible = true; }); }
   else if (name === 'MOON GRAVITY') { FX.grav = 0.35; FX.gravT = 6; }
   else if (name === 'ROCKET BOOST') { FX.boostT = 2.5; R.speed = Math.min(40, R.speed + 12); if (R.grounded) { R.grounded = false; R.vy = 4; } burst(new V3(R.x, R.y + 0.4, -R.s + 0.8), 60, SPARK, 8); tone(200, 1400, 0.6, 'sawtooth', 0.05); }
   else if (name === 'OIL SLICK') { R.slip = 3; }
@@ -875,7 +875,7 @@ function applyFx(name) {
   else if (name === 'ARM CANNON') { equipCannon(); }
   else if (name === 'REPAIR') { while (detached.length) reattach(); stumps.length = 0; setHP(100); burst(torso.getWorldPosition(new V3()), 50, CONF, 6); }
   else if (name === 'SUPER JUMP') { FX.jump = 1.45; FX.jumpT = 6; }
-  else if (name === 'ANVIL') { const T = 1.6; FX.anvil = { x: R.x, s: R.s + Math.max(R.speed, 12) * T, y: 20 * T * T / 2 + 0.2, vy: 0, landed: false }; ANVIL.visible = true; ANVIL_RING.visible = true; tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
+  else if (name === 'ANVIL') { const T = 1.6; FX.anvil = { x: R.x, s: R.s + Math.max(R.speed, 12) * T + 5, y: 20 * T * T / 2 + 0.2, vy: 0, landed: false }; ANVIL.visible = true; ANVIL_RING.visible = true; tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
   else if (name === 'MATRIX MODE') { slowUntil = now + 2200; slowK = 0.3; }
 }
 function stepFx(dt) {
@@ -883,7 +883,9 @@ function stepFx(dt) {
   if (FX.jumpT > 0 && (FX.jumpT -= dt) <= 0) FX.jump = 1;
   if (FX.boostT > 0) FX.boostT -= dt;
   for (const r of RAIN) {
-    if (!r.on) continue; r.vy -= 9.8 * dt; r.y += r.vy * dt; r.m.position.set(r.x, r.y + 0.35, -r.s); r.m.rotation.x += dt * 2; r.m.rotation.z += dt * 1.3;
+    if (!r.on) continue;
+    { const fl0 = trackH(r.s) ?? 0, tl = fallTime(r.y - fl0, r.vy, 9.8); if (tl > 0.35 && state === 'ride') r.s = R.s + Math.max(R.speed, 8) * tl + r.lead; } // keep aiming ahead of him
+    r.vy -= 9.8 * dt; r.y += r.vy * dt; r.m.position.set(r.x, r.y + 0.35, -r.s); r.m.rotation.x += dt * 2; r.m.rotation.z += dt * 1.3;
     const fl = trackH(r.s) ?? -90;
     if (r.y <= fl) {
       r.on = false; r.m.visible = false;
@@ -892,11 +894,14 @@ function stepFx(dt) {
   }
   const A = FX.anvil;
   if (A) {
+    if (!A.landed && state === 'ride') { const tl = fallTime(A.y - (trackH(A.s) ?? 0), A.vy, 20); if (tl > 0.3) A.s = R.s + Math.max(R.speed, 8) * tl + 5; if (tl > 0.6) A.x = R.x; } // lands ~5 m in front; aim at his lane until the last 0.6 s
     if (!A.landed) { A.vy -= 20 * dt; A.y += A.vy * dt; const fl = trackH(A.s) ?? -90; if (A.y <= fl) { A.y = fl; A.landed = true; ANVIL_RING.visible = false; explodeVisualSmall(new V3(A.x, fl + 0.3, -A.s)); if (state === 'ride' && Math.abs(R.x - A.x) < 1.0 && Math.abs(R.s - A.s) < 1.2 && R.y < 2.2) { crash('anvil'); return; } } }
     ANVIL.position.set(A.x, A.y, -A.s); ANVIL_RING.position.set(A.x, (trackH(A.s) ?? 0) + 0.02, -A.s);
     if (A.landed && state === 'ride' && Math.abs(R.x - A.x) < 0.8 && Math.abs(R.s - A.s) < 0.45 && R.y < 0.9) { crash('anvil'); return; }
   }
 }
+// seconds until something at height h (falling at vy, gravity g) reaches the ground
+function fallTime(h, vy, g) { const v = -vy; return h <= 0 ? 0 : (-v + Math.sqrt(v * v + 2 * g * h)) / g; }
 function explodeVisualSmall(c) { burst(c, 50, SPARK, 6); if (!reduceMotion) shake = Math.min(0.6, shake + 0.4); tone(90, 30, 0.35, 'sine', 0.35); clank(10); }
 function takeGate(i, side) {
   const name = GATES[i].fx[side]; recEvt('g', [i, side]); gateFlash(i, side);
@@ -2218,7 +2223,7 @@ function frame(vts) {
       R.y = 0; R.vy = 0; R.grounded = true; R.speed = INTRO_V; state = 'ride'; stateT = now; drone.visible = false;
       crouch = 0.9; crouchV = 0; landImpact(6);
       burst(new V3(0, 0.2, -R.s), 40, SPARK, 7); tone(150, 45, 0.3, 'sine', 0.3); pop(trick.name, 'lilac'); setFace('wow', 1100);
-      if (!reduceMotion) shake = 0.45; slowUntil = now + 450; slowK = 0.35;
+      if (!reduceMotion) shake = 0.45; // no slow-mo here: the ride starts at full speed right on touchdown
     }
   }
   if (state === 'ride' || state === 'passed') {
