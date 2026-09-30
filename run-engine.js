@@ -383,7 +383,8 @@ function solveStance(P, plant) {
 }
 // ---------- sky test track ----------
 const HALF = L.track.half, RAMP0 = L.track.ramp[0], RAMP1 = L.track.ramp[1], RAMP_H = L.track.rampH, LAND0 = L.track.land[0], LAND1 = L.track.land[1];
-const SAW_S = L.bigSaw.s, BIG_R = L.bigSaw.r, BIG_Y = L.bigSaw.y;
+const FINALE = L.finale || 'saw'; // what waits after the last ramp: the giant saw, or a ring of fire
+const SAW_S = L.bigSaw.s, BIG_R = L.bigSaw.r, BIG_Y = FINALE === 'ring' ? -200 : L.bigSaw.y;
 const GAPS = L.track.gaps;
 function trackH(s) {
   if (s < -14) return null;
@@ -478,7 +479,25 @@ const SAWS = L.saws.map(([s, x, R, A = 0, w = 0]) => {
   return { s, x0: x, x, y, R, A, w, ph: rand(0, TAU), g, near: false };
 });
 const BIG = sawBlade(BIG_R, 0.3); BIG.position.set(0, BIG_Y, -SAW_S); scene.add(BIG);
-for (const sd of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 80, 0.6), darkSteel); arm.position.set(sd * 1.2, BIG_Y - 40, -SAW_S + 0.4); scene.add(arm); }
+if (FINALE !== 'ring') for (const sd of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 80, 0.6), darkSteel); arm.position.set(sd * 1.2, BIG_Y - 40, -SAW_S + 0.4); scene.add(arm); }
+BIG.visible = FINALE !== 'ring';
+// ---- the ring of fire: a burning hoop hanging over the last gap; go through the middle or get burned ----
+const RING = { s: L.ring ? L.ring.s : SAW_S, y: L.ring ? L.ring.y : 4.9, R: L.ring ? L.ring.r : 2.3, flames: [], done: false };
+if (FINALE === 'ring') {
+  const g = new THREE.Group(); g.position.set(0, RING.y, -RING.s); scene.add(g); RING.g = g;
+  const hoop = new THREE.Mesh(new THREE.TorusGeometry(RING.R, 0.16, 16, 72), new THREE.MeshStandardMaterial({ color: 0x3a2a22, metalness: 0.7, roughness: 0.4, emissive: 0xff5a1a, emissiveIntensity: 0.6 })); g.add(hoop);
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(RING.R, 0.32, 12, 72), new THREE.MeshBasicMaterial({ color: glowColor(0xff7a2a, 2.2), transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })); g.add(glow);
+  const fireT = tex(128, 256, (c, w, h) => { const gr = c.createRadialGradient(w / 2, h * 0.75, 4, w / 2, h * 0.6, h * 0.55); gr.addColorStop(0, 'rgba(255,250,210,1)'); gr.addColorStop(0.25, 'rgba(255,200,60,0.95)'); gr.addColorStop(0.55, 'rgba(255,90,20,0.7)'); gr.addColorStop(1, 'rgba(120,20,0,0)'); c.fillStyle = gr; c.beginPath(); c.moveTo(w / 2, 0); c.bezierCurveTo(w * 0.95, h * 0.45, w, h * 0.8, w / 2, h); c.bezierCurveTo(0, h * 0.8, w * 0.05, h * 0.45, w / 2, 0); c.fill(); });
+  for (let i = 0; i < 40; i++) { const a = i / 40 * TAU, sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireT, color: glowColor(0xffffff, 1.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    sp.position.set(Math.cos(a) * RING.R, Math.sin(a) * RING.R + 0.25, 0); sp.scale.set(0.7, 1.2, 1); g.add(sp); RING.flames.push({ sp, a, ph: rand(0, TAU) }); }
+  // hung from a steel gantry that rises out of the clouds
+  const steelR = new THREE.MeshStandardMaterial({ color: 0x3b3f47, metalness: 0.7, roughness: 0.45 });
+  for (const sd of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.5, 60, 0.5), steelR); post.position.set(sd * 6.5, RING.y + 3.2 - 30, -RING.s); scene.add(post); }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(13.5, 0.5, 0.5), steelR); beam.position.set(0, RING.y + 3.2, -RING.s); scene.add(beam);
+  for (const sd of [-1, 1]) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.2 - RING.R + 0.2, 6), steelR); ch.position.set(sd * 0.9, RING.y + (RING.R + 3.2) / 2 + 0.1, -RING.s); scene.add(ch); }
+  const sg = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.9), sign('THROUGH THE FIRE', '#e0322b', '#ffffff', 768, 172)); sg.position.set(0, RING.y + 3.9, -RING.s + 0.3); scene.add(sg);
+}
+function ringAnimate(t) { if (FINALE !== 'ring') return; for (const f of RING.flames) { const k = 0.8 + Math.sin(t * 9 + f.ph) * 0.2 + Math.random() * 0.12; f.sp.scale.set(0.65 * k, 1.25 * k, 1); f.sp.position.set(Math.cos(f.a) * RING.R, Math.sin(f.a) * RING.R + 0.3 * k, 0); } }
 const TRACK_OBJ1 = scene.children.length, TRACK_OBJS = scene.children.slice(TRACK_OBJ0, TRACK_OBJ1);
 const chev = tex(128, 128, (g) => { g.clearRect(0, 0, 128, 128); g.strokeStyle = '#27e0ff'; g.lineWidth = 16; g.lineCap = 'round'; g.lineJoin = 'round'; for (const y of [42, 90]) { g.beginPath(); g.moveTo(22, y + 22); g.lineTo(64, y - 16); g.lineTo(106, y + 22); g.stroke(); } });
 const BOOSTS = L.boosts.map(([s, x]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.4), new THREE.MeshBasicMaterial({ map: chev, transparent: true, color: glowColor(0xffffff, 1.8), depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.03, -s); scene.add(m); return { s, x, used: false }; });
@@ -1000,7 +1019,7 @@ function flockSwap(kind) {
   flingParts(f, kind, Math.random() < 0.5 ? -1 : 1, -R.speed, R.xv * 0.3);
   while (detached.length) reattach(); stumps.length = 0; setHP(100);
   const now = performance.now(); R.inv = now + 1000; slowUntil = now + 900; slowK = 0.3; if (!reduceMotion) shake = 0.5;
-  lastPop = 0; pop({ saw: 'ZZZT!', big: 'SHREDDED!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!' }[kind] || 'CRASH!', 'green');
+  lastPop = 0; pop({ saw: 'ZZZT!', big: 'SHREDDED!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', fire: 'BURNED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!' }[kind] || 'CRASH!', 'green');
   setTimeout(() => { lastPop = 0; pop('-1 DAGGIE', 'lilac'); }, 350);
   setFace('hit', 900); tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06);
   updateFlockHUD();
@@ -1444,7 +1463,7 @@ function applyRecFrame(P, dt, rdt) {
   }
   if (f0.DR) { drone.visible = !!f0.DR[0]; drone.position.set(f0.DR[1], f0.DR[2], f0.DR[3]); if (f1.DR) drone.position.lerp(_pb.set(f1.DR[1], f1.DR[2], f1.DR[3]), a); drone.rotation.set(f0.DR[4], 0, f0.DR[5]); for (const r of rotors) r.rotation.y += rdt * 40; }
   for (const sw of SAWS) { if (sw.A) { sw.x = sw.x0 + Math.sin(simT * sw.w + sw.ph) * sw.A; sw.g.position.x = sw.x; } sw.g.rotation.z = -14 * simT; }
-  BIG.rotation.z = -6 * simT;
+  BIG.rotation.z = -6 * simT; ringAnimate(simT);
   animateObstacles(simT, dt, -1e9); animateBooms(dt, simT);
   for (const sp of SPARES) if (!sp.taken) { sp.m.position.set(sp.x, 1.2 + Math.sin(simT * 3 + sp.s) * 0.18, -sp.s); sp.m.rotation.set(0.4, simT * 1.8, 0.2); }
   drawFace(performance.now()); updateSparks(Math.abs(dt));
@@ -1668,7 +1687,7 @@ function resetRun() {
   if (liveRecOn()) finishLiveRec();
   liveWant = LIVE_REC;
   testNo++;
-  resetPower(); randomGates(); resetFlock(); resetFx();
+  resetPower(); randomGates(); resetFlock(); resetFx(); RING.done = false;
   Object.assign(R, { s: -13.5, x: 0, xT: 0, xv: 0, y: DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0 });
   trick = TRICKS[(testNo - 1) % TRICKS.length];
   for (const b of BOOSTS) b.used = false;
@@ -1829,7 +1848,7 @@ function crash(kind, saw) {
   setFace('hit', 1500);
   slowUntil = now + (reduceMotion ? 500 : 1600); slowK = 0.22;
   if (!reduceMotion) shake = 0.5;
-  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
+  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', fire: 'BURNED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
   tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06);
   orbitA = Math.atan2(camera.position.x - center.x, camera.position.z - center.z);
 }
@@ -1854,7 +1873,7 @@ function showResult() {
   const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fire: 'The ring of fire', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
   if (DLV) $('rCause').textContent = (ok ? D.stars + '★ delivery' : 'Delivery failed') + ' · ' + D.left + '/' + DLV.slices + ' slices · tip $' + Math.max(0, Math.round(D.tip));
   $('result').hidden = false;
 }
@@ -2011,7 +2030,7 @@ function stepRide(dt, now) {
       R.grounded = false; R.vy = R.speed * R.slope;
       if (R.s > RAMP1 - 1) { slowUntil = now + 900; slowK = 0.4; pop('SEND IT!', 'lilac'); setFace('wow', 1400); tone(300, 900, 0.4, 'sine', 0.06); }
     } else { R.y = h; R.slope = ((trackH(R.s + 0.1) ?? h) - h) / 0.1; }
-    if (R.s > LAND0 && cause === '') { R.speed *= Math.pow(0.35, dt); if (DLV) { const dist = DOOR_S - 3.2 - R.s; R.speed = dist > 0.3 ? Math.max(Math.min(R.speed / Math.pow(0.35, dt), dist * 1.6), Math.min(2.5, dist * 3)) : 0; } if (R.s > LAND0 + 4 && !R.passedFlag) { R.passedFlag = true; passed(); } }
+    if (R.s > LAND0 && cause === '') { R.speed *= Math.pow(0.35, dt); if (DLV) { if (R.s > DOOR_S - 3.2) R.s = DOOR_S - 3.2; const dist = DOOR_S - 3.2 - R.s; R.speed = dist > 0.3 ? Math.max(Math.min(R.speed / Math.pow(0.35, dt), dist * 1.6), Math.min(2.5, dist * 3)) : 0; } if (R.s > LAND0 + 4 && !R.passedFlag) { R.passedFlag = true; passed(); } }
   } else {
     R.air += dt;
     R.vy -= 9.8 * FX.grav * (R.vy < 0 ? 1.35 : 1) * dt; R.y += R.vy * dt; R.s += R.speed * dt;
@@ -2038,9 +2057,15 @@ function stepRide(dt, now) {
       burst(new V3(sw.x + Math.sign(R.x - sw.x) * sw.R * 0.9, sw.y, -sw.s), 16, SPARK, 5); tone(900, 300, 0.25, 'sawtooth', 0.04);
     }
   }
-  if (Math.abs(R.s - SAW_S) < 0.5) {
+  if (FINALE !== 'ring' && Math.abs(R.s - SAW_S) < 0.5) {
     const yy = clamp(BIG_Y, bodyY0, bodyY1), d = Math.hypot(Math.max(0, Math.abs(R.x) - 0.34), yy - BIG_Y);
     if (d < BIG_R) { crash('big'); return; }
+  }
+  if (FINALE === 'ring' && !RING.done && ps0 < RING.s && R.s >= RING.s) { // crossing the ring's plane
+    RING.done = true; const cy = R.y + 1.0, d = Math.hypot(R.x, cy - RING.y);
+    if (d < RING.R - 0.55) { lastPop = 0; pop(d < 0.7 ? 'BULLSEYE!' : 'THROUGH THE FIRE!', 'green'); slowUntil = now + 900; slowK = 0.3; setFace('happy', 1500); tone(300, 1200, 0.4, 'triangle', 0.06); burst(new V3(R.x, cy, -RING.s), 70, SPARK, 6); R.close = (R.close || 0) + 1; }
+    else if (d < RING.R + 0.55) { burst(new V3(R.x, cy, -RING.s), 120, SPARK, 9); tone(120, 40, 0.5, 'sawtooth', 0.12); crash('fire'); return; }
+    else { lastPop = 0; pop('MISSED THE RING!', 'lilac'); }
   }
   for (const hu of OBS.hurdles) if (!hu.dead && Math.abs(R.s - hu.s) < 0.3 && R.y < hu.h - 0.12) { crash('hurdle', hu); if (state !== 'ride' || !hu.dead) return; }
   for (const b of OBS.balls) {
@@ -2197,7 +2222,13 @@ function camTargets(now, dt) {
     const fb = FLOCK.filter(f => f.state === 'ride').length, back = fb > 2 ? 4.2 : fb > 0 ? 2 : 0;
     wantPos.set(b.x * 0.7, b.y + 3.2 + back * 0.4, b.z + 6.6 + back); wantLook.set(b.x * 0.85, b.y + 1.3, b.z - 9); return 7;
   }
-  if (DLV && (state === 'passed' || (state === 'result' && cause === '')) && D.phase !== 'go' && D.phase !== 'approach') { wantPos.set(3.4, (trackH(DOOR_S) ?? 0) + 1.9, -DOOR_S + 5.4); wantLook.set(0.2, (trackH(DOOR_S) ?? 0) + 1.15, -DOOR_S + 1.2); return 2.5; }
+  if (DLV && (state === 'passed' || (state === 'result' && cause === ''))) {
+    const fy = trackH(DOOR_S) ?? 0;
+    if (D.phase === 'go' || D.phase === 'approach') { wantPos.set(b.x + 1.6, b.y + 2.1, b.z + 5.2); wantLook.set(b.x, b.y + 1.1, b.z - 7); return 9; } // stay right behind him on the way to her door
+    // at the door: a three-quarter view from the side that holds Daggie, Penny and the door in one frame
+    if (!D.camSet) { D.camSet = true; snapCam = true; }
+    wantPos.set(5.2, fy + 1.85, -DOOR_S + 5.8); wantLook.set(0.35, fy + 1.15, -DOOR_S + 2.0); return 6;
+  }
   if (state === 'passed' || (state === 'result' && cause === '')) { wantPos.set(b.x + 2.8, b.y + 2.2, b.z - 6.5); wantLook.set(b.x, b.y + 1.4, b.z); return 2.5; }
   const c = pelvis.position;
   orbitA += dt * (now < slowUntil ? 0.25 : 0.45);
@@ -2235,7 +2266,7 @@ function frame(vts) {
   let ts = now < slowUntil ? slowK : 1; if (manualSlow) ts = Math.min(ts, 0.35);
   const sdt = dt * ts; simT += sdt;
   for (const sw of SAWS) { if (sw.A) { sw.x = sw.x0 + Math.sin(simT * sw.w + sw.ph) * sw.A; sw.g.position.x = sw.x; } sw.g.rotation.z -= 14 * sdt; }
-  BIG.rotation.z -= 6 * sdt;
+  BIG.rotation.z -= 6 * sdt; ringAnimate(simT);
   animateObstacles(simT, sdt, R.s || 0);
   for (const sp of SPARES) if (!sp.taken) { sp.m.position.set(sp.x, 1.2 + Math.sin(simT * 3 + sp.s) * 0.18, -sp.s); sp.m.rotation.set(0.4, simT * 1.8, 0.2); }
   stepDetached(sdt, now); animateBooms(sdt, simT);
@@ -2432,6 +2463,10 @@ class RagCore {
       const f = this.friction ?? 0.75; vx *= f; vz *= f; if (Math.abs(ny) < 0.7) vy *= f;
       o[k] = x[k] - vx; o[k + 1] = x[k + 1] - vy; o[k + 2] = x[k + 2] - vz;
     }
+    // resting contacts fall asleep: tiny leftover motion between touching parts is damped away, so a body at rest lies still instead of trembling
+    const sv = (this.sleepV ?? 0.35) * dt;
+    for (let i = 0; i < n; i++) { const k = i * 3, vx = x[k] - o[k], vy = x[k + 1] - o[k + 1], vz = x[k + 2] - o[k + 2], sp = Math.hypot(vx, vy, vz);
+      if (sp < sv) { const f = 0.55; o[k] = x[k] - vx * f; o[k + 1] = x[k + 1] - vy * f; o[k + 2] = x[k + 2] - vz * f; } }
   }
 }
 // the shopping cart as a simple rigid body in the side plane: rolls, tips over a bollard, or (at high speed)
@@ -2565,7 +2600,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   for (const s of [-1, 1]) {
     const side = s < 0 ? (SIDE.L < 0 ? 'L' : 'R') : (SIDE.L < 0 ? 'R' : 'L'), hi = I['ha' + side], wi = I['wr' + side];
     core.skipBox[hi] = 1; core.skipBox[wi] = 1; // a gripping hand and wrist reach over the rim
-    core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.6, maxErr: RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 26 ? 0.03 + Math.random() * 0.04 : 0, target: () => CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, -0.12) });
+    core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.35, maxErr: impactV < 12 ? 99 : RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 26 ? 0.03 + Math.random() * 0.04 : 0, target: () => CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, -0.12) });
   }
   core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
   const pk0 = I.pel * 3, seatY = CART.toLocal(core.x[pk0], core.x[pk0 + 1], core.x[pk0 + 2])[1];
@@ -2652,7 +2687,7 @@ function labBollardOutcome() {
 // At the finish Penny (a pink Daggie) opens her door, opens the box and rates the delivery.
 // =====================================================================
 const DLV = L.delivery ? Object.assign({ item: 'pizza', slices: 8, time: 45, tip: 20 }, L.delivery) : null;
-const DOOR_S = LAND1 - 25; // far enough that even a huge ramp jump lands before her house
+const DOOR_S = Math.min(LAND1 - 25, LAND0 + 55); // close after the finale, but past the longest normal jump
 const D = { left: 8, t: 0, tip: 20, phase: 'go', lost: 0, lidT: 0, doorT: 0, revealT: 0, stars: 0, hud: null };
 // ---- pizza slice: a real wedge (tip at the origin, crust toward +z) ----
 const pizzaTop = tex(256, 256, (g, w, h) => {
@@ -2901,7 +2936,7 @@ function penAnimate(dt, now) {
 function LABYAW_FACE() { return FACE_N ? Math.atan2(-FACE_N.x, FACE_N.z) : 0; } // turn a model so its face looks along +z (toward the arriving courier)
 function dlvReset() {
   if (!DLV) return;
-  Object.assign(D, { left: DLV.slices, t: 0, tip: DLV.tip, phase: 'go', lost: 0, lidT: 0, doorT: 0, revealT: 0, stars: 0, rated: false, slam: false, slammed: false });
+  Object.assign(D, { camSet: false, left: DLV.slices, t: 0, tip: DLV.tip, phase: 'go', lost: 0, lidT: 0, doorT: 0, revealT: 0, stars: 0, rated: false, slam: false, slammed: false });
   SLC.on.fill(false); SLC.meshes.forEach(m => { m.visible = false; }); for (let i = 0; i < SLC.core.n; i++) SLC.core.inv[i] = 0;
   if (DOOR) DOOR.hinge.rotation.y = 0; if (BOXSHOW) { BOXSHOW.g.visible = false; BOXSHOW.lid.rotation.x = 0; BOXSHOW.g.position.set(0.95, 1.06, 1.35); }
   if (PEN) { PEN.root.visible = false; penMood = 'idle'; PEN.walk = false; PEN.z = -DOOR_S + 0.1; }

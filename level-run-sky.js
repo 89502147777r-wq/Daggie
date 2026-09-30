@@ -13,7 +13,9 @@ export const LEVEL = {
     ramp: [440, 450], rampH: 1.4, // final kicker [from, to] and its height
     land: [474, 610],        // landing / finish zone [from, to]
   },
-  bigSaw: { s: 464, r: 4.0, y: 0.5 }, // the giant saw in the air after the ramp
+  bigSaw: { s: 464, r: 4.0, y: 0.5 }, // (not used on this level: the finale is the ring)
+  finale: 'ring',                  // the last jump goes through a ring of fire
+  ring: { s: 462, y: 4.9, r: 2.3 }, // at 17+ m/s the jump passes through; slower hits the burning hoop
   signs: [[2, 'SAW RUN'], [50, 'JUMP!'], [115, 'BOOST'], [134, 'MIND THE GAP'], [215, 'WINDY'], [258, 'GATE ZONE'], [402, 'NO REFUNDS'], [432, 'JUMP!'], [478, 'TEST ZONE']],
   saws: [[42, -2.2, 1.3], [76, -2.6, 1.3], [76, 2.6, 1.3], [336, -2.6, 1.3], [336, 2.6, 1.3], [412, 0, 1.6, 3.1, 2.4], [428, -2.7, 1.3], [428, 2.7, 1.3]], // [s, x, radius, swing, swingSpeed]
   boosts: [[115, 0], [432, 0]],
