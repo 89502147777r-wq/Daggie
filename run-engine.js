@@ -2148,7 +2148,7 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
 function action() {
   if (state === 'result') { resetRun(); return; }
   if (state === 'intro') { if (R.carry) R.carryT = 99; else R.vy = Math.min(R.vy, -16); return; }
-  if (state === 'ride' && R.grounded && !(R.jumpPend > 0)) { R.jumpPend = 0.16; crouchV += 16; } // a deep squat first; the push-off happens in stepRide
+  if (state === 'ride' && R.grounded && !(R.jumpPend > 0)) { R.jumpPend = 0.12; crouchV += 14; } // a deep squat first; the push-off happens in stepRide
   else if (state === 'ride' && !R.grounded && !R.slam) { R.slam = true; R.vy = Math.min(R.vy, -17); crouchV += 2; tone(700, 150, 0.2, 'triangle', 0.06); setFace('scared', 600); }
 }
 $('bNew').onclick = () => { initAudio(); startRoll(); resetRun(); };
@@ -2907,7 +2907,7 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
-const LAB_SPEEDS = [15, 30, 45, 80, 200]; // mph for levels 1..5: stays in, hangs on, thrown out, flies far, loses limbs
+const LAB_SPEEDS = [15, 40, 80, 130, 200]; // mph for levels 1..5: stays in, hangs on, thrown out, flies far, loses limbs
 const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
@@ -2982,7 +2982,7 @@ function buildLab() {
   const toe = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), skin); toe.position.set(-0.3, 0.42, 1.58); LEG.add(toe); // big toe through the hole
   const hole = new THREE.Mesh(new THREE.CircleGeometry(0.24, 16), dirt); hole.position.set(-0.3, 0.42, 1.56); LEG.add(hole);
   for (const [x, z] of [[0.3, 0.2], [-0.2, -0.3], [0.1, 0.9]]) { const sp = new THREE.Mesh(new THREE.CircleGeometry(0.16, 12), dirt); sp.rotation.x = -Math.PI / 2; sp.position.set(x, 0.005, z); sp.rotation.x = Math.PI / 2; LEG.add(sp); }
-  if (LABNOSTAND) { labDress(); labProps(); labPosters(); }
+  if (LABNOSTAND) { labDress(); labProps(); labHall(); labPosters(); }
   buildLabUI();
 }
 let SPEEDO = null;
@@ -3035,18 +3035,18 @@ function posterShot(bg, pose, extra) {
   scene.children.forEach((o, i) => { o.visible = vis[i]; }); scene.background = bgOld; scene.fog = fogOld; rider.position.copy(rp); rider.rotation.copy(rr);
   return rt.texture;
 }
-function posterBoard(img, title, sub, x, z, ry, colors) {
-  const g = new THREE.Group(); g.position.set(x, 3.8, z); g.rotation.y = ry; scene.add(g);
+function posterBoard(img, title, sub, x, z, ry, colors, scl) {
+  const g = new THREE.Group(); g.position.set(x, 3.8, z); g.rotation.y = ry; scene.add(g); g.scale.setScalar(scl || 1);
   const W = 3.4, H = 4.6;
   const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.24, H + 0.24, 0.08), new THREE.MeshStandardMaterial({ color: 0x1a1820, roughness: 0.5 })); frame.position.z = -0.03; g.add(frame);
-  if (img) { const ph = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.3, (W - 0.3) * 1.25), new THREE.MeshBasicMaterial({ map: img })); ph.position.set(0, -0.15, 0.02); g.add(ph); }
+  const ph = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.12, H - 0.12), new THREE.MeshBasicMaterial({ map: img || null, color: img ? 0xffffff : 0x000000 })); ph.position.set(0, 0, 0.02); ph.visible = !!img; g.add(ph); g.userData.photo = ph;
   const txt = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ transparent: true, map: tex(512, 692, (c, w, h) => {
     c.clearRect(0, 0, w, h); if (!img) { c.fillStyle = colors[0]; c.fillRect(0, 0, w, h); }
     c.fillStyle = colors[0]; c.fillRect(0, 0, w, 118); c.fillRect(0, h - 104, w, 104);
     c.fillStyle = colors[1]; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 ' + (title.length > 12 ? 58 : 76) + 'px ' + FONT; c.fillText(title, w / 2, 62);
     c.font = '700 ' + (sub.length > 18 ? 34 : 42) + 'px ' + FONT; c.fillText(sub, w / 2, h - 52);
     if (!img && colors[2]) { c.font = '700 330px ' + FONT; c.fillStyle = colors[2]; c.fillText(colors[3], w / 2, h / 2 + 10); }
-  }) })); txt.position.z = 0.03; g.add(txt);
+  }) })); txt.position.z = 0.03; g.add(txt); g.userData.text = txt;
   return g;
 }
 function labPosters() {
@@ -3063,18 +3063,26 @@ function labPosters() {
   const oldFace = faceMode;
   const imgs = shots.map(([bg, pose, face, extra]) => { setFace(face, 99999); return posterShot(bg, pose, extra); });
   setFace(oldFace, 0);
-  // left wall (behind the post in the camera's view) and right wall
-  const spots = [[-19.8, BOLLARD_Z + 6, Math.PI / 2], [-19.8, BOLLARD_Z - 3, Math.PI / 2], [-19.8, BOLLARD_Z - 12, Math.PI / 2], [19.8, BOLLARD_Z + 2, -Math.PI / 2], [19.8, BOLLARD_Z - 9, -Math.PI / 2]];
-  shots.forEach((sh, i) => posterBoard(imgs[i], sh[4], sh[5], spots[i][0], spots[i][2], spots[i][2] > 0 ? Math.PI / 2 : -Math.PI / 2, sh[6]).position.set(spots[i][0], 3.8, spots[i][1]));
-  posterBoard(null, 'DAYS WITHOUT', 'AN ACCIDENT', -19.8, BOLLARD_Z - 21, Math.PI / 2, ['#f4f1ea', '#16141c', '#e0322b', '0']).position.set(-19.8, 3.8, BOLLARD_Z - 21);
+  // both walls, full length: big posters every 10 m. poster-1.jpg … poster-20.jpg in the repo replace the photos automatically
+  const boards = [];
+  for (const side of [-1, 1]) for (let k = 0; k < 13; k++) {
+    const z = BOLLARD_Z + 36 - k * 10.5, i = ((side < 0 ? 0 : 13) + k) % 20, sh = shots[i % shots.length]; // 26 places, 20 different posters
+    const bd = posterBoard(imgs[i % shots.length], sh[4], sh[5], side * 19.75, z, side < 0 ? Math.PI / 2 : -Math.PI / 2, sh[6], 2);
+    bd.position.set(side * 19.75, 7.2, z); boards.push({ bd, i });
+  }
+  const loader = new THREE.TextureLoader();
+  for (let i = 0; i < 20; i++) loader.load('poster-' + (i + 1) + '.jpg?v=' + (typeof BUILD !== 'undefined' ? BUILD : ''), t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    for (const b of boards) if (b.i === i) { b.bd.userData.photo.material.map = t; b.bd.userData.photo.material.needsUpdate = true; b.bd.userData.photo.scale.set(1, 1.02, 1); b.bd.userData.text.visible = false; } }, undefined, () => {});
+  const acc = posterBoard(null, 'DAYS WITHOUT', 'AN ACCIDENT', -19.75, BOLLARD_Z - 0.75, Math.PI / 2, ['#f4f1ea', '#16141c', '#e0322b', '0'], 0.85); acc.position.set(-19.7, 2.4, BOLLARD_Z - 0.75); // fits in the gap between two big posters
 }
 function labProps() {
   const steelG = new THREE.MeshStandardMaterial({ color: 0x5b6070, metalness: 0.8, roughness: 0.35 });
   // SPARE PARTS shelf with real Daggie heads, arms and legs on it
-  const shelf = new THREE.Group(); shelf.position.set(-16.5, 0, BOLLARD_Z + 1); shelf.rotation.y = Math.PI / 2; scene.add(shelf);
+  const shelf = new THREE.Group(); shelf.position.set(-9.5, 0, BOLLARD_Z - 1.5); shelf.rotation.y = Math.PI / 2 - 0.35; shelf.scale.setScalar(1.9); scene.add(shelf);
+  const spot = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ color: 0xfff1d8, transparent: true, opacity: 0.12, depthWrite: false })); spot.rotation.x = -Math.PI / 2; spot.position.set(-9.5, 0.013, BOLLARD_Z - 1.5); scene.add(spot);
   for (const y of [0.1, 1.0, 1.9]) { const b = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.06, 0.8), steelG); b.position.y = y; b.castShadow = b.receiveShadow = true; shelf.add(b); }
   for (const x of [-1.65, 1.65]) for (const z of [-0.35, 0.35]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.5, 0.05), steelG); post.position.set(x, 1.25, z); shelf.add(post); }
-  const lbl = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.4), sign('SPARE PARTS', '#ffc21a', '#16141c', 512, 114)); lbl.position.set(0, 2.35, 0.42); shelf.add(lbl);
+  const lbl = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.58), sign('SPARE PARTS', '#ffc21a', '#16141c', 512, 114)); lbl.position.set(0, 2.35, 0.42); shelf.add(lbl);
   const put = (n, x, y, ry) => { const g = new THREE.Group(); for (const ch of byName[n].children) g.add(ch.clone()); g.position.set(x, y, 0); g.rotation.set(Math.PI / 2 * (n === 'head' ? 0 : 1), ry, 0); shelf.add(g); };
   put('head', -1.1, 1.25, 0.4); put('head', 0.1, 1.25, -0.3); put('head', 1.1, 1.25, 0.9); put('upperL', -0.9, 0.2, 0); put('foreR', 0.1, 0.2, 0.3); put('thighL', 0.9, 0.22, -0.2); put('handR', -0.9, 2.02, 0); put('footL', 0.6, 2.02, 0.4);
   // crash barriers at the start, skid marks and old oil at the post, a control desk with screens
@@ -3091,6 +3099,89 @@ function labProps() {
   for (const [x, m] of [[-0.55, scr1], [0.55, scr2]]) { const mon = new THREE.Mesh(new THREE.BoxGeometry(1, 0.62, 0.05), new THREE.MeshStandardMaterial({ color: 0x15141a })); mon.position.set(x, 1.4, -0.2); desk.add(mon); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.56), m); sc.position.set(x, 1.4, -0.17); desk.add(sc); }
   // tall light towers
   for (const [x, z] of [[-9, BOLLARD_Z + 8], [9, BOLLARD_Z - 6]]) { const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 6, 8), steelG); pole.position.set(x, 3, z); scene.add(pole); const panel = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.12), steelG); panel.position.set(x, 6, z); panel.lookAt(LAB_LANE, 0, BOLLARD_Z); scene.add(panel); const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.65), new THREE.MeshBasicMaterial({ color: glowColor(0xfff1d8, 2.4) })); glow.position.copy(panel.position); glow.quaternion.copy(panel.quaternion); glow.translateZ(0.07); scene.add(glow); }
+}
+function labHall() {
+  const steelG = new THREE.MeshStandardMaterial({ color: 0x4e5361, metalness: 0.8, roughness: 0.4 }), pipeM = new THREE.MeshStandardMaterial({ color: 0x8a3a2a, metalness: 0.5, roughness: 0.5 }), ductM = new THREE.MeshStandardMaterial({ color: 0xa7adb8, metalness: 0.7, roughness: 0.35 });
+  const z0 = BOLLARD_Z + 40, z1 = BOLLARD_Z - 110, len = z0 - z1, zc = (z0 + z1) / 2;
+  for (const sd of [-1, 1]) {
+    const x = sd * 19.3;
+    const duct = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.9, len), ductM); duct.position.set(x, 13.1, zc); scene.add(duct);
+    for (const [y, r] of [[12.2, 0.14], [11.8, 0.09]]) { const pp = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), pipeM); pp.rotation.x = Math.PI / 2; pp.position.set(x + sd * 0.25, y, zc); scene.add(pp); }
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, len), steelG); rail.position.set(x - sd * 1.6, 12.4, zc); scene.add(rail);
+    for (let z = z0; z > z1; z -= 7) { // hanging industrial lamps
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.1), steelG); arm.position.set(x - sd * 1.1, 11.4, z); scene.add(arm);
+      const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.2, 4), steelG); cord.position.set(x - sd * 2.2, 10.8, z); scene.add(cord);
+      const shade = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.45, 18, 1, true), new THREE.MeshStandardMaterial({ color: 0x2f7a5a, metalness: 0.4, roughness: 0.5, side: THREE.DoubleSide })); shade.position.set(x - sd * 2.2, 10.1, z); scene.add(shade);
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), new THREE.MeshBasicMaterial({ color: glowColor(0xffe6b8, 2.6) })); bulb.position.set(x - sd * 2.2, 9.9, z); scene.add(bulb);
+    }
+    for (let z = z0 - 4; z > z1; z -= 23) { // fire extinguishers and EXIT signs at eye level
+      const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.6, 12), new THREE.MeshStandardMaterial({ color: 0xd11f1f, roughness: 0.4 })); ex.position.set(x - sd * 0.2, 1.2, z); scene.add(ex);
+      const exit = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.45), sign('EXIT', '#0e8a3e', '#ffffff', 256, 96)); exit.position.set(x - sd * 0.12, 3.2, z - 3); exit.rotation.y = sd < 0 ? Math.PI / 2 : -Math.PI / 2; scene.add(exit);
+    }
+    for (let z = z0 - 10; z > z1; z -= 17) { // pallets with boxes, gas bottles
+      const pal = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.15, 1.2), new THREE.MeshStandardMaterial({ color: 0xa47c4c, roughness: 0.9 })); pal.position.set(x - sd * 2.2, 0.08, z); scene.add(pal);
+      for (let k = 0; k < 4; k++) { const bx = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.55), new THREE.MeshStandardMaterial({ color: 0xc19a64, roughness: 0.95 })); bx.position.set(x - sd * 2.2 + (k % 2 - 0.5) * 0.62, 0.4 + Math.floor(k / 2) * 0.5, z + rand(-0.1, 0.1)); bx.rotation.y = rand(-0.1, 0.1); bx.castShadow = true; scene.add(bx); }
+      for (let k = 0; k < 3; k++) { const gb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.4, 12), new THREE.MeshStandardMaterial({ color: pick([0x2e6fd8, 0x9aa0aa, 0x2b8a4a]), metalness: 0.5, roughness: 0.4 })); gb.position.set(x - sd * 0.5, 0.7, z + 3 + k * 0.36); scene.add(gb); }
+    }
+  }
+  // landing zones where he ends up: target rings, crash mats and box stacks beside the lane
+  for (const [d, lbl] of [[12, 'ZONE A'], [30, 'ZONE B'], [60, 'ZONE C'], [95, 'ZONE D']]) {
+    const z = BOLLARD_Z - d;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(2.3, 2.6, 48), new THREE.MeshBasicMaterial({ color: 0xff4a5a, transparent: true, opacity: 0.55, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.set(LAB_LANE, 0.015, z); scene.add(ring);
+    const ring2 = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.3, 40), ring.material); ring2.rotation.x = -Math.PI / 2; ring2.position.set(LAB_LANE, 0.015, z); scene.add(ring2);
+    const t = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.7), new THREE.MeshBasicMaterial({ transparent: true, map: tex(256, 76, (c, w, h) => { c.clearRect(0, 0, w, h); c.fillStyle = '#ff4a5a'; c.font = '700 60px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(lbl, w / 2, h / 2 + 3); }) })); t.rotation.x = -Math.PI / 2; t.position.set(LAB_LANE - 3.4, 0.016, z); scene.add(t);
+    for (const sd of [-1, 1]) { const mat = new THREE.Mesh(new RoundedBoxGeometry(2, 0.45, 3, 2, 0.12), new THREE.MeshStandardMaterial({ color: 0x2455b8, roughness: 0.8 })); mat.position.set(LAB_LANE + sd * 5.2, 0.22, z); mat.castShadow = mat.receiveShadow = true; scene.add(mat);
+      for (let k = 0; k < 6; k++) { const bx = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.7), new THREE.MeshStandardMaterial({ color: 0xc8a06a, roughness: 0.95 })); const row = k < 3 ? 0 : k < 5 ? 1 : 2, col = k < 3 ? k : k < 5 ? k - 3 : 0; bx.position.set(LAB_LANE + sd * 7.3, 0.3 + row * 0.6, z - 0.75 + col * 0.75 + row * 0.37); bx.rotation.y = rand(-0.15, 0.15); bx.castShadow = true; scene.add(bx); } }
+  }
+}
+// ---- instant replay: the last seconds recorded and played back slowly with film cameras and black bars ----
+const LREC = { frames: [], t: 0, impT: null };
+function labRec(dt) {
+  LREC.t += dt; if (LABCART.hit && LREC.impT === null) LREC.impT = LREC.t;
+  const f = new Float32Array(8 + parts.length * 7), q = new THREE.Quaternion(), v = new V3();
+  f[0] = LREC.t; board.getWorldPosition(v); board.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 1);
+  parts.forEach((p, i) => { p.getWorldPosition(v); p.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 8 + i * 7); });
+  LREC.frames.push(f); if (LREC.frames.length > 700) LREC.frames.shift();
+}
+function labBars(on) {
+  let b = document.getElementById('labBars');
+  if (!b) { b = document.createElement('div'); b.id = 'labBars'; b.innerHTML = '<i></i><i></i><span>● REPLAY</span>'; stage.appendChild(b);
+    const css = document.createElement('style'); css.textContent = `#labBars{position:absolute;inset:0;z-index:9;pointer-events:none}#labBars i{position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s ease}#labBars i:first-child{top:0}#labBars i:nth-child(2){bottom:0}#labBars.on i{height:12%}#labBars span{position:absolute;left:16px;top:calc(12% + 10px);font:700 18px "Chakra Petch",sans-serif;color:#ff3b4e;opacity:0;transition:opacity .3s;animation:blink 1s steps(2) infinite}#labBars.on span{opacity:1}.labmode.replaying .labgauge{opacity:0}`; document.head.appendChild(css); }
+  b.classList.toggle('on', on); stage.classList.toggle('replaying', on);
+}
+function labReplayStart() {
+  const imp = LREC.impT ?? LREC.t;
+  const from = Math.max(LREC.frames[0] ? LREC.frames[0][0] : 0, imp - 0.7), to = Math.min(LREC.t, imp + 2.6);
+  const cage = board.getObjectByName('cage');
+  LAB.replay = { from, to, imp, t: from, shot: -1, dent: cage ? cage.geometry.attributes.position.array.slice() : null, cage, boomed: false, skip: false };
+  LAB.phase = 'replay'; labBars(true); for (const p of parts) if (p.parent !== scene) scene.attach(p);
+}
+function labReplayFrame(t) {
+  const F = LREC.frames; let i = 0; while (i < F.length - 2 && F[i + 1][0] <= t) i++;
+  const a = F[i], b = F[i + 1] || a, k = b[0] > a[0] ? clamp((t - a[0]) / (b[0] - a[0]), 0, 1) : 0, qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
+  const put = (obj, o) => { obj.position.set(lerp(a[o], b[o], k), lerp(a[o + 1], b[o + 1], k), lerp(a[o + 2], b[o + 2], k)); qa.set(a[o + 3], a[o + 4], a[o + 5], a[o + 6]); qb.set(b[o + 3], b[o + 4], b[o + 5], b[o + 6]); obj.quaternion.copy(qa).slerp(qb, k); };
+  put(board, 1); parts.forEach((p, j) => put(p, 8 + j * 7));
+}
+function labReplayStep(dt, now) {
+  const R2 = LAB.replay; if (!R2) return;
+  // slowest right at the impact, a little faster before and after
+  const near = Math.abs(R2.t - R2.imp), speed = near < 0.35 ? 0.22 : near < 1 ? 0.4 : 0.65;
+  R2.t += dt * speed;
+  const before = R2.t < R2.imp;
+  if (R2.cage && R2.dent) { const want = before ? 'o' : 'd'; if (R2.shown !== want) { R2.cage.geometry.attributes.position.array.set(before ? R2.cage.geometry.userData.orig : R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; R2.shown = want; } }
+  if (BOLLARD) BOLLARD.rotation.x = before || !CART.knocked ? 0 : -1.35 * clamp((R2.t - R2.imp) * 5, 0, 1);
+  if (!before && !R2.boomed) { R2.boomed = true; burst(new V3(LAB_LANE, 0.8, BOLLARD_Z), 60, SPARK, 6); tone(90, 30, 0.5, 'sine', 0.4); if (!reduceMotion) shake = 0.5; }
+  labReplayFrame(R2.t);
+  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (BOLLARD && CART.knocked) BOLLARD.rotation.x = -1.35; LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
+}
+function labReplayCam() {
+  const R2 = LAB.replay, u = (R2.t - R2.from) / Math.max(0.01, R2.to - R2.from), shot = u < 0.34 ? 0 : u < 0.62 ? 1 : 2;
+  if (shot !== R2.shot) { R2.shot = shot; snapCam = true; }
+  const T = torso.getWorldPosition(new V3()), B = new V3(LAB_LANE, 0.8, BOLLARD_Z);
+  if (shot === 0) { const s = u / 0.34; wantPos.set(LAB_LANE + 2.4, 0.45, BOLLARD_Z + 4.5 - s * 5); wantLook.set(LAB_LANE, 0.8, BOLLARD_Z - 0.5); }            // low dolly past the post
+  else if (shot === 1) { wantPos.set(LAB_LANE - 1.4, 1.3, Math.min(T.z - 5, BOLLARD_Z - 5)); wantLook.copy(T); }                                            // from ahead: he flies at the lens
+  else { const s = (u - 0.62) / 0.38, ang = 0.4 + s * 2.2; wantPos.set(T.x + Math.sin(ang) * 4.5, T.y + 1.6, T.z + Math.cos(ang) * 4.5); wantLook.copy(T); } // slow orbit around where he ends up
+  return 30;
 }
 function labSpeedo(mph) { if (!SPEEDO) return; const v = Math.round(mph); if (v === SPEEDO.last) return; SPEEDO.last = v; const g = SPEEDO.cv.getContext('2d'); g.fillStyle = '#07060b'; g.fillRect(0, 0, 512, 200); g.fillStyle = v > 60 ? '#ff4a5a' : v > 30 ? '#ffc21a' : '#3dff9a'; g.font = '700 150px ' + FONT; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(String(v), 340, 108); g.font = '700 50px ' + FONT; g.textAlign = 'left'; g.fillText('MPH', 356, 130); SPEEDO.tex.needsUpdate = true; }
 function buildLabUI() {
@@ -3132,6 +3223,7 @@ function buildLabUI() {
   $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labRec').onclick = () => { $('bLive').onclick(); labUI(); };
+  stage.addEventListener('pointerdown', () => { if (LAB.replay) LAB.replay.skip = true; }); // tap to skip the replay
   labUI();
 }
 function labSave() { try { localStorage.setItem('daggie-lab', JSON.stringify({ m: LAB.machine, l: LAB.level })); } catch (e) {} }
@@ -3157,7 +3249,7 @@ function labReset() {
 }
 function labStart() {
   resetRun(); // fresh Daggie on the stand
-  LAB.text = ''; LAB.lost = 0; LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0;
+  LAB.text = ''; LAB.lost = 0; LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
@@ -3190,8 +3282,10 @@ function labStep(dt, now) {
   const butt = () => byName.pelvis.getWorldPosition(new V3()).add(new V3(0, -0.3, 0));
   if (LAB.machine === 'bollard') {
     labSpeedo(P === 'roll' && state === 'ride' ? LABCART.v / 0.447 : P === 'idle' ? 0 : LABCART.v / 0.447 * (LABCART.hit ? 1 : 0));
+    if (state === 'ride' && (P === 'roll' || P === 'crash')) labRec(dt);
+    if (P === 'replay') { labReplayStep(dt, now); return; }
     if (P === 'roll' && state === 'ride') { if (CART.pw[1] - BOLLARD_Z < 7 && faceMode !== 'scared') setFace('scared', 5000); if (CART.step(dt)) labImpact(); labCartPlace(); for (const w of wheels) w.rotation.x -= LABCART.v / WHEEL_R * dt; if (LABCART.hit) { LAB.phase = 'crash'; LAB.t = 0; } }
-    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.phase = 'done'; labFinish(txt); } }
+    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
     else if (P === 'done' && RAGSIM) ragSimStep(dt);
     return;
   }
@@ -3260,6 +3354,7 @@ function labPose(t) {
   rootPos.set(0, -Math.max(0, crouch - 0.3) * 0.25, 0); runFK(P); applyFK();
 }
 function labCam(now, dt) {
+  if (LAB.replay) return labReplayCam();
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
   if (m === 'bollard') {
     if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, z + 2.4); wantLook.set(LAB_LANE, 0.9, z - 2.2); return 30; } // a tracking shot beside the cart
