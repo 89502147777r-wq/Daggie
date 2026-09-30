@@ -47,6 +47,17 @@ const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, sat: { val
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: 'uniform sampler2D tDiffuse; uniform float sat, con, bri; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); vec3 col = mix(vec3(l), c.rgb, sat); float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b)); col = mix(vec3(dot(col, vec3(0.333))), col, 1.0 + 0.25 * (1.0 - (mx - mn))); col = (col - 0.5) * con + 0.5 + bri; gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a); }' });
 composer.addPass(grade);
+// "Rec mode" (for iPhone screen recording): punchier picture, no UI while riding, lighter shadows for smoothness
+let REC_MODE = false; try { REC_MODE = localStorage.getItem('daggie-recmode') === '1'; } catch (e) {}
+const GSAT = () => REC_MODE ? 1.6 : 1.32;
+function applyRecMode() {
+  grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = REC_MODE ? 1.18 : 1.12; grade.uniforms.bri.value = REC_MODE ? 0.03 : 0.01;
+  renderer.toneMappingExposure = REC_MODE ? 0.9 : 0.74;
+  const ms = REC_MODE ? 1024 : 2048;
+  if (typeof sunLight !== 'undefined' && sunLight.shadow.mapSize.x !== ms) { sunLight.shadow.mapSize.set(ms, ms); if (sunLight.shadow.map) { sunLight.shadow.map.dispose(); sunLight.shadow.map = null; } }
+  document.getElementById('stage').classList.toggle('recmode', REC_MODE);
+  if (typeof resize === 'function' && typeof camera !== 'undefined') try { resize(); } catch (e) {}
+}
 function tex(w, h, draw, repeat) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
@@ -1325,7 +1336,7 @@ function endFilm() {
   if (!PLAY) return;
   const back = PLAY.fromResult; PLAY = null; $('hook').classList.remove('show');
   head.visible = true; // the helmet camera hides the head during its shot; bring it back whatever shot the film ended on
-  if (recorder) stopRecorder().then(showVideoCard); drone.visible = false; grade.uniforms.sat.value = 1.32; $('rew').hidden = true; camera.fov = baseFov(); camera.updateProjectionMatrix();
+  if (recorder) stopRecorder().then(showVideoCard); drone.visible = false; grade.uniforms.sat.value = GSAT(); $('rew').hidden = true; camera.fov = baseFov(); camera.updateProjectionMatrix();
   stage.classList.remove('filming', 'clean');
   if (back) { state = 'result'; $('result').hidden = false; } else resetRun();
 }
@@ -1474,7 +1485,7 @@ function rewindFrame(rdt) {
   wantPos.copy(cp.lerp(ip, k)); wantLook.copy(cl.lerp(il, k)); snapCam = true;
   P.roll = 0; P.fov = baseFov();
   $('rew').hidden = u > 0.72;
-  if (u > 0.8) { grade.uniforms.sat.value = 1.32; if (!stage.classList.contains('nohook')) $('hook').classList.add('show'); }
+  if (u > 0.8) { grade.uniforms.sat.value = GSAT(); if (!stage.classList.contains('nohook')) $('hook').classList.add('show'); }
   if (W.hold > 0.15) endFilm();
 }
 // saved replays (kept on this device)
@@ -2106,13 +2117,13 @@ $('rAgain').onclick = () => { initAudio(); startRoll(); resetRun(); };
 $('bSlow').onclick = () => { manualSlow = !manualSlow; $('bSlow').setAttribute('aria-pressed', String(manualSlow)); };
 $('bHook').onclick = () => { stage.classList.toggle('nohook'); $('bHook').setAttribute('aria-pressed', String(!stage.classList.contains('nohook'))); };
 $('bLoop').setAttribute('aria-pressed', String(LOOP));
-$('bLive').setAttribute('aria-pressed', String(LIVE_REC));
+LIVE_REC = false;
+$('bLive').setAttribute('aria-pressed', String(REC_MODE));
 $('bLive').onclick = () => {
-  LIVE_REC = !LIVE_REC; $('bLive').setAttribute('aria-pressed', String(LIVE_REC)); try { localStorage.setItem('daggie-liverec', LIVE_REC ? '1' : '0'); } catch (e) {}
-  if (LIVE_REC && !recorder && (state === 'intro' || state === 'ride')) liveWant = true; // switch on mid-run: record from now
-  if (!LIVE_REC && liveRecOn()) finishLiveRec();
-  lastPop = 0; pop(LIVE_REC ? 'REC: EVERY RUN' : 'REC OFF', 'lilac');
+  REC_MODE = !REC_MODE; $('bLive').setAttribute('aria-pressed', String(REC_MODE)); try { localStorage.setItem('daggie-recmode', REC_MODE ? '1' : '0'); } catch (e) {}
+  applyRecMode(); lastPop = 0; pop(REC_MODE ? 'REC MODE ON' : 'REC MODE OFF', 'lilac');
 };
+applyRecMode();
 $('bLoop').onclick = () => { LOOP = !LOOP; $('bLoop').setAttribute('aria-pressed', String(LOOP)); try { localStorage.setItem('daggie-loop', LOOP ? '1' : '0'); } catch (e) {} };
 $('bHide').onclick = () => { stage.classList.add('clean'); $('bShow').hidden = false; };
 $('bShow').onclick = () => { stage.classList.remove('clean'); $('bShow').hidden = true; };
@@ -2147,7 +2158,10 @@ function camTargets(now, dt) {
 }
 function baseFov() { return stage.clientWidth / stage.clientHeight < 0.8 ? 72 : 58; }
 function resize() {
-  const w = stage.clientWidth, h = stage.clientHeight;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  let w = W, h = H;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.style.left = Math.round((W - w) / 2) + 'px'; canvas.style.top = Math.round((H - h) / 2) + 'px';
   renderer.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h);
   camera.aspect = w / h; camera.fov = baseFov(); camera.updateProjectionMatrix();
 }
@@ -2158,6 +2172,7 @@ let acc = 0, landedTrick = false;
 let lastTs = 0;
 function frame(vts) {
   const now = performance.now(), fts = vts || now;
+  { const on = state === 'intro' || state === 'ride' || state === 'passed' || state === 'crashed'; if (on !== stage.classList.contains('playing')) stage.classList.toggle('playing', on); }
   const dt = lastTs ? Math.min(0.05, Math.max(0.001, (fts - lastTs) / 1000)) : 1 / 60; lastTs = fts;
   if (state === 'replay') {
     replayFrame(dt);

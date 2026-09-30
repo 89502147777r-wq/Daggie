@@ -34,7 +34,7 @@ html,body{touch-action:none;overscroll-behavior:none}
 html{height:100%;background:var(--deep);scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;height:100%;background:var(--deep);color:var(--ink);font-family:"Chakra Petch",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #stage{position:relative;height:100%;overflow:hidden;background:var(--deep)}
-#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#game{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
 .hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:6px;pointer-events:none}
 .chip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--dim);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);white-space:nowrap}
 .chip b{color:var(--yellow);font-size:17px;margin-left:4px;font-variant-numeric:tabular-nums;font-weight:700}
@@ -57,6 +57,9 @@ body{margin:0;height:100%;background:var(--deep);color:var(--ink);font-family:"C
 .prog b{position:absolute;right:-4px;top:-9px;font-size:16px}
 .clean .meters{display:none}
 .liverec .bar{display:none}
+/* Rec mode: nothing but the game while riding; titles sit inside the centre 9:16 area that survives the crop */
+.recmode.playing .hud,.recmode.playing .meters,.recmode.playing .bar,.recmode.playing .hint,.recmode #bShow{display:none}
+.recmode .hook{top:18%}
 .recdot{position:absolute;right:12px;top:calc(env(safe-area-inset-top,0px) + 118px);z-index:8;font:700 14px "Chakra Petch",ui-sans-serif,sans-serif;color:#ff3b4e;background:rgba(10,7,28,.7);border:1px solid rgba(255,59,78,.5);border-radius:8px;padding:3px 8px;pointer-events:none;animation:blink 1s steps(2) infinite}
 .rew{position:absolute;left:16px;top:12%;z-index:7;font:700 30px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;-webkit-text-stroke:1.5px #16112a;text-shadow:0 3px 0 #16112a;pointer-events:none;animation:blink .5s steps(2) infinite}
 @keyframes blink{50%{opacity:.25}}
@@ -154,7 +157,7 @@ button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
     <button id="bNew" type="button"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg>New test</button>
     <button id="bSlow" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>Slow-mo</button>
     <button id="bHook" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 11h10"/><path d="M4 16h7"/></svg>Title</button>
-    <button id="bLive" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg>Rec ride</button>
+    <button id="bLive" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg>Rec mode</button>
     <button id="bRep" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>Replays</button>
     <button id="bLoop" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>Loop</button>
     <button id="bHide" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>Hide UI</button>
