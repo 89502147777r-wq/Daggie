@@ -1258,11 +1258,15 @@ function tone(f0, f1, dur, type, vol, delay) {
   if (type === 'sawtooth' && f1 < f0) noise(t, dur * 0.7, vol * 0.5, 'bandpass', f0 * 2, f1 * 2, 2); // scrapes and rips get a grainy layer
 }
 let lastClank = 0;
-function clank(v) { // metal: inharmonic ringing partials + a bright click
-  const now = performance.now(); if (now - lastClank < 60) return; lastClank = now; recEvt('t', [600, 300, 0.12, 'triangle', 0.02, 0]); if (!AC) return; OUT();
-  const t = AC.currentTime, vol = Math.min(0.14, 0.025 + v * 0.018), f = rand(380, 720);
-  for (const [r, a, d] of [[1, 1, 0.35], [2.43, 0.6, 0.22], [3.87, 0.4, 0.15], [5.6, 0.25, 0.1]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f * r * rand(0.98, 1.02); g.gain.setValueAtTime(vol * a, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); sendOut(g, 0.3); o.start(t); o.stop(t + d + 0.05); }
-  noise(t, 0.05, vol * 0.8, 'highpass', 3000, 2000, 0.7);
+let clankN = 0, clankWin = 0;
+function clank(v) { // small knocks: a soft dull thud; only big hits ring like metal. Never more than ~4 a second.
+  const now = performance.now(); if (now - lastClank < 150) return; if (now - clankWin > 1000) { clankWin = now; clankN = 0; } if (++clankN > 4) return; lastClank = now;
+  recEvt('t', [300, 150, 0.1, 'sine', 0.02, 0]); if (!AC) return; OUT();
+  const t = AC.currentTime;
+  if (v < 7) { noise(t, 0.09, Math.min(0.05, 0.012 + v * 0.006), 'lowpass', 500, 160, 0.7); return; }
+  const vol = Math.min(0.07, 0.02 + v * 0.004), f = rand(260, 420);
+  for (const [r, a2, d] of [[1, 1, 0.22], [2.43, 0.45, 0.14], [3.87, 0.25, 0.09]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f * r; g.gain.setValueAtTime(vol * a2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); sendOut(g, 0.25); o.start(t); o.stop(t + d + 0.05); }
+  noise(t, 0.08, vol * 0.8, 'lowpass', 900, 200, 0.7);
 }
 
 // ---------- replay: record every run, film it back with a virtual camera crew ----------
@@ -1684,6 +1688,7 @@ function resetRun() {
   $('testNo').textContent = '#' + String(testNo).padStart(3, '0');
   snapCam = true;
   dlvReset();
+  if (VEH === 'cart' && MODE !== 'lab') { const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); } for (const w of wheels) w.visible = true; }
   recStart(); REC.test = testNo; REC.trick = trick.name; REC.gates = GATE_LAYOUT.map(a => a.slice());
   if (MODE === 'lab') labReset();
 }
@@ -1816,6 +1821,7 @@ function crash(kind, saw) {
     if (p === head) u.v.y += 2.5;
     u.w.set(rand(-10, 10), rand(-8, 8), rand(-10, 10));
   }
+  if (VEH === 'cart') labDent(Math.min(45, R.speed * 1.1)); // the front crumples in the crash
   BB.free = true; BB.v.copy(vel).multiplyScalar(0.8).add(new V3(rand(-2, 2), rand(2, 4), 0)); BB.w.set(rand(-12, 12), rand(-6, 6), rand(-12, 12));
   spawnDebris(center, jw, vel);
   if (kind === 'bones') { burst(center, 60, CONF, 8); for (let i = 0; i < 6; i++) tone(rand(600, 1100), rand(300, 500), 0.08, 'square', 0.05, i * 0.07); }
@@ -2125,7 +2131,7 @@ function stepParts(dt) {
     BB.v.y -= 9.8 * dt; board.position.addScaledVector(BB.v, dt);
     const wl = BB.w.length(); if (wl > 1e-3) { tq.setFromAxisAngle(tv.copy(BB.w).multiplyScalar(1 / wl), wl * dt); board.quaternion.premultiply(tq); }
     const fl = floorAt(board.position.x, board.position.z);
-    if (board.position.y < fl + 0.06 && board.position.y > fl - 0.8) { board.position.y = fl + 0.06; if (BB.v.y < 0) BB.v.y *= -0.35; BB.v.x *= 0.9; BB.v.z *= 0.9; BB.w.multiplyScalar(0.8); }
+    if (board.position.y < fl + 0.06 && board.position.y > fl - 0.8) { board.position.y = fl + 0.06; if (VEH === 'cart' && BB.v.y < -3) { const lp = board.worldToLocal(new V3(board.position.x, fl, board.position.z)); labDentAt(clamp(lp.y / CART_S, 0, 1.02), clamp(lp.z / CART_S, -0.47, 0.58), -BB.v.y); } if (BB.v.y < 0) BB.v.y *= -0.35; BB.v.x *= 0.9; BB.v.z *= 0.9; BB.w.multiplyScalar(0.8); }
     if (board.position.y < -89) { board.position.y = -89; BB.v.set(0, 0, 0); }
   }
 }
@@ -2366,8 +2372,11 @@ class RagCore {
           } else if (!was) {
             const hxo = B.hw + r, zfo = B.zf - r, zbo = B.zb + r, y0o = B.y0 - r;
             if (Math.abs(L[0]) < hxo && L[2] > zfo && L[2] < zbo && L[1] > y0o) {
-              // push out through the nearest outer face (or let it be if it came in over the rim)
-              const d = [hxo - Math.abs(L[0]), L[2] - zfo, zbo - L[2], L[1] - y0o, B.y1 - L[1]], m = Math.min(...d), j = d.indexOf(m);
+              // push out through the face it came from, judged in the cart's previous pose (the walls move too)
+              const P = B.toLocalPrev ? B.toLocalPrev(this.o[k], this.o[k + 1], this.o[k + 2]) : null;
+              let d = [hxo - Math.abs(L[0]), L[2] - zfo, zbo - L[2], L[1] - y0o, B.y1 - L[1]];
+              if (P) { const came = [Math.abs(P[0]) >= hxo - 0.01, P[2] <= zfo + 0.01, P[2] >= zbo - 0.01, P[1] <= y0o + 0.01, P[1] >= B.y1 - 0.01]; d = d.map((v, q) => came[q] ? v - 10 : v); }
+              const m = Math.min(...d), j = d.indexOf(m);
               if (j === 0) { L[0] = Math.sign(L[0] || 1) * hxo; n = [Math.sign(L[0]), 0, 0]; }
               else if (j === 1) { L[2] = zfo; n = [0, 0, -1]; } else if (j === 2) { L[2] = zbo; n = [0, 0, 1]; }
               else if (j === 3) { L[1] = y0o; n = [0, -1, 0]; } else n = null;
@@ -2427,7 +2436,7 @@ class CartSim {
   constructor(S, lane, bz, br) {
     Object.assign(this, { S, lane, bz, br, zfOut: -0.47 * S - 0.012, zbOut: 0.72 * S, H: 1.12 * S, mode: 'roll', a: 0, w: 0, vy: 0, vz: 0, pl: [0, -0.47 * S - 0.012], pw: [0, 0], knocked: false, burst: false });
     const me = this;
-    this.box = { on: true, hw: 0.32 * S, y0: 0.4 * S, y1: 1.02 * S, zf: -0.45 * S, zb: 0.45 * S, frontOpen: false, toWorld: (x, y, z) => me.toWorld(x, y, z), toLocal: (x, y, z) => me.toLocal(x, y, z), dirWorld: (x, y, z) => me.dirWorld(x, y, z) };
+    this.box = { on: true, toLocalPrev: (x, y, z) => me.toLocalPrev(x, y, z), hw: 0.32 * S, y0: 0.4 * S, y1: 1.02 * S, zf: -0.45 * S, zb: 0.45 * S, frontOpen: false, toWorld: (x, y, z) => me.toWorld(x, y, z), toLocal: (x, y, z) => me.toLocal(x, y, z), dirWorld: (x, y, z) => me.dirWorld(x, y, z) };
     this.cyls = [{ x: lane, z: bz, r: br, h: 1.1 }];
   }
   place(zFront) { this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.box.frontOpen = false; this.cyls.length = 0; this.cyls.push({ x: this.lane, z: this.bz, r: this.br, h: 1.1 }); }
@@ -2440,7 +2449,10 @@ class CartSim {
     const c = [0.55 * this.S, 0], w = this.toWorld(0, c[0], c[1]); this.pl = c; this.pw = [w[1], w[2]];
     this.mode = 'free'; this.vz = -0.45 * v; this.vy = 1.5 + v * 0.04; this.w = Math.min(18, v * 0.22);
   }
+  savePrev() { this.prev = { a: this.a, pw: this.pw.slice(), pl: this.pl.slice() }; }
+  toLocalPrev(X, Y, Z) { const p = this.prev || this, c = Math.cos(p.a), s = Math.sin(p.a), yy = Y - p.pw[0], zz = Z - p.pw[1]; return [X - this.lane, yy * c - zz * s + p.pl[0], yy * s + zz * c + p.pl[1]]; }
   step(dt) {
+    this.savePrev();
     if (this.mode === 'roll') { this.pw[1] += this.vz * dt; return this.pw[1] <= this.bz + this.br; } // true = touching the bollard
     if (this.mode === 'pivot') {
       this.pw[1] += this.vz * dt; this.vz *= Math.pow(0.05, dt); this.w -= 20 * Math.cos(this.a) * dt; this.a += this.w * dt;
@@ -2448,7 +2460,8 @@ class CartSim {
       return false;
     }
     this.vy -= 9.8 * dt; this.pw[0] += this.vy * dt; this.pw[1] += this.vz * dt; this.a += this.w * dt;
-    let minY = 1e9; for (const y of [0, this.H]) for (const z of [this.zfOut, this.zbOut]) minY = Math.min(minY, this.toWorld(0, y, z)[1]);
+    let minY = 1e9, low = null; for (const y of [0, this.H]) for (const z of [this.zfOut, this.zbOut]) { const wy = this.toWorld(0, y, z)[1]; if (wy < minY) { minY = wy; low = [y, z]; } }
+    if (minY < 0 && this.vy < -2.5 && this.onHit) this.onHit(low, -this.vy); // a corner slams into the floor
     if (minY < 0) { this.pw[0] -= minY; if (this.vy < 0) this.vy = -this.vy * 0.25; this.vz *= Math.pow(0.02, dt * 4); this.w *= Math.pow(0.02, dt * 3); this.w -= Math.sin(2 * this.a) * 8 * dt; }
     return false;
   }
@@ -2471,6 +2484,17 @@ function ragBody(core, rest, now, fwdRest, T) {
   for (const [a, b] of [['pel', 'hipL'], ['pel', 'hipR'], ['hipL', 'hipR'], ['waist', 'hipL'], ['waist', 'hipR']]) L(a, b, 0.95);
   L('chest', 'pel', 0.25); L('shL', 'hipL', 0.35); L('shR', 'hipR', 0.35); L('shL', 'hipR', 0.2); L('shR', 'hipL', 0.2);
   L('top', 'shL', 0.4); L('top', 'shR', 0.4);
+  // a stiffer spine: the chest doesn't wring around the hips like a rag
+  L('shL', 'hipR', 0.5); L('shR', 'hipL', 0.5);
+  // human range of motion: arms can't pass through the chest, legs can't fold through the belly or cross through each other
+  for (const s of ['L', 'R']) { const o = s === 'L' ? 'R' : 'L';
+    L('el' + s, 'hip' + s, 1, 1, d('el' + s, 'hip' + s) * 0.45); L('el' + s, 'sh' + o, 1, 1, d('el' + s, 'sh' + o) * 0.7);
+    L('kn' + s, 'chest', 1, 1, d('kn' + s, 'chest') * 0.25); L('an' + s, 'pel', 1, 1, d('an' + s, 'pel') * 0.3); L('ha' + s, 'top', 1, 1, 0.12); }
+  L('knL', 'knR', 1, 1, 0.14); L('anL', 'anR', 1, 1, 0.1);
+  L('top', 'chest', 1, 2, d('top', 'chest') * 1.04); // the neck doesn't stretch
+  // muscle tone: very soft springs that keep the pose he had, so he tumbles like a tensed body, not a sack
+  if (T.tone) { const tone = (a, b2) => core.link(I[a], I[b2], T.tone, 0, Math.hypot(now[a][0] - now[b2][0], now[a][1] - now[b2][1], now[a][2] - now[b2][2]));
+    for (const s of ['L', 'R']) { tone('sh' + s, 'wr' + s); tone('hip' + s, 'an' + s); tone('chest', 'el' + s); tone('pel', 'kn' + s); tone('hip' + s, 'to' + s); } tone('top', 'pel'); }
   // joint limits: nothing folds flat into itself
   L('chest', 'pel', 1, 1, d('chest', 'pel') * 0.82); L('top', 'chest', 1, 1, d('top', 'chest') * 0.85);
   for (const s of ['L', 'R']) { L('sh' + s, 'wr' + s, 1, 1, (d('sh' + s, 'el' + s) + d('el' + s, 'wr' + s)) * 0.3); L('hip' + s, 'an' + s, 1, 1, (d('hip' + s, 'kn' + s) + d('kn' + s, 'an' + s)) * 0.28); }
@@ -2497,7 +2521,7 @@ function ragBody(core, rest, now, fwdRest, T) {
 // RAGDOLL-BODY-END
 
 
-const RAG_TUNE = { armBreak: 1.6, legBreak: 2.0, headBreak: 1.6, grip: 0.3, tearSpeed: 30 }; // tuned offline with the same core
+const RAG_TUNE = { armBreak: 1.6, legBreak: 2.0, headBreak: 1.6, grip: 0.3, tearSpeed: 30, tone: 0.02 }; // tuned offline with the same core
 // which two points drive each body part, and which two points give its sideways axis
 const RAG_PARTS = { pelvis: ['pel', 'waist', 'hipL', 'hipR'], torso: ['waist', 'chest', 'shL', 'shR'], head: ['neck', 'top', 'shL', 'shR'] };
 for (const s of ['L', 'R']) Object.assign(RAG_PARTS, { ['upper' + s]: ['sh' + s, 'el' + s, 'shL', 'shR'], ['fore' + s]: ['el' + s, 'wr' + s, 'shL', 'shR'], ['hand' + s]: ['wr' + s, 'ha' + s, 'shL', 'shR'], ['thigh' + s]: ['hip' + s, 'kn' + s, 'hipL', 'hipR'], ['shin' + s]: ['kn' + s, 'an' + s, 'hipL', 'hipR'], ['foot' + s]: ['an' + s, 'to' + s, 'hipL', 'hipR'] });
@@ -2537,6 +2561,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
     core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.6, maxErr: RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 20 ? 0.03 + Math.random() * 0.04 : 0, target: () => CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, -0.12) });
   }
   core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
+  const pk0 = I.pel * 3, seatY = CART.toLocal(core.x[pk0], core.x[pk0 + 1], core.x[pk0 + 2])[1];
   const restB = {}, corr = {}; for (const n in RAG_PARTS) { const q = RAG_PARTS[n]; restB[n] = ragBasis(rest[q[0]], rest[q[1]], rest[q[2]], rest[q[3]], new THREE.Matrix4()); }
   // keep each part's own twist: remember how its real rotation differs from the one rebuilt from the points
   for (const p of parts) { const q = RAG_PARTS[p.name]; if (!q) continue; ragBasis(now[q[0]], now[q[1]], now[q[2]], now[q[3]], _rm1); _rm0.copy(restB[p.name]).transpose(); _rm1.multiply(_rm0); const rec = new THREE.Quaternion().setFromRotationMatrix(_rm1); corr[p.name] = rec.invert().multiply(p.getWorldQuaternion(new THREE.Quaternion())); }
@@ -2545,7 +2570,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
     for (let i = 0; i < 16; i++) spawnDrop(pos.clone(), new V3(rand(-2, 2), rand(0.5, 3), rand(-2, 2)), rand(0.012, 0.024)); burst(pos, 50, SPARK, 8); clank(10); tone(1500, 300, 0.25, 'sawtooth', 0.06);
     lastPop = 0; pop({ armL: 'ARM OFF!', armR: 'ARM OFF!', legL: 'LEG OFF!', legR: 'LEG OFF!', head: 'HEADLESS!' }[g], 'lilac'); setFace('hit', 1500); };
   core.onRelease = () => { lastPop = 0; pop('LET GO!', 'lilac'); setFace('scared', 1500); };
-  RAGSIM = { core, I, rest, restB, corr, t: 0 };
+  RAGSIM = { core, I, rest, restB, corr, t: 0, seatY };
 }
 function ragSimStep(dt) {
   const S = RAGSIM; if (!S) return; S.t += dt;
@@ -2570,6 +2595,16 @@ function ragApply() { // move every mesh part to where its points are
 const LAB_LANE = 0, BOLLARD_Z = -8, BOLLARD_R = 0.16, BOLLARD_H = 1.1;
 let BOLLARD = null;
 const CART = new CartSim(CART_S, LAB_LANE, BOLLARD_Z, BOLLARD_R);
+CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); clank(Math.min(12, v)); };
+function labDentAt(y, z, v) { // crush the wires around a corner that slammed into the floor, toward the middle of the basket
+  const cage = board.getObjectByName('cage'); if (!cage) return;
+  const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 30, 0.03, 0.28), R = 0.28;
+  for (let i = 0; i < a.length; i += 3) {
+    const dy = a[i + 1] - y, dz = a[i + 2] - z, d = Math.hypot(dy, dz); if (d > R) continue;
+    const k = (1 - d / R) ** 2; a[i + 1] += (0.71 - a[i + 1]) * depth * k * 0.9; a[i + 2] += (0.05 - a[i + 2]) * depth * k * 0.9; a[i] *= 1 + depth * 0.25 * k;
+  }
+  pos.needsUpdate = true; cage.geometry.computeVertexNormals();
+}
 const LABCART = { get box() { return CART.box; }, get cyls() { return CART.cyls; }, v: 0, hit: false };
 function labCartPlace() { const w = CART.toWorld(0, 0, 0); board.position.set(w[0], w[1], w[2]); board.rotation.set(-CART.a, 0, 0); }
 function labCartStep(dt) { if (LABCART.hit) CART.step(dt); labCartPlace(); }
@@ -2601,7 +2636,7 @@ function labImpact() {
 }
 function labBollardOutcome() {
   const S = RAGSIM, c = S.core, torn = c.broken.length, inCart = c.inCart[S.I.pel], held = c.pins.some(p => p.on);
-  const txt = inCart ? (S.maxY > 1.1 ? 'almost flew out' : 'stayed in the cart') : held ? 'flew out but held on' : 'was thrown out';
+  const txt = inCart ? (S.maxY - S.seatY > 0.3 ? 'almost flew out' : 'stayed in the cart') : held ? 'flew out but held on' : 'was thrown out';
   LAB.lost = torn; return txt + (torn ? ', ' + torn + ' limb' + (torn > 1 ? 's' : '') + ' torn off' : '');
 }
 
@@ -2761,19 +2796,22 @@ function buildDoor() {
 // ---- on-screen counter ----
 function buildDlvHud() {
   const css = document.createElement('style');
-  css.textContent = `.dlvhud{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 112px);width:max-content;white-space:nowrap;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-family:"Chakra Petch",ui-sans-serif,sans-serif}
+  css.textContent = `.dlvon .meters{display:none!important}
+.dlvon .hook{top:30%!important}
+.dlvhud{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 64px);width:max-content;white-space:nowrap;background:rgba(11,7,32,.62);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:5px 12px 6px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-family:"Chakra Petch",ui-sans-serif,sans-serif}
 .recmode.playing .dlvhud{top:calc(env(safe-area-inset-top,0px) + 12px)}
 .dlvhud .sl{font-size:22px;letter-spacing:0;white-space:nowrap;filter:drop-shadow(0 2px 0 #16112a)}
 .dlvhud .sl i{font-style:normal;transition:opacity .25s,filter .25s}
 .dlvhud .sl i.gone{opacity:.25;filter:grayscale(1)}
 .dlvhud .row{display:flex;gap:8px}
-.dlvhud .row b{background:rgba(11,7,32,.78);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:3px 10px;color:#fff;font-size:18px;-webkit-text-stroke:.5px #16112a}
+.dlvhud .row b{color:#fff;font-size:17px;padding:0 4px}
 .dlvhud .row b.warn{color:#ff5a6a}
 .dlvcard{position:absolute;left:50%;top:26%;transform:translateX(-50%);z-index:8;width:min(86%,400px);background:rgba(20,12,48,.9);border:3px solid #ff78b8;border-radius:18px;padding:12px 16px;text-align:center;color:#fff;font-family:"Chakra Petch",ui-sans-serif,sans-serif;pointer-events:none;animation:rev 5s ease-out forwards}
 .dlvcard .st{font-size:36px;letter-spacing:2px}
 .dlvcard b{display:block;font-size:22px;color:#ffc2e0}
 .dlvcard small{display:block;font-size:16px;margin-top:4px;color:#fff}`;
   document.head.appendChild(css);
+  stage.classList.add('dlvon');
   const h = document.createElement('div'); h.className = 'dlvhud'; h.innerHTML = '<div class="sl" id="dlvSl"></div><div class="row"><b id="dlvT">0:45</b><b id="dlvTip">$20</b></div>'; stage.appendChild(h);
   const sl = $('dlvSl'); for (let i = 0; i < DLV.slices; i++) { const e = document.createElement('i'); e.textContent = '🍕'; sl.appendChild(e); }
   D.hud = h;
@@ -2869,6 +2907,8 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
+const LAB_SPEEDS = [10, 20, 30, 40, 50, 60, 80, 100, 150, 200]; // mph for levels 1..10
+const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
   fart: { title: 'FART POWER', ask: 'How high does he fly?' },
@@ -2876,7 +2916,7 @@ const LAB_INFO = {
   anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
 };
 const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
-try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; } catch (e) {}
+try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, 10); } catch (e) {}
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
 let LAB_YAW = 0, labBuilt = false, LEG = null;
 const GAS = [];
@@ -3011,10 +3051,10 @@ function buildLabUI() {
   stage.appendChild(p);
   const chips = $('labChips');
   for (const m of (L.machines || Object.keys(LAB_INFO))) { const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; labSave(); labUI(); }; chips.appendChild(b); }
-  for (const b of p.querySelectorAll('.sm')) b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, 100); labSave(); labUI(); };
-  $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, 100); labSave(); labUI(); };
+  for (const b of p.querySelectorAll('.sm')) { if (Math.abs(Number(b.dataset.d)) === 10) b.style.display = 'none'; b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, LAB_MAX()); labSave(); labUI(); }; }
+  $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, LAB_MAX()); labSave(); labUI(); };
   $('labGo').onclick = () => { initAudio(); labStart(); };
-  $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(100, LAB.level + 1); labSave(); labStart(); };
+  $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labRec').onclick = () => { $('bLive').onclick(); labUI(); };
   labUI();
@@ -3023,8 +3063,8 @@ function labSave() { try { localStorage.setItem('daggie-lab', JSON.stringify({ m
 function labUI() {
   if (!labBuilt) return;
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
-  $('labKnob').style.left = ((LAB.level - 1) / 99 * 100) + '%';
-  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB.level * 2 + ' MPH' : 'LEVEL ' + LAB.level;
+  $('labKnob').style.left = ((LAB.level - 1) / (LAB_MAX() - 1) * 100) + '%'; $('labRange').max = String(LAB_MAX());
+  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : 'LEVEL ' + LAB.level;
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labRec').setAttribute('aria-pressed', String(REC_MODE));
@@ -3046,7 +3086,7 @@ function labStart() {
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
-  if (LAB.machine === 'bollard') { LAB.phase = 'roll'; LABCART.v = lv * 2 * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
+  if (LAB.machine === 'bollard') { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
   else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
   else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
@@ -3147,11 +3187,11 @@ function labPose(t) {
 function labCam(now, dt) {
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
   if (m === 'bollard') {
-    if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 4.6, 1.9, Math.max(z + 1.5, BOLLARD_Z + 4)); wantLook.set(LAB_LANE, 1.0, Math.min(z - 1.5, BOLLARD_Z + 2)); return state === 'ride' ? 12 : 3; }
+    if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, Math.max(z + 2.2, BOLLARD_Z + 3.2)); wantLook.set(LAB_LANE, 0.9, Math.min(z - 1, BOLLARD_Z + 0.6)); return state === 'ride' ? 14 : 3; }
     // follow the body; while it is near the post keep the cart in the shot too
     const c = RAGSIM.core, k = RAGSIM.I.pel * 3, px = c.x[k], py = c.x[k + 1], pz = c.x[k + 2], far = clamp((BOLLARD_Z - pz) / 15, 0, 1);
-    const fz = lerp((pz + BOLLARD_Z) / 2, pz, far), d = 6 + Math.min(10, Math.abs(pz - BOLLARD_Z) * 0.25) * (1 - far) + far * 2;
-    wantPos.set(LAB_LANE + d, 1.8 + Math.max(0, py - 1) * 0.6 + d * 0.12, fz + 2.5); wantLook.set(lerp(LAB_LANE, px, 0.6), Math.max(0.7, py * 0.8), fz); return 5;
+    const fz = lerp((pz + BOLLARD_Z) / 2, pz, far), d = 3.6 + Math.min(5, Math.abs(pz - BOLLARD_Z) * 0.18) * (1 - far) + far * 1.2;
+    wantPos.set(LAB_LANE + d, 1.1 + Math.max(0, py - 1) * 0.6 + d * 0.08, fz + 2.2); wantLook.set(lerp(LAB_LANE, px, 0.6), Math.max(0.7, py * 0.8), fz); return 5;
   }
   const face = new V3(Math.sin(LAB_YAW + Math.atan2(FACE_N ? FACE_N.x : 0, FACE_N ? FACE_N.z : 1)), 0, Math.cos(LAB_YAW + Math.atan2(FACE_N ? FACE_N.x : 0, FACE_N ? FACE_N.z : 1)));
   const side = new V3(face.z, 0, -face.x);
