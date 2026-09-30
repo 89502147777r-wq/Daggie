@@ -10,7 +10,7 @@ export const LEVEL = {
   vehicle: 'cart',
   track: {
     half: 4.2,
-    gaps: [[92, 103], [190, 203], [300, 313], [400, 414]], // alleys between roofs: jump or hit the wall
+    gaps: [[92, 102], [190, 201], [300, 311], [400, 411]], // alleys between roofs: jump or hit the wall
     ramp: [500, 510], rampH: 1.6,
     land: [534, 670],
   },

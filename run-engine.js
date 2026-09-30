@@ -1996,7 +1996,7 @@ function resetGadgets() {
 function stepRide(dt, now) {
   const px = R.x, ps0 = R.s;
   stepFx(dt); if (state !== 'ride' && state !== 'passed') return;
-  if (R.jumpPend > 0) { R.jumpPend -= dt; if (R.jumpPend <= 0 && R.grounded && state === 'ride') { R.grounded = false; R.vy = R.speed * R.slope + 7.2 * FX.jump; crouchV -= 9; tone(300, 700, 0.15, 'triangle', 0.05); noise && AC && noise(AC.currentTime, 0.12, 0.05, 'bandpass', 1800, 700, 1.5); setFace('wow', 700); } }
+  if (R.jumpPend > 0) { R.jumpPend -= dt; if (R.jumpPend <= 0 && R.grounded && state === 'ride') { R.grounded = false; R.vy = R.speed * R.slope + 5.75 * FX.jump; crouchV -= 12; tone(300, 700, 0.15, 'triangle', 0.05); noise && AC && noise(AC.currentTime, 0.12, 0.05, 'bandpass', 1800, 700, 1.5); setFace('wow', 700); } }
   if (R.slip > 0) { R.slip -= dt; R.xT += Math.sin(simT * 7.3) * 5.5 * dt; }
   if (OBS.wind && R.s > OBS.wind.s0 && R.s < OBS.wind.s1) { R.xT += OBS.wind.force * dt; R.x += OBS.wind.force * 0.35 * dt; }
   R.x += (R.xT - R.x) * Math.min(1, dt * (FORM.kind === 'frozen' ? 1.4 : R.slip > 0 ? 2.5 : 6));
@@ -2148,7 +2148,7 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
 function action() {
   if (state === 'result') { resetRun(); return; }
   if (state === 'intro') { if (R.carry) R.carryT = 99; else R.vy = Math.min(R.vy, -16); return; }
-  if (state === 'ride' && R.grounded && !(R.jumpPend > 0)) { R.jumpPend = 0.11; crouchV += 7; } // squat first; the push-off happens in stepRide
+  if (state === 'ride' && R.grounded && !(R.jumpPend > 0)) { R.jumpPend = 0.16; crouchV += 16; } // a deep squat first; the push-off happens in stepRide
   else if (state === 'ride' && !R.grounded && !R.slam) { R.slam = true; R.vy = Math.min(R.vy, -17); crouchV += 2; tone(700, 150, 0.2, 'triangle', 0.06); setFace('scared', 600); }
 }
 $('bNew').onclick = () => { initAudio(); startRoll(); resetRun(); };
@@ -2907,7 +2907,7 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
-const LAB_SPEEDS = [10, 20, 30, 40, 50, 60, 80, 100, 150, 200]; // mph for levels 1..10
+const LAB_SPEEDS = [15, 30, 45, 80, 200]; // mph for levels 1..5: stays in, hangs on, thrown out, flies far, loses limbs
 const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
@@ -2916,7 +2916,7 @@ const LAB_INFO = {
   anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
 };
 const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
-try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, 10); } catch (e) {}
+try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); } catch (e) {}
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
 let LAB_YAW = 0, labBuilt = false, LEG = null;
 const GAS = [];
@@ -2982,7 +2982,7 @@ function buildLab() {
   const toe = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), skin); toe.position.set(-0.3, 0.42, 1.58); LEG.add(toe); // big toe through the hole
   const hole = new THREE.Mesh(new THREE.CircleGeometry(0.24, 16), dirt); hole.position.set(-0.3, 0.42, 1.56); LEG.add(hole);
   for (const [x, z] of [[0.3, 0.2], [-0.2, -0.3], [0.1, 0.9]]) { const sp = new THREE.Mesh(new THREE.CircleGeometry(0.16, 12), dirt); sp.rotation.x = -Math.PI / 2; sp.position.set(x, 0.005, z); sp.rotation.x = Math.PI / 2; LEG.add(sp); }
-  if (LABNOSTAND) labDress();
+  if (LABNOSTAND) { labDress(); labProps(); labPosters(); }
   buildLabUI();
 }
 let SPEEDO = null;
@@ -3016,6 +3016,81 @@ function labDress() {
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.2, 14), new THREE.MeshStandardMaterial({ color: 0x0d0d12, metalness: 0.4, roughness: 0.2 })); lens.rotation.x = Math.PI / 2; lens.position.set(0, 1.5, -0.28); cam.add(lens);
     const rec = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), neon(0xff2a2a, 4)); rec.position.set(0.1, 1.64, -0.1); cam.add(rec);
     cam.lookAt(new V3(LAB_LANE, 0, BOLLARD_Z)); cam.rotation.x = 0; cam.rotation.z = 0; scene.add(cam); }
+}
+// poster photos: pose the real Daggie, photograph him with a separate camera into a texture
+function posterShot(bg, pose, extra) {
+  const rt = new THREE.WebGLRenderTarget(512, 640, { samples: 4 });
+  const cam = new THREE.PerspectiveCamera(30, 512 / 640, 0.1, 60);
+  const vis = scene.children.map(o => o.visible), bgOld = scene.background, fogOld = scene.fog;
+  scene.children.forEach(o => { if (o !== rider && !o.isLight) o.visible = false; });
+  scene.background = new THREE.Color(bg); scene.fog = null;
+  const rp = rider.position.clone(), rr = rider.rotation.clone();
+  rider.position.set(0, 60, 0); rider.rotation.set(0, LAB_YAW + (extra && extra.yaw || 0), 0);
+  rootQ.identity(); rootPos.set(0, 0, 0); const P = pose(); runFK(P); applyFK();
+  if (extra && extra.before) extra.before();
+  drawFace(performance.now() + 99999); rider.updateMatrixWorld(true);
+  const T = torso.getWorldPosition(new V3()); cam.position.set(T.x + 0.9, T.y + 0.25, T.z + 4.4); cam.lookAt(T.x, T.y - 0.15, T.z);
+  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null);
+  if (extra && extra.after) extra.after();
+  scene.children.forEach((o, i) => { o.visible = vis[i]; }); scene.background = bgOld; scene.fog = fogOld; rider.position.copy(rp); rider.rotation.copy(rr);
+  return rt.texture;
+}
+function posterBoard(img, title, sub, x, z, ry, colors) {
+  const g = new THREE.Group(); g.position.set(x, 3.8, z); g.rotation.y = ry; scene.add(g);
+  const W = 3.4, H = 4.6;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.24, H + 0.24, 0.08), new THREE.MeshStandardMaterial({ color: 0x1a1820, roughness: 0.5 })); frame.position.z = -0.03; g.add(frame);
+  if (img) { const ph = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.3, (W - 0.3) * 1.25), new THREE.MeshBasicMaterial({ map: img })); ph.position.set(0, -0.15, 0.02); g.add(ph); }
+  const txt = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ transparent: true, map: tex(512, 692, (c, w, h) => {
+    c.clearRect(0, 0, w, h); if (!img) { c.fillStyle = colors[0]; c.fillRect(0, 0, w, h); }
+    c.fillStyle = colors[0]; c.fillRect(0, 0, w, 118); c.fillRect(0, h - 104, w, 104);
+    c.fillStyle = colors[1]; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 ' + (title.length > 12 ? 58 : 76) + 'px ' + FONT; c.fillText(title, w / 2, 62);
+    c.font = '700 ' + (sub.length > 18 ? 34 : 42) + 'px ' + FONT; c.fillText(sub, w / 2, h - 52);
+    if (!img && colors[2]) { c.font = '700 330px ' + FONT; c.fillStyle = colors[2]; c.fillText(colors[3], w / 2, h / 2 + 10); }
+  }) })); txt.position.z = 0.03; g.add(txt);
+  return g;
+}
+function labPosters() {
+  const P0 = () => ({ upperL: [0.1, 0, SIDE.L * 0.25], upperR: [0.1, 0, SIDE.R * 0.25], foreL: [0.3, 0, 0], foreR: [0.3, 0, 0] });
+  const cheer = () => ({ upperL: [0, 0, SIDE.L * 2.6], upperR: [0, 0, SIDE.R * 2.6], foreL: [0.2, 0, 0], foreR: [0.2, 0, 0], head: [-0.15, 0, 0.1] });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x7a0f18, roughness: 0.35, metalness: 0.4 });
+  const shots = [
+    ['#ffc21a', cheer, 'happy', null, 'EMPLOYEE', 'OF THE MONTH x47', ['#16141c', '#ffc21a']],
+    ['#e8d8b8', P0, 'worried', { before: () => { byName.head.visible = false; }, after: () => { byName.head.visible = true; } }, 'WANTED', 'MY HEAD · REWARD $5', ['#5a3a1a', '#f3e6c8']],
+    ['#2f6fd0', () => flailPose(1.3), 'scared', { yaw: 0.5 }, 'TEST #001', 'HE SURVIVED* *NOT', ['#0f1c3a', '#ffffff']],
+    ['#161222', () => tuckPose(0.7), 'wow', { yaw: -0.4 }, 'COMING SOON', 'THE SLINGSHOT TEST', ['#0b0720', '#3dff9a']],
+    ['#1a0709', P0, 'hit', { before: () => { for (const p of parts) p.userData.mesh.material = dark; }, after: () => { for (const p of parts) p.userData.mesh.material = bodyMat; } }, 'RIVAL D666', 'IS WATCHING YOU', ['#16080a', '#ff3a4e']],
+  ];
+  const oldFace = faceMode;
+  const imgs = shots.map(([bg, pose, face, extra]) => { setFace(face, 99999); return posterShot(bg, pose, extra); });
+  setFace(oldFace, 0);
+  // left wall (behind the post in the camera's view) and right wall
+  const spots = [[-19.8, BOLLARD_Z + 6, Math.PI / 2], [-19.8, BOLLARD_Z - 3, Math.PI / 2], [-19.8, BOLLARD_Z - 12, Math.PI / 2], [19.8, BOLLARD_Z + 2, -Math.PI / 2], [19.8, BOLLARD_Z - 9, -Math.PI / 2]];
+  shots.forEach((sh, i) => posterBoard(imgs[i], sh[4], sh[5], spots[i][0], spots[i][2], spots[i][2] > 0 ? Math.PI / 2 : -Math.PI / 2, sh[6]).position.set(spots[i][0], 3.8, spots[i][1]));
+  posterBoard(null, 'DAYS WITHOUT', 'AN ACCIDENT', -19.8, BOLLARD_Z - 21, Math.PI / 2, ['#f4f1ea', '#16141c', '#e0322b', '0']).position.set(-19.8, 3.8, BOLLARD_Z - 21);
+}
+function labProps() {
+  const steelG = new THREE.MeshStandardMaterial({ color: 0x5b6070, metalness: 0.8, roughness: 0.35 });
+  // SPARE PARTS shelf with real Daggie heads, arms and legs on it
+  const shelf = new THREE.Group(); shelf.position.set(-16.5, 0, BOLLARD_Z + 1); shelf.rotation.y = Math.PI / 2; scene.add(shelf);
+  for (const y of [0.1, 1.0, 1.9]) { const b = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.06, 0.8), steelG); b.position.y = y; b.castShadow = b.receiveShadow = true; shelf.add(b); }
+  for (const x of [-1.65, 1.65]) for (const z of [-0.35, 0.35]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.5, 0.05), steelG); post.position.set(x, 1.25, z); shelf.add(post); }
+  const lbl = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.4), sign('SPARE PARTS', '#ffc21a', '#16141c', 512, 114)); lbl.position.set(0, 2.35, 0.42); shelf.add(lbl);
+  const put = (n, x, y, ry) => { const g = new THREE.Group(); for (const ch of byName[n].children) g.add(ch.clone()); g.position.set(x, y, 0); g.rotation.set(Math.PI / 2 * (n === 'head' ? 0 : 1), ry, 0); shelf.add(g); };
+  put('head', -1.1, 1.25, 0.4); put('head', 0.1, 1.25, -0.3); put('head', 1.1, 1.25, 0.9); put('upperL', -0.9, 0.2, 0); put('foreR', 0.1, 0.2, 0.3); put('thighL', 0.9, 0.22, -0.2); put('handR', -0.9, 2.02, 0); put('footL', 0.6, 2.02, 0.4);
+  // crash barriers at the start, skid marks and old oil at the post, a control desk with screens
+  for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new RoundedBoxGeometry(1.2, 0.8, 0.5, 2, 0.08), new THREE.MeshStandardMaterial({ color: i % 2 ? 0xffffff : 0xff6a1a, roughness: 0.6 })); b.position.set(LAB_LANE + (i < 3 ? -3.4 : 3.4), 0.4, BOLLARD_Z + 12 + (i % 3) * 1.3); b.rotation.y = Math.PI / 2; b.castShadow = true; scene.add(b); }
+  const skidM = new THREE.MeshBasicMaterial({ color: 0x14131a, transparent: true, opacity: 0.35, depthWrite: false });
+  for (let i = 0; i < 5; i++) { const sk = new THREE.Mesh(new THREE.PlaneGeometry(0.22, rand(3, 8)), skidM); sk.rotation.x = -Math.PI / 2; sk.rotation.z = rand(-0.15, 0.15); sk.position.set(LAB_LANE + rand(-0.8, 0.8), 0.014, BOLLARD_Z + rand(1.5, 5)); scene.add(sk); }
+  for (let i = 0; i < 6; i++) spawnSplat(LAB_LANE + rand(-3, 3), BOLLARD_Z - rand(1, 12), rand(0.3, 0.7));
+  const desk = new THREE.Group(); desk.position.set(12, 0, BOLLARD_Z + 6); desk.rotation.y = -Math.PI / 2 - 0.4; scene.add(desk);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 1), new THREE.MeshStandardMaterial({ color: 0xd9d9dd, roughness: 0.5 })); top.position.y = 0.95; desk.add(top);
+  for (const x of [-1.1, 1.1]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.95, 0.9), steelG); leg.position.set(x, 0.47, 0); desk.add(leg); }
+  const graph = (title, draw) => new THREE.MeshBasicMaterial({ map: tex(320, 200, (c, w, h) => { c.fillStyle = '#081018'; c.fillRect(0, 0, w, h); c.strokeStyle = 'rgba(61,255,154,0.25)'; for (let x = 0; x < w; x += 32) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } c.fillStyle = '#3dff9a'; c.font = '700 22px ' + FONT; c.fillText(title, 12, 26); draw(c, w, h); }), color: glowColor(0xffffff, 1.2) });
+  const scr1 = graph('IMPACT  47 G', (c, w, h) => { c.strokeStyle = '#ffc21a'; c.lineWidth = 3; c.beginPath(); for (let x = 0; x < w; x++) { const y = h - 30 - Math.exp(-((x - 190) ** 2) / 300) * 120 - Math.random() * 6; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); });
+  const scr2 = graph('PARTS LOST  15/15', (c, w, h) => { c.fillStyle = '#ff4a5a'; for (let i = 0; i < 15; i++) c.fillRect(14 + i * 19, h - 40 - (i % 5) * 18, 14, 30 + (i % 5) * 18); });
+  for (const [x, m] of [[-0.55, scr1], [0.55, scr2]]) { const mon = new THREE.Mesh(new THREE.BoxGeometry(1, 0.62, 0.05), new THREE.MeshStandardMaterial({ color: 0x15141a })); mon.position.set(x, 1.4, -0.2); desk.add(mon); const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.56), m); sc.position.set(x, 1.4, -0.17); desk.add(sc); }
+  // tall light towers
+  for (const [x, z] of [[-9, BOLLARD_Z + 8], [9, BOLLARD_Z - 6]]) { const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 6, 8), steelG); pole.position.set(x, 3, z); scene.add(pole); const panel = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.12), steelG); panel.position.set(x, 6, z); panel.lookAt(LAB_LANE, 0, BOLLARD_Z); scene.add(panel); const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.65), new THREE.MeshBasicMaterial({ color: glowColor(0xfff1d8, 2.4) })); glow.position.copy(panel.position); glow.quaternion.copy(panel.quaternion); glow.translateZ(0.07); scene.add(glow); }
 }
 function labSpeedo(mph) { if (!SPEEDO) return; const v = Math.round(mph); if (v === SPEEDO.last) return; SPEEDO.last = v; const g = SPEEDO.cv.getContext('2d'); g.fillStyle = '#07060b'; g.fillRect(0, 0, 512, 200); g.fillStyle = v > 60 ? '#ff4a5a' : v > 30 ? '#ffc21a' : '#3dff9a'; g.font = '700 150px ' + FONT; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(String(v), 340, 108); g.font = '700 50px ' + FONT; g.textAlign = 'left'; g.fillText('MPH', 356, 130); SPEEDO.tex.needsUpdate = true; }
 function buildLabUI() {
@@ -3071,8 +3146,8 @@ function labUI() {
   if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
 }
 function labReset() {
+  if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z); // before the build: the posters are photographed facing the camera
   if (!labBuilt) buildLab();
-  if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z);
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
   drone.visible = false; BB.free = false; RAGSIM = null;
   if (LAB.machine === 'bollard') { board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); }
@@ -3090,7 +3165,7 @@ function labStart() {
   else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
   else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
-  lastPop = 0; pop('LEVEL ' + lv, 'lilac');
+  lastPop = 0; pop('LEVEL ' + lv, 'lilac'); snapCam = true;
 }
 function labLose(n, dir) { // knock off n limbs, head last
   const order = ['foreL', 'foreR', 'upperL', 'upperR', 'shinL', 'shinR', 'head'].sort(() => Math.random() - 0.5);
@@ -3187,7 +3262,7 @@ function labPose(t) {
 function labCam(now, dt) {
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
   if (m === 'bollard') {
-    if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, Math.max(z + 2.2, BOLLARD_Z + 3.2)); wantLook.set(LAB_LANE, 0.9, Math.min(z - 1, BOLLARD_Z + 0.6)); return state === 'ride' ? 14 : 3; }
+    if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, z + 2.4); wantLook.set(LAB_LANE, 0.9, z - 2.2); return 30; } // a tracking shot beside the cart
     // follow the body; while it is near the post keep the cart in the shot too
     const c = RAGSIM.core, k = RAGSIM.I.pel * 3, px = c.x[k], py = c.x[k + 1], pz = c.x[k + 2], far = clamp((BOLLARD_Z - pz) / 15, 0, 1);
     const fz = lerp((pz + BOLLARD_Z) / 2, pz, far), d = 3.6 + Math.min(5, Math.abs(pz - BOLLARD_Z) * 0.18) * (1 - far) + far * 1.2;
