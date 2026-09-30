@@ -14,7 +14,7 @@ const ASSETS = { model: 'daggie_model.bin?v=1', tex: 'daggie_tex.jpg?v=1' };
 window.__daggieStarted = true;
 // the level being played (set by run.html from a level file listed in levels.js)
 const L = window.LEVEL;
-const TH = L.theme || 'sky', VEH = L.vehicle || 'skate'; // world look and what Daggie rides
+const TH = L.theme || 'sky', VEH = L.vehicle || 'skate', MODE = L.mode || 'run'; // world look and what Daggie rides
 const CART_S = 1.35; // the player's cart is scaled up so a life-size robot can sit in it
 const V3 = THREE.Vector3, TAU = Math.PI * 2, Y = new V3(0, 1, 0);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -394,7 +394,8 @@ function trackH(s) {
   if (s <= LAND1) return 0;
   return null;
 }
-function floorAt(x, z) { const h = trackH(-z); if (h === null || Math.abs(x) > HALF) return -90; return h; }
+const STAND_H = 0.9, STAND_R = 1.35;
+function floorAt(x, z) { if (MODE === 'lab') return x * x + z * z < STAND_R * STAND_R ? STAND_H : 0; const h = trackH(-z); if (h === null || Math.abs(x) > HALF) return -90; return h; }
 const asphalt = tex(512, 1024, (g, w, h) => {
   g.fillStyle = '#3b3e46'; g.fillRect(0, 0, w, h);
   const id = g.getImageData(0, 0, w, h), d = id.data;
@@ -437,6 +438,7 @@ function roadStrip(s0, s1) {
     const ramp = new THREE.Mesh(new THREE.BoxGeometry(HALF * 2, 0.3, L), darkSteel); ramp.position.set(0, 0.55, -mid); scene.add(ramp);
   }
 }
+const TRACK_OBJ0 = scene.children.length;
 { let a = -14; for (const [g0, g1] of GAPS) { roadStrip(a, g0); a = g1; } roadStrip(a, RAMP0); roadStrip(RAMP0, RAMP1); roadStrip(LAND0, LAND1); }
 { // ramp surface chevrons, start grid, gantries, finish pad
   const rc = tex(256, 256, (g) => { g.fillStyle = '#16141c'; g.fillRect(0, 0, 256, 256); g.strokeStyle = '#ffc21a'; g.lineWidth = 26; g.lineJoin = 'round'; for (const y of [60, 150, 240]) { g.beginPath(); g.moveTo(30, y + 30); g.lineTo(128, y - 40); g.lineTo(226, y + 30); g.stroke(); } });
@@ -477,13 +479,14 @@ const SAWS = L.saws.map(([s, x, R, A = 0, w = 0]) => {
 });
 const BIG = sawBlade(BIG_R, 0.3); BIG.position.set(0, BIG_Y, -SAW_S); scene.add(BIG);
 for (const sd of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 80, 0.6), darkSteel); arm.position.set(sd * 1.2, BIG_Y - 40, -SAW_S + 0.4); scene.add(arm); }
+const TRACK_OBJ1 = scene.children.length;
 const chev = tex(128, 128, (g) => { g.clearRect(0, 0, 128, 128); g.strokeStyle = '#27e0ff'; g.lineWidth = 16; g.lineCap = 'round'; g.lineJoin = 'round'; for (const y of [42, 90]) { g.beginPath(); g.moveTo(22, y + 22); g.lineTo(64, y - 16); g.lineTo(106, y + 22); g.stroke(); } });
 const BOOSTS = L.boosts.map(([s, x]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.4), new THREE.MeshBasicMaterial({ map: chev, transparent: true, color: glowColor(0xffffff, 1.8), depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.03, -s); scene.add(m); return { s, x, used: false }; });
 
 // ---------- real skateboard: kicktail deck, grip, graphic, trucks, wheels ----------
 const board = new THREE.Group(); scene.add(board);
 const wheels = [];
-if (VEH === 'cart') buildCart(); else {
+if (VEH === 'cart') buildCart(); else if (VEH === 'skate') {
   const LEN = 1.12, WID = 0.3, T = 0.024;
   const outline = new THREE.Shape(); const r = WID / 2, hl = LEN / 2 - r;
   outline.moveTo(-r, -hl); outline.lineTo(-r, hl); outline.absarc(0, hl, r, Math.PI, 0, true); outline.lineTo(r, -hl); outline.absarc(0, -hl, r, 0, Math.PI, true);
@@ -997,7 +1000,7 @@ function flockSwap(kind) {
   flingParts(f, kind, Math.random() < 0.5 ? -1 : 1, -R.speed, R.xv * 0.3);
   while (detached.length) reattach(); stumps.length = 0; setHP(100);
   const now = performance.now(); R.inv = now + 1000; slowUntil = now + 900; slowK = 0.3; if (!reduceMotion) shake = 0.5;
-  lastPop = 0; pop({ saw: 'ZZZT!', big: 'SHREDDED!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!' }[kind] || 'CRASH!', 'green');
+  lastPop = 0; pop({ saw: 'ZZZT!', big: 'SHREDDED!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!' }[kind] || 'CRASH!', 'green');
   setTimeout(() => { lastPop = 0; pop('-1 DAGGIE', 'lilac'); }, 350);
   setFace('hit', 900); tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06);
   updateFlockHUD();
@@ -1656,6 +1659,7 @@ function resetRun() {
   $('testNo').textContent = '#' + String(testNo).padStart(3, '0');
   snapCam = true;
   recStart(); REC.test = testNo; REC.trick = trick.name; REC.gates = GATE_LAYOUT.map(a => a.slice());
+  if (MODE === 'lab') labReset();
 }
 const BB = { v: new V3(), w: new V3(), free: false };
 // pose the body every frame
@@ -1792,7 +1796,7 @@ function crash(kind, saw) {
   setFace('hit', 1500);
   slowUntil = now + (reduceMotion ? 500 : 1600); slowK = 0.22;
   if (!reduceMotion) shake = 0.5;
-  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
+  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
   tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06);
   orbitA = Math.atan2(camera.position.x - center.x, camera.position.z - center.z);
 }
@@ -1804,6 +1808,7 @@ function passed() {
 }
 function showResult() {
   state = 'result';
+  if (MODE === 'lab') { labDone(); return; }
   if (liveRecOn()) liveStop = performance.now() + 700;
   const ok = cause === '';
   if (REC) { REC.ok = ok; REC.cause = ok ? '' : cause; REC.dist = Math.round(R.maxS); }
@@ -1816,7 +1821,7 @@ function showResult() {
   const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
   $('result').hidden = false;
 }
 function landImpact(v) { crouchV += Math.min(4.5, v * 0.35); }
@@ -2148,6 +2153,7 @@ function startRoll() {
 const camPos = new V3(), camLook = new V3(), wantPos = new V3(), wantLook = new V3();
 let snapCam = true;
 function camTargets(now, dt) {
+  if (MODE === 'lab' && (state === 'lab' || state === 'ride')) return labCam(now, dt);
   const b = rider.position;
   if (state === 'intro') { wantPos.set(3.8, Math.max(2.5, b.y * 0.55 + 2.6), b.z + 7.5); wantLook.set(0, b.y * 0.85 + 0.8, b.z - 8); return 5; }
   if (state === 'ride') {
@@ -2207,6 +2213,7 @@ function frame(vts) {
   if (keys.ArrowLeft || keys.KeyA) R.xT = clamp(R.xT - 8 * dt, -3.8, 3.8);
   if (keys.ArrowRight || keys.KeyD) R.xT = clamp(R.xT + 8 * dt, -3.8, 3.8);
   const t = (now - stateT) / 1000;
+  if (MODE === 'lab') labStep(sdt, now);
   if (state === 'intro') {
     drone.visible = true; rotors.forEach((r, i) => { r.rotation.y += sdt * (i % 2 ? -70 : 70); });
     R.s += INTRO_V * sdt; // the board/cart is already rolling; drone and Daggie keep pace above it
@@ -2226,7 +2233,7 @@ function frame(vts) {
       if (!reduceMotion) shake = 0.45; // no slow-mo here: the ride starts at full speed right on touchdown
     }
   }
-  if (state === 'ride' || state === 'passed') {
+  if ((state === 'ride' || state === 'passed') && MODE !== 'lab') {
     const n = Math.min(8, Math.max(1, Math.ceil(sdt * 120 - 1e-6))), h = sdt / n;
     for (let k = 0; k < n; k++) { stepRide(h, now); if (state !== 'ride' && state !== 'passed') break; }
     stepDebris(sdt, now);
@@ -2234,7 +2241,8 @@ function frame(vts) {
     if (state === 'ride' && t > 1.4) $('hook').classList.remove('show');
     if (state === 'passed' && t > 3.2) showResult();
   }
-  if (state === 'intro' || state === 'ride' || state === 'passed') { placeRider(simT); poseBody(simT); }
+  if (MODE === 'lab') { if (state === 'lab' || state === 'ride') labPose(simT); }
+  else if (state === 'intro' || state === 'ride' || state === 'passed') { placeRider(simT); poseBody(simT); }
   if (state === 'crashed' || (state === 'result' && cause !== '')) {
     const n = Math.min(8, Math.max(1, Math.ceil(sdt * 120 - 1e-6))), h = sdt / n;
     for (let k = 0; k < n; k++) { stepParts(h); stepDebris(h, now); }
@@ -2264,6 +2272,258 @@ function frame(vts) {
   if (liveRecOn()) { composite(); if (liveStop && now >= liveStop) finishLiveRec(); }
   requestAnimationFrame(frame);
 }
+
+// =====================================================================
+// MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
+// Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
+// =====================================================================
+const LAB_INFO = {
+  fart: { title: 'FART POWER', ask: 'How high does he fly?' },
+  sock: { title: 'SOCK SIZE', ask: 'How big a foot can he take?' },
+  anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
+};
+const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
+try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; } catch (e) {}
+const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
+let LAB_YAW = 0, labBuilt = false, LEG = null;
+const GAS = [];
+function gasTex() { return tex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 4, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(190,255,120,0.95)'); gr.addColorStop(0.5, 'rgba(120,220,60,0.55)'); gr.addColorStop(1, 'rgba(80,160,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); }); }
+function spawnGas(pos, n, size, speed) {
+  for (let i = 0; i < n; i++) {
+    let gs = GAS.find(q => !q.on); if (!gs) { gs = GAS.reduce((a, b) => (a.age > b.age ? a : b)); }
+    gs.on = true; gs.age = 0; gs.life = rand(0.9, 1.8); gs.size = size * rand(0.6, 1.3); gs.m.visible = true;
+    gs.m.position.copy(pos).add(new V3(rand(-0.3, 0.3), rand(-0.1, 0.2), rand(-0.3, 0.3)));
+    gs.v.set(rand(-1, 1), rand(-0.2, 0.6), rand(-1, 1)).normalize().multiplyScalar(speed * rand(0.4, 1));
+  }
+}
+function stepGas(dt) {
+  for (const gs of GAS) {
+    if (!gs.on) continue; gs.age += dt; const k = gs.age / gs.life;
+    if (k >= 1) { gs.on = false; gs.m.visible = false; continue; }
+    gs.m.position.addScaledVector(gs.v, dt); gs.v.multiplyScalar(Math.pow(0.35, dt)); gs.v.y += 0.4 * dt;
+    gs.m.scale.setScalar(gs.size * (0.5 + k * 1.6)); gs.m.material.opacity = 0.75 * (1 - k);
+  }
+}
+function brrt(power) { // the fart sound: a wobbling low buzz, longer and deeper with power
+  const n = 3 + Math.round(power * 9);
+  for (let i = 0; i < n; i++) tone(rand(60, 115) - power * 20, rand(40, 60), 0.09, i % 2 ? 'square' : 'sawtooth', 0.06 + power * 0.05, i * 0.055);
+}
+function buildLab() {
+  labBuilt = true;
+  for (let i = TRACK_OBJ0; i < TRACK_OBJ1; i++) scene.children[i].visible = false; // the lab has no track
+  BIG.visible = false; board.visible = false;
+  scene.fog = new THREE.Fog(0x2a2733, 60, 260);
+  const conc = tex(512, 512, (g, w, h) => {
+    g.fillStyle = '#6f6c70'; g.fillRect(0, 0, w, h);
+    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
+    g.strokeStyle = 'rgba(30,28,34,0.5)'; g.lineWidth = 4; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(w, x); g.stroke(); }
+  });
+  conc.wrapS = conc.wrapT = THREE.RepeatWrapping; conc.repeat.set(10, 10);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ map: conc, roughness: 0.92 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(STAND_R + 0.4, STAND_R + 1.0, 48), stripeMat(8)); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.01; scene.add(ring);
+  const wallT = tex(512, 512, (g, w, h) => { g.fillStyle = '#3d3a45'; g.fillRect(0, 0, w, h); g.strokeStyle = '#2a2830'; g.lineWidth = 8; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } g.fillStyle = '#8b8894'; for (let x = 20; x < w; x += 128) for (let y = 20; y < h; y += 118) { g.beginPath(); g.arc(x, y, 5, 0, TAU); g.fill(); g.beginPath(); g.arc(x + 88, y, 5, 0, TAU); g.fill(); } });
+  wallT.wrapS = wallT.wrapT = THREE.RepeatWrapping; wallT.repeat.set(8, 3);
+  const wm = new THREE.MeshStandardMaterial({ map: wallT, roughness: 0.8, metalness: 0.2, side: THREE.DoubleSide });
+  for (const [x, z, ry, w] of [[0, -20, 0, 40], [-20, 0, Math.PI / 2, 40], [20, 0, -Math.PI / 2, 40]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 14), wm); m.position.set(x, 7, z); m.rotation.y = ry; m.receiveShadow = true; scene.add(m); }
+  for (const [x, z, ry] of [[0, -19.9, 0], [-19.9, 0, Math.PI / 2], [19.9, 0, -Math.PI / 2]]) { const st = new THREE.Mesh(new THREE.PlaneGeometry(40, 0.5), stripeMat(40)); st.position.set(x, 1.2, z); st.rotation.y = ry; scene.add(st); }
+  const logo = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), sign('CRASH LAB', '#ffc21a', '#16141c', 1024, 256)); logo.position.set(0, 9.5, -19.85); scene.add(logo);
+  const warn = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('DO NOT TRY THIS', '#e0322b', '#ffffff', 768, 192)); warn.position.set(-10, 5, -19.85); scene.add(warn);
+  const warn2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('LEVEL 1 - 100', '#16141c', '#3dff9a', 768, 192)); warn2.position.set(10, 5, -19.85); scene.add(warn2);
+  for (let i = 0; i < 5; i++) { const lamp = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: glowColor(0xfff3dc, 2.2) })); lamp.position.set(-12 + i * 6, 13.6, -8); scene.add(lamp); }
+  const stand = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R, STAND_R + 0.2, STAND_H, 40), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.8, roughness: 0.35 })); stand.position.y = STAND_H / 2; stand.castShadow = stand.receiveShadow = true; scene.add(stand);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 0.01, STAND_R + 0.01, 0.16, 40, 1, true), stripeMat(8)); band.position.y = STAND_H - 0.1; scene.add(band);
+  const gt = gasTex();
+  for (let i = 0; i < 40; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: gt, transparent: true, depthWrite: false, opacity: 0 })); m.visible = false; scene.add(m); GAS.push({ m, on: false, age: 0, life: 1, size: 1, v: new V3() }); }
+  // the giant stinky sock (origin at the sole)
+  LEG = new THREE.Group(); LEG.visible = false; scene.add(LEG);
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe6ad86, roughness: 0.7 }), sockM = new THREE.MeshStandardMaterial({ color: 0xe8e3d4, roughness: 0.95 }), dirt = new THREE.MeshStandardMaterial({ color: 0x6f6247, roughness: 1 });
+  const foot = new THREE.Mesh(new RoundedBoxGeometry(1.25, 0.7, 2.3, 4, 0.3), sockM); foot.position.set(0, 0.35, 0.45); foot.castShadow = true; LEG.add(foot);
+  const heel = new THREE.Mesh(new THREE.SphereGeometry(0.62, 20, 14), sockM); heel.scale.set(1, 0.9, 1); heel.position.set(0, 0.55, -0.45); LEG.add(heel);
+  const sockUp = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.62, 1.8, 24), sockM); sockUp.position.set(0, 1.5, -0.4); sockUp.castShadow = true; LEG.add(sockUp);
+  for (const y of [2.1, 2.3]) { const st = new THREE.Mesh(new THREE.TorusGeometry(0.59, 0.05, 8, 28), new THREE.MeshStandardMaterial({ color: 0xd8342a })); st.rotation.x = Math.PI / 2; st.position.set(0, y, -0.4); LEG.add(st); }
+  const calf = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.52, 5, 24), skin); calf.position.set(0, 4.8, -0.4); calf.castShadow = true; LEG.add(calf);
+  const toe = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), skin); toe.position.set(-0.3, 0.42, 1.58); LEG.add(toe); // big toe through the hole
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(0.24, 16), dirt); hole.position.set(-0.3, 0.42, 1.56); LEG.add(hole);
+  for (const [x, z] of [[0.3, 0.2], [-0.2, -0.3], [0.1, 0.9]]) { const sp = new THREE.Mesh(new THREE.CircleGeometry(0.16, 12), dirt); sp.rotation.x = -Math.PI / 2; sp.position.set(x, 0.005, z); sp.rotation.x = Math.PI / 2; LEG.add(sp); }
+  buildLabUI();
+}
+function buildLabUI() {
+  const css = document.createElement('style');
+  css.textContent = `.labmode .hud,.labmode .meters,.labmode .bar,.labmode .hint{display:none!important}
+.labgauge{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 14px);transform:translateX(-50%);width:min(92%,440px);z-index:6;text-align:center;pointer-events:none}
+.labgauge b{display:block;font:700 26px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;-webkit-text-stroke:1.5px #16112a;text-shadow:0 3px 0 #16112a;letter-spacing:1px}
+.labgauge .row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.labgauge .pm{flex:none;width:30px;height:30px;border-radius:50%;background:#1c1838;border:3px solid #fff;color:#fff;font:700 20px/22px "Chakra Petch",sans-serif}
+.labgauge .track{position:relative;flex:1;height:18px;border-radius:10px;border:3px solid #fff;background:linear-gradient(90deg,#3dff9a,#ffe23d 50%,#ff8a1f 75%,#ff2a3a)}
+.labgauge .knob{position:absolute;top:50%;width:22px;height:30px;margin:-15px 0 0 -11px;background:#fff;border:3px solid #16112a;border-radius:8px 8px 12px 12px;transition:left .25s}
+.labgauge .lvl{display:block;margin-top:4px;font:700 20px "Chakra Petch",sans-serif;color:#ffc41f;-webkit-text-stroke:1px #16112a}
+.labpanel{position:absolute;left:0;right:0;bottom:0;z-index:7;padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(11,7,32,.92);border-top:1px solid rgba(170,120,255,.35);font-family:"Chakra Petch",ui-sans-serif,sans-serif;color:#efeaff}
+.labpanel .chips{display:flex;gap:6px;margin-bottom:8px}
+.labpanel .chips button{flex:1;appearance:none;border:1px solid rgba(170,120,255,.4);background:rgba(255,255,255,.06);color:#efeaff;border-radius:10px;padding:8px 4px;font:700 13px "Chakra Petch",sans-serif}
+.labpanel .chips button[aria-pressed="true"]{background:#ffc41f;color:#16112a;border-color:#ffc41f}
+.labpanel .lrow{display:flex;align-items:center;gap:6px}
+.labpanel input[type=range]{flex:1;accent-color:#ffc41f;height:30px}
+.labpanel .sm{appearance:none;border:1px solid rgba(170,120,255,.4);background:rgba(255,255,255,.08);color:#efeaff;border-radius:9px;padding:7px 8px;font:700 13px "Chakra Petch",sans-serif;min-width:38px}
+.labpanel .go{display:block;width:100%;margin-top:8px;appearance:none;border:0;border-radius:12px;background:#ff3a4e;color:#fff;font:700 20px "Chakra Petch",sans-serif;padding:12px;box-shadow:0 6px 18px rgba(255,58,78,.4)}
+.labpanel .res{min-height:20px;margin:0 0 6px;font-size:14px;text-align:center;color:#a79cd6}
+.labpanel .res b{color:#fff}
+.labpanel .foot{display:flex;gap:6px;margin-top:8px}
+.labpanel .foot button{flex:1;appearance:none;border:1px solid rgba(170,120,255,.4);background:transparent;color:#a79cd6;border-radius:9px;padding:7px;font:700 12px "Chakra Petch",sans-serif}
+.labpanel .foot button[aria-pressed="true"]{color:#ffc41f;border-color:#ffc41f}`;
+  document.head.appendChild(css);
+  stage.classList.add('labmode');
+  const g = document.createElement('div'); g.className = 'labgauge'; g.id = 'labGauge';
+  g.innerHTML = '<b id="labTitle"></b><div class="row"><span class="pm">−</span><div class="track"><i class="knob" id="labKnob"></i></div><span class="pm">+</span></div><span class="lvl" id="labLvl"></span>';
+  stage.appendChild(g);
+  const p = document.createElement('div'); p.className = 'labpanel'; p.id = 'labPanel';
+  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div>';
+  stage.appendChild(p);
+  const chips = $('labChips');
+  for (const m of (L.machines || Object.keys(LAB_INFO))) { const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; labSave(); labUI(); }; chips.appendChild(b); }
+  for (const b of p.querySelectorAll('.sm')) b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, 100); labSave(); labUI(); };
+  $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, 100); labSave(); labUI(); };
+  $('labGo').onclick = () => { initAudio(); labStart(); };
+  $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(100, LAB.level + 1); labSave(); labStart(); };
+  $('labMenu').onclick = () => { location.href = 'index.html'; };
+  $('labRec').onclick = () => { $('bLive').onclick(); labUI(); };
+  labUI();
+}
+function labSave() { try { localStorage.setItem('daggie-lab', JSON.stringify({ m: LAB.machine, l: LAB.level })); } catch (e) {} }
+function labUI() {
+  if (!labBuilt) return;
+  $('labTitle').textContent = LAB_INFO[LAB.machine].title;
+  $('labKnob').style.left = ((LAB.level - 1) / 99 * 100) + '%';
+  $('labLvl').textContent = 'LEVEL ' + LAB.level;
+  $('labRange').value = String(LAB.level);
+  for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
+  $('labRec').setAttribute('aria-pressed', String(REC_MODE));
+  if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
+}
+function labReset() {
+  if (!labBuilt) buildLab();
+  if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z);
+  Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
+  drone.visible = false; board.visible = false; BB.free = false; board.position.set(0, -50, 0);
+  state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0;
+  if (LEG) { LEG.visible = false; }
+  setFace('idle', 0); snapCam = true;
+}
+function labStart() {
+  resetRun(); // fresh Daggie on the stand
+  LAB.text = ''; LAB.lost = 0; LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0;
+  $('labPanel').hidden = true; $('hook').classList.remove('show');
+  state = 'ride'; stateT = performance.now(); setHP(100);
+  const lv = LAB.level;
+  if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
+  else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
+  else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
+  lastPop = 0; pop('LEVEL ' + lv, 'lilac');
+}
+function labLose(n, dir) { // knock off n limbs, head last
+  const order = ['foreL', 'foreR', 'upperL', 'upperR', 'shinL', 'shinR', 'head'].sort(() => Math.random() - 0.5);
+  let k = 0; for (const nm of order) { if (k >= n) break; if (!byName[nm].userData.detached && detachPart(nm, dir || (Math.random() < 0.5 ? -1 : 1))) k++; }
+  LAB.lost += k; return k;
+}
+function labScatter(power, up) {
+  const c = torso.getWorldPosition(new V3());
+  for (const p of parts) { const u = p.userData, out = p.position.clone().sub(c); out.y = Math.abs(out.y) * 0.4 + 0.3; out.normalize(); u.v.copy(out).multiplyScalar(rand(3, 7) * power); u.v.y += rand(1, 4) * (up || 1); u.w.set(rand(-12, 12), rand(-10, 10), rand(-12, 12)); }
+}
+function labPancake() {
+  for (const p of parts) { const u = p.userData; p.scale.set(1.25, 0.28, 1.25); p.position.set(rand(-0.9, 0.9), STAND_H + 0.08, rand(-0.9, 0.9)); p.quaternion.setFromEuler(new THREE.Euler(0, rand(0, TAU), 0)); u.v.set(rand(-2, 2), 0.5, rand(-2, 2)); u.w.set(0, rand(-3, 3), 0); }
+  for (let i = 0; i < 14; i++) { const a = rand(0, TAU), r = rand(STAND_R + 0.2, STAND_R + 3); spawnSplat(Math.cos(a) * r, Math.sin(a) * r, rand(0.2, 0.5)); }
+  if (!reduceMotion) shake = 0.8;
+}
+function labFinish(text) { LAB.text = text; LAB.phase = 'done'; if (state === 'ride') { state = 'lab'; stateT = performance.now(); LAB.pending = performance.now() + 1400; } }
+function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(kind); LAB.lost = 15; }
+function labStep(dt, now) {
+  stepGas(dt);
+  if (state === 'lab') { if (now - stateT > 2500) $('hook').classList.remove('show'); if (LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } }
+  const lv = LAB.level, P = LAB.phase; LAB.t += dt;
+  const butt = () => byName.pelvis.getWorldPosition(new V3()).add(new V3(0, -0.3, 0));
+  if (LAB.machine === 'fart') {
+    if (P === 'charge') {
+      R.x = rand(-1, 1) * 0.015 * (1 + lv / 25) * (LAB.t / 0.7);
+      if (Math.random() < dt * 14) spawnGas(butt(), 1, 0.5 + lv * 0.01, 1.2);
+      if (LAB.t > 0.7) {
+        R.x = 0; LAB.h = 0.35 * Math.pow(lv, 1.4); R.vy = Math.sqrt(2 * 9.8 * LAB.h); LAB.phase = 'air'; LAB.t = 0;
+        spawnGas(butt(), 8 + Math.round(lv / 4), 1.2 + lv * 0.03, 2 + lv * 0.05); brrt(lv / 100);
+        setFace('wow', 4000); if (!reduceMotion) shake = Math.min(0.8, 0.15 + lv * 0.006); lastPop = 0; pop(lv > 80 ? 'MEGA BRRRAP!' : lv > 40 ? 'BRRRAP!' : 'pfft', 'green');
+      }
+    } else if (P === 'air') {
+      R.vy -= 9.8 * dt; R.y += R.vy * dt; LAB.spin += dt * (0.6 + lv * 0.05);
+      if (Math.random() < dt * 20) spawnGas(butt(), 1, 0.4 + lv * 0.01, 0.6);
+      if (LAB.h > 150 && R.vy <= 0 && !LAB.exploded) { LAB.exploded = true; labCrash('fart'); labScatter(3.5, 0.3); explodeAt(torso.getWorldPosition(new V3())); lastPop = 0; pop('TO THE MOON!', 'green'); LAB.text = 'exploded in the sky'; return; }
+      if (R.y <= REST_Y && R.vy < 0) {
+        R.y = REST_Y; const h = LAB.h;
+        if (h < 2.5) { crouch = 0.9; landImpact(5); lastPop = 0; pop('SAFE LANDING', 'green'); setFace('happy', 1500); labFinish('survived'); }
+        else if (h < 12) { landImpact(8); const n = labLose(Math.min(3, 1 + Math.floor((h - 2.5) / 3.5))); lastPop = 0; pop('LOST ' + n + (n > 1 ? ' PARTS' : ' PART'), 'lilac'); setFace('hit', 1500); labFinish('lost ' + n + ' part' + (n > 1 ? 's' : '')); }
+        else { labCrash('fart'); if (h > 60) labPancake(); else labScatter(1 + h / 40, 1); LAB.text = h > 60 ? 'pancaked on landing' : 'smashed on landing'; }
+      }
+    }
+  } else if (LAB.machine === 'sock' && LEG) {
+    const k = LEG.scale.x;
+    if (P === 'drop') {
+      LEG.position.y -= LAB.v * dt; if (Math.random() < dt * 10) spawnGas(LEG.position.clone().add(new V3(rand(-1, 1) * k, 0.8 * k, 0)), 1, 0.6 * k, 0.5);
+      if (LEG.position.y <= HEAD_TOP) {
+        tone(90, 40, 0.3, 'sine', 0.35); clank(10); if (!reduceMotion) shake = Math.min(0.9, 0.2 + lv * 0.007);
+        spawnGas(new V3(0, HEAD_TOP, 0), 10, 1 + k * 0.5, 2);
+        if (lv < 8) { LAB.phase = 'lift'; lastPop = 0; pop('BONK!', 'green'); setFace('hit', 1500); crouch = 1; landImpact(6); labFinish('survived'); }
+        else if (lv < 25) { LAB.phase = 'lift'; labLose(1 + (lv > 16 ? 1 : 0)); if (!head.userData.detached) labLose(1); lastPop = 0; pop('HEAD OFF!', 'lilac'); labFinish('lost ' + LAB.lost + (LAB.lost === 1 ? ' part' : ' parts')); }
+        else { labCrash('sock'); LAB.phase = 'press'; if (lv > 55) { labPancake(); LAB.text = 'flattened into a pancake'; } else { labScatter(1.2 + lv / 60, 0.6); LAB.text = 'stomped to pieces'; } }
+      }
+    } else if (P === 'press') { LEG.position.y = Math.max(STAND_H, LEG.position.y - LAB.v * 1.5 * dt); if (LEG.position.y <= STAND_H + 0.01) { LAB.phase = 'hold'; LAB.t = 0; } }
+    else if (P === 'hold') { if (LAB.t > 1.0) LAB.phase = 'lift'; }
+    else if (P === 'lift' || P === 'done') { if (LEG.visible) { LEG.position.y += 12 * dt; if (LEG.position.y > HEAD_TOP + 30) LEG.visible = false; } }
+  } else if (LAB.machine === 'anvil') {
+    if (P === 'fall') {
+      LAB.v -= 9.8 * dt; ANVIL.position.y += LAB.v * dt;
+      if (ANVIL.position.y <= HEAD_TOP - 0.2) {
+        const h = LAB.h; ANVIL_RING.visible = false; tone(80, 30, 0.4, 'sine', 0.4); clank(12); if (!reduceMotion) shake = Math.min(0.9, 0.25 + h * 0.008);
+        burst(new V3(0, HEAD_TOP, 0), 50, SPARK, 6);
+        if (h < 3) { LAB.phase = 'bounce'; LAB.v = 3; LAB.vx = 2.5; lastPop = 0; pop('BONK!', 'green'); setFace('hit', 1500); crouch = 1; landImpact(6); labFinish('survived'); }
+        else if (h < 12) { LAB.phase = 'drop2'; labLose(1); if (!head.userData.detached) labLose(1); lastPop = 0; pop('HEAD OFF!', 'lilac'); labFinish('lost ' + LAB.lost + (LAB.lost === 1 ? ' part' : ' parts')); }
+        else { labCrash('anvil'); LAB.phase = 'drop2'; if (h > 35) { labPancake(); LAB.text = 'flattened into a pancake'; } else { labScatter(0.8 + h / 50, 0.5); LAB.text = 'smashed to pieces'; } }
+      }
+    } else if (P === 'drop2' || (P === 'done' && ANVIL.position.y > STAND_H + 0.01 && !LAB.vx)) { LAB.v -= 9.8 * dt; ANVIL.position.y = Math.max(STAND_H, ANVIL.position.y + LAB.v * dt); if (ANVIL.position.y <= STAND_H) LAB.v = 0; }
+    else if (P === 'bounce' || (P === 'done' && LAB.vx)) { LAB.v -= 9.8 * dt; ANVIL.position.y += LAB.v * dt; ANVIL.position.x += LAB.vx * dt; const fl = floorAt(ANVIL.position.x, ANVIL.position.z); if (ANVIL.position.y <= fl) { ANVIL.position.y = fl; LAB.v = 0; LAB.vx *= 0.8; if (Math.abs(LAB.vx) < 0.2) LAB.vx = 0; } }
+  }
+}
+function labPose(t) {
+  rider.position.set(R.x, R.y, 0); rider.rotation.set(0, LAB_YAW, 0);
+  let P;
+  if (LAB.phase === 'air') { rootQ.setFromEuler(new THREE.Euler(LAB.spin * 0.7, LAB.spin * 0.4, LAB.spin * 0.2)); P = flailPose(t * 1.4); }
+  else {
+    rootQ.identity();
+    const sc = LAB.phase === 'charge' || LAB.phase === 'drop' || LAB.phase === 'fall' ? 1 : 0, happy = LAB.text === 'survived' ? 1 : 0, br = Math.sin(t * 2) * 0.025;
+    crouchV += ((0.3 - crouch) * 90 - crouchV * 11) * (1 / 60); crouch = clamp(crouch + crouchV / 60, 0.1, 1.05);
+    const c = Math.max(0, crouch - 0.3);
+    P = { pelvis: [0, 0, 0], torso: [0.05 + br + c * 0.5, 0, 0], head: [-0.05 - sc * 0.35, Math.sin(t * 0.7) * 0.25 * (1 - sc), 0],
+      upperL: [0.1 + sc * 0.4, 0, SIDE.L * (0.25 + sc * 0.8 + happy * 2.3)], upperR: [0.1 + sc * 0.4, 0, SIDE.R * (0.25 + sc * 0.8 + happy * 2.3)],
+      foreL: [0.3 + sc * 1.1, 0, 0], foreR: [0.3 + sc * 1.1, 0, 0], thighL: [-c * 0.9, 0, 0], thighR: [-c * 0.9, 0, 0], shinL: [c * 1.6, 0, 0], shinR: [c * 1.6, 0, 0] };
+  }
+  rootPos.set(0, -Math.max(0, crouch - 0.3) * 0.25, 0); runFK(P); applyFK();
+}
+function labCam(now, dt) {
+  const T = torso.getWorldPosition(new V3()), m = LAB.machine;
+  const face = new V3(Math.sin(LAB_YAW + Math.atan2(FACE_N ? FACE_N.x : 0, FACE_N ? FACE_N.z : 1)), 0, Math.cos(LAB_YAW + Math.atan2(FACE_N ? FACE_N.x : 0, FACE_N ? FACE_N.z : 1)));
+  const side = new V3(face.z, 0, -face.x);
+  if (m === 'fart' && LAB.phase === 'air') { const y = T.y; wantPos.copy(face).multiplyScalar(6 + Math.min(40, y * 0.25)).addScaledVector(side, 2).setY(Math.max(1.6, Math.min(y * 0.55, y - 2))); wantLook.set(T.x, y, T.z); return 6; }
+  if (m === 'sock' && LEG && LEG.visible) { const k = LEG.scale.x, dist = 5.5 + k * 1.6; wantPos.copy(face).multiplyScalar(dist).addScaledVector(side, 1.6).setY(STAND_H + 1.8 + k * 0.6); wantLook.set(0, Math.min(LEG.position.y, HEAD_TOP + 4 * k) * 0.45 + STAND_H * 0.55 + 0.6, 0); return 4; }
+  if (m === 'anvil' && ANVIL.visible && LAB.phase === 'fall') { const ay = ANVIL.position.y, d = 5.5 + Math.min(12, LAB.h * 0.1); wantPos.copy(face).multiplyScalar(d).addScaledVector(side, 1.8).setY(STAND_H + 1.2); wantLook.set(0, Math.min(ay, HEAD_TOP + 14) * 0.6 + (STAND_H + 1.2) * 0.4, 0); return 5; }
+  const sway = Math.sin(now / 2600) * 0.6;
+  wantPos.copy(face).multiplyScalar(5.2).addScaledVector(side, 1.6 + sway).setY(STAND_H + 1.7); wantLook.set(0, STAND_H + 1.15, 0); return 3;
+}
+function labDone() {
+  if (!labBuilt) return;
+  const survived = LAB.text === 'survived', lost = cause ? 15 : LAB.lost;
+  $('labRes').innerHTML = '';
+  const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
+  $('labRes').append(b, document.createTextNode(survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')));
+  $('labPanel').hidden = false; labUI();
+  lastPop = 0; pop(survived ? 'SURVIVED!' : lost >= 15 ? 'DESTROYED!' : 'DAMAGED!', survived ? 'green' : 'lilac');
+}
+
 setLoad(1, 'Ready');
 { const note = CACHE_NOTE || (window.__cacheHit ? 'Loaded from this device' : 'Downloaded (saved for next time)');
   const el = document.createElement('div'); el.className = 'cachenote'; el.textContent = note; stage.appendChild(el); setTimeout(() => el.remove(), 1800);

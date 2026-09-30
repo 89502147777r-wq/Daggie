@@ -198,7 +198,7 @@ setTimeout(() => { if (!window.__daggieStarted) { const t = document.getElementB
 const V = '?v=' + (typeof BUILD !== 'undefined' ? BUILD : Date.now());
 const { MODES } = await import('./levels.js' + V);
 const want = new URLSearchParams(location.search).get('level') || 'sky';
-const list = MODES.find(m => m.id === 'run').levels.filter(l => l.ready && l.file);
+const list = MODES.filter(m => m.page === 'run.html').flatMap(m => m.levels).filter(l => l.ready && l.file);
 const lv = list.find(l => l.id === want) || list[0];
 window.LEVEL = (await import('./' + lv.file + V)).LEVEL;
 document.getElementById('lvlName').textContent = lv.name;
