@@ -2483,7 +2483,7 @@ class CartSim {
   toLocal(X, Y, Z) { const c = Math.cos(this.a), s = Math.sin(this.a), yy = Y - this.pw[0], zz = Z - this.pw[1]; return [X - this.lane, yy * c - zz * s + this.pl[0], yy * s + zz * c + this.pl[1]]; }
   dirWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a); return [x, y * c - z * s, y * s + z * c]; }
   impact(v) { // v: speed at the moment the front touches the bollard
-    if (v < 50) { this.mode = 'pivot'; this.pw = [0, this.bz + this.br]; this.vz = v * 0.1; this.w = Math.min(5, v * 0.2); return; } // steel post holds up to ~110 mph: the cart stops dead and noses up
+    if (v < 30) { this.mode = 'pivot'; this.pw = [0, this.bz + this.br]; this.vz = v * 0.1; this.w = Math.min(5, v * 0.2); return; } // the post holds at 15 and 50 mph: the cart stops dead and noses up; from 80 mph it snaps
     this.knocked = true; this.cyls.length = 0; this.burst = v > 22; this.box.frontOpen = this.burst;
     const c = [0.55 * this.S, 0], w = this.toWorld(0, c[0], c[1]); this.pl = c; this.pw = [w[1], w[2]];
     this.mode = 'free'; this.vz = -0.3 * v; this.vy = 1.5 + v * 0.04; this.w = Math.min(18, v * 0.22);
@@ -2597,11 +2597,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
     for (const n in src) if (byName[src[n]]) core.r[I[n]] = clamp(half(src[n]) * (n === 'chest' || n === 'waist' ? 0.8 : 0.95), 0.05, 0.22); }
   core.initCart();
   core.skipBox = new Uint8Array(core.n);
-  for (const s of [-1, 1]) {
-    const side = s < 0 ? (SIDE.L < 0 ? 'L' : 'R') : (SIDE.L < 0 ? 'R' : 'L'), hi = I['ha' + side], wi = I['wr' + side];
-    core.skipBox[hi] = 1; core.skipBox[wi] = 1; // a gripping hand and wrist reach over the rim
-    core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.35, maxErr: impactV < 12 ? 99 : RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 26 ? 0.03 + Math.random() * 0.04 : 0, target: () => { const ck = I.chest * 3, cz = CART.toLocal(core.x[ck], core.x[ck + 1], core.x[ck + 2])[2], zr = Math.max(CART.box.zf + 0.06, Math.min(-0.12, cz - 0.15)); return CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, zr); } }); // the hand slides forward along the rail when he is thrown forward, so he hangs off the front instead of being dragged over the back
-  }
+  // no grip: Daggie doesn't hold on to the cart, he's carried only by the basket walls and his own inertia
   core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
   const pk0 = I.pel * 3, seatY = CART.toLocal(core.x[pk0], core.x[pk0 + 1], core.x[pk0 + 2])[1];
   const restB = {}, corr = {}; for (const n in RAG_PARTS) { const q = RAG_PARTS[n]; restB[n] = ragBasis(rest[q[0]], rest[q[1]], rest[q[2]], rest[q[3]], new THREE.Matrix4()); }
@@ -2954,7 +2950,7 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
-const LAB_SPEEDS = [15, 50, 80, 130, 200]; // mph for levels 1..5: stays in, hangs on, thrown out (post holds), post snaps + flies far, loses limbs
+const LAB_SPEEDS = [15, 50, 80, 130, 200]; // mph for levels 1..5. The post holds on 1-2 and snaps on 3-5; Daggie doesn't grip the cart
 const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
@@ -3118,8 +3114,10 @@ function labPosters() {
     bd.position.set(side * 19.75, 7.2, z); boards.push({ bd, i });
   }
   const loader = new THREE.TextureLoader();
-  for (let i = 0; i < 26; i++) loader.load('poster-' + (i + 1) + '.jpg?v=' + (typeof BUILD !== 'undefined' ? BUILD : ''), t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-    for (const b of boards) if (b.i === i) { b.bd.userData.photo.material.map = t; b.bd.userData.photo.material.needsUpdate = true; b.bd.userData.photo.scale.set(1, 1.02, 1); b.bd.userData.text.visible = false; } }, undefined, () => {});
+  const putPoster = (i, t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    for (const b of boards) if (b.i === i) { b.bd.userData.photo.material.map = t; b.bd.userData.photo.material.needsUpdate = true; b.bd.userData.photo.scale.set(1, 1.02, 1); b.bd.userData.text.visible = false; } };
+  const loadPoster = (i, tries) => loader.load('poster-' + (i + 1) + '.jpg' + (tries === 0 ? '?v=' + (typeof BUILD !== 'undefined' ? BUILD : '') : tries === 1 ? '' : '?r=' + Date.now()), t => putPoster(i, t), undefined, () => { if (tries < 2) setTimeout(() => loadPoster(i, tries + 1), 400 * (tries + 1)); else console.warn('poster-' + (i + 1) + '.jpg not found'); });
+  for (let i = 0; i < 26; i++) loadPoster(i, 0); // versioned file, then the plain path (offline cache), then a fresh network try
   const acc = posterBoard(null, 'DAYS WITHOUT', 'AN ACCIDENT', -19.75, BOLLARD_Z - 0.75, Math.PI / 2, ['#f4f1ea', '#16141c', '#e0322b', '0'], 0.85); acc.position.set(-19.7, 2.4, BOLLARD_Z - 0.75); // fits in the gap between two big posters
 }
 function labProps() {
