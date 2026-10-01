@@ -1324,8 +1324,9 @@ function recordFrame(dt) {
   const spl = []; splats.forEach((s, i) => { if (s.m.visible) spl.push(i, s.m.position.x, s.m.position.y, s.m.position.z, s.m.rotation.y, s.m.scale.x); });
   const DR = new Float32Array([drone.visible ? 1 : 0, drone.position.x, drone.position.y, drone.position.z, drone.rotation.x, drone.rotation.z]);
   const GX = { can: CANNON.on || (cannonG.visible && !!cannonG.parent) ? (CANNON.k === 'L' ? 1 : CANNON.k === 'R' ? 2 : (cannonG.parent === byName.foreL ? 1 : 2)) : 0, cs: cannonG.scale.x, sh: bubble.visible ? 1 : 0, dead: DESTR.map(dd => dd.obj.dead ? 1 : 0), pk: PICKS.map(p => p.taken ? 0 : 1), so: SOCIAL.map(p => p.taken ? 0 : 1), pj: PROJ.flatMap(p => p.on ? [p.m.position.x, p.m.position.y, p.m.position.z] : []), fm: formRec() };
+  let DL = null; if (DLV) { DL = [D.left, D.t, D.tip]; SLC.meshes.forEach((m, i) => { if (SLC.on[i] && m.visible) DL.push(i, m.position.x, m.position.y, m.position.z, m.quaternion.x, m.quaternion.y, m.quaternion.z, m.quaternion.w); }); }
   const FXR = new Float32Array([ANVIL.visible ? 1 : 0, ANVIL.position.x, ANVIL.position.y, ANVIL.position.z, ANVIL_RING.visible ? 1 : 0, ...RAIN.flatMap(r => r.on ? [r.m.position.x, r.m.position.y, r.m.position.z] : [])]);
-  REC.frames.push({ FXR, FL, GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
+  REC.frames.push({ DL, FXR, FL, GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
   REC.acc = 0; REC.cur = [];
 }
 // virtual director: plan hard cuts every ~2-3 s, choosing shots around what happens next
@@ -1373,7 +1374,8 @@ function startFilm(rec, fromResult, record) {
   if (liveRecOn()) finishLiveRec(); liveWant = false;
   recStop();
   if (rec.gates) layoutGates(rec.gates);
-  PLAY = { wantRec: !!record, rec, t: 0, i: 0, fired: -1, fromResult, ...planShots(rec), shotI: -1, fixed: new V3(), orbitA: 0, slowUntil: 0, slowAt: -1, replayed: false, zoom: 0 };
+  const dSave = DLV ? { left: D.left, t: D.t, tip: D.tip } : null;
+  PLAY = { dSave, wantRec: !!record, rec, t: 0, i: 0, fired: -1, fromResult, ...planShots(rec), shotI: -1, fixed: new V3(), orbitA: 0, slowUntil: 0, slowAt: -1, replayed: false, zoom: 0 };
   state = 'replay';
   $('result').hidden = true; $('replays').hidden = true;
   stage.classList.add('clean', 'filming'); $('bShow').hidden = true;
@@ -1390,7 +1392,8 @@ function startFilm(rec, fromResult, record) {
 }
 function endFilm() {
   if (!PLAY) return;
-  const back = PLAY.fromResult; PLAY = null; $('hook').classList.remove('show');
+  const back = PLAY.fromResult, dSave = PLAY.dSave; PLAY = null;
+  if (DLV && dSave) { Object.assign(D, dSave, { hudKey: null }); dlvHud(); SLC.meshes.forEach((m, i) => { m.visible = !!SLC.on[i]; }); } $('hook').classList.remove('show');
   head.visible = true; // the helmet camera hides the head during its shot; bring it back whatever shot the film ended on
   if (recorder) stopRecorder().then(showVideoCard); drone.visible = false; grade.uniforms.sat.value = GSAT(); $('rew').hidden = true; camera.fov = baseFov(); camera.updateProjectionMatrix();
   stage.classList.remove('filming', 'clean');
@@ -1429,6 +1432,21 @@ function replayFrame(rdt) {
 }
 const _im = [new Map(), new Map()]; let _imK = 0;
 function idxMap(arr, step) { const m = _im[_imK = 1 - _imK]; m.clear(); for (let o = 0; o < arr.length; o += step) m.set(arr[o], o); return m; }
+// delivery HUD + flying slices in a replay: exactly what was on screen in that frame (pieces, timer, tip)
+function dlvApplyRec(f0, f1, a) {
+  const A = f0.DL, B = f1.DL || A;
+  D.left = A[0]; D.t = lerp(A[1], B[1], a); D.tip = lerp(A[2], B[2], a);
+  const key = D.left + '|' + Math.ceil(DLV.time - D.t) + '|' + Math.round(D.tip);
+  if (key !== D.hudKey) { D.hudKey = key; dlvHud(); }
+  const seen = new Set();
+  for (let o = 3; o < A.length; o += 8) {
+    const i = A[o], m = SLC.meshes[i]; if (!m) continue; seen.add(i);
+    let o1 = -1; for (let q = 3; q < B.length; q += 8) if (B[q] === i) { o1 = q; break; }
+    m.visible = true; m.position.set(A[o + 1], A[o + 2], A[o + 3]); m.quaternion.set(A[o + 4], A[o + 5], A[o + 6], A[o + 7]);
+    if (o1 >= 0) { _pb.set(B[o1 + 1], B[o1 + 2], B[o1 + 3]); m.position.lerp(_pb, a); _qb.set(B[o1 + 4], B[o1 + 5], B[o1 + 6], B[o1 + 7]); m.quaternion.slerp(_qb, a); }
+  }
+  SLC.meshes.forEach((m, i) => { if (!seen.has(i)) m.visible = false; });
+}
 function applyRecFrame(P, dt, rdt) {
   const fr = P.rec.frames;
   const f0 = fr[P.i], f1 = fr[Math.min(P.i + 1, fr.length - 1)];
@@ -1451,6 +1469,7 @@ function applyRecFrame(P, dt, rdt) {
   for (const s of splats) s.m.visible = false;
   for (let o = 0; o < f0.spl.length; o += 6) { const s = splats[f0.spl[o]]; s.m.visible = true; s.t = 1; s.m.position.set(f0.spl[o + 1], f0.spl[o + 2], f0.spl[o + 3]); s.m.rotation.y = f0.spl[o + 4]; s.m.scale.setScalar(f0.spl[o + 5]); }
   faceMode = f0.face;
+  if (DLV && f0.DL) dlvApplyRec(f0, f1, a);
   if (f0.GX) { const G = f0.GX;
     for (const k of ['L', 'R']) byName['hand' + k].visible = !(G.can === (k === 'L' ? 1 : 2) && G.cs > 0.3);
     if (G.can) { const fore = byName[G.can === 1 ? 'foreL' : 'foreR']; if (cannonG.parent !== fore) { const k = G.can === 1 ? 'L' : 'R', wrist = NODE['hand' + k].p, elbow = NODE['fore' + k].p, dir = wrist.clone().sub(elbow).normalize(); fore.add(cannonG); cannonG.position.copy(wrist).sub(fore.userData.restPos).addScaledVector(dir, -0.05); cannonG.quaternion.setFromUnitVectors(Y, dir); } cannonG.visible = true; cannonG.scale.setScalar(Math.max(0.01, G.cs)); } else cannonG.visible = false;
@@ -2841,8 +2860,8 @@ function buildDlvHud() {
   const css = document.createElement('style');
   css.textContent = `.dlvon .meters{display:none!important}
 .dlvon .hook{top:30%!important}
-.dlvhud{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 64px);width:max-content;white-space:nowrap;background:rgba(11,7,32,.62);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:5px 12px 6px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-family:"Chakra Petch",ui-sans-serif,sans-serif}
-.recmode.playing .dlvhud{top:calc(env(safe-area-inset-top,0px) + 12px)}
+.dlvhud{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 36px);width:max-content;white-space:nowrap;background:rgba(11,7,32,.62);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:5px 12px 6px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-family:"Chakra Petch",ui-sans-serif,sans-serif}
+.recmode.playing .dlvhud,.recmode.filming .dlvhud{top:calc(env(safe-area-inset-top,0px) + 12px)}
 .dlvhud .sl{font-size:22px;letter-spacing:0;white-space:nowrap;filter:drop-shadow(0 2px 0 #16112a)}
 .dlvhud .sl i{font-style:normal;transition:opacity .25s,filter .25s}
 .dlvhud .sl i.gone{opacity:.25;filter:grayscale(1)}
