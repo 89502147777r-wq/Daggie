@@ -2454,7 +2454,8 @@ class RagCore {
     for (let i = 0; i < n; i++) {
       const k = i * 3; if (!this.inv[i]) continue;
       const fr = 0.999;
-      const vx = (x[k] - o[k]) * fr, vy = (x[k + 1] - o[k + 1]) * 0.999, vz = (x[k + 2] - o[k + 2]) * fr;
+      let vx = (x[k] - o[k]) * fr, vy = (x[k + 1] - o[k + 1]) * 0.999, vz = (x[k + 2] - o[k + 2]) * fr;
+      if (this.drag) { const q = 1 / (1 + this.drag * Math.hypot(vx, vy, vz) / dt * dt); vx *= q; vy *= q; vz *= q; } // air drag: the faster, the more it slows
       o[k] = x[k]; o[k + 1] = x[k + 1]; o[k + 2] = x[k + 2];
       x[k] += vx; x[k + 1] += vy + g; x[k + 2] += vz;
     }
@@ -2498,30 +2499,37 @@ class CartSim {
     this.box = { on: true, toLocalPrev: (x, y, z) => me.toLocalPrev(x, y, z), hw: 0.32 * S, y0: 0.4 * S, y1: 1.02 * S, zf: -0.45 * S, zb: 0.45 * S, frontOpen: false, toWorld: (x, y, z) => me.toWorld(x, y, z), toLocal: (x, y, z) => me.toLocal(x, y, z), dirWorld: (x, y, z) => me.dirWorld(x, y, z) };
     this.cyls = [{ x: lane, z: bz, r: br, h: 1.1 }];
   }
-  place(zFront) { this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.box.frontOpen = false; this.cyls.length = 0; this.cyls.push({ x: this.lane, z: this.bz, r: this.br, h: 1.1 }); }
+  place(zFront) { this.bent = false; this.tumble = false; this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.box.frontOpen = false; this.cyls.length = 0; this.cyls.push({ x: this.lane, z: this.bz, r: this.br, h: 1.1 }); }
   toWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a), yy = y - this.pl[0], zz = z - this.pl[1]; return [x + this.lane, this.pw[0] + yy * c - zz * s, this.pw[1] + yy * s + zz * c]; }
   toLocal(X, Y, Z) { const c = Math.cos(this.a), s = Math.sin(this.a), yy = Y - this.pw[0], zz = Z - this.pw[1]; return [X - this.lane, yy * c - zz * s + this.pl[0], yy * s + zz * c + this.pl[1]]; }
   dirWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a); return [x, y * c - z * s, y * s + z * c]; }
   impact(v) { // v: speed at the moment the front touches the bollard
-    if (v < 30) { this.mode = 'pivot'; this.pw = [0, this.bz + this.br]; this.vz = v * 0.1; this.w = Math.min(5, v * 0.2); return; } // the post holds at 15 and 50 mph: the cart stops dead and noses up; from 80 mph it snaps
-    this.knocked = true; this.cyls.length = 0; this.burst = v > 22; this.box.frontOpen = this.burst;
-    const c = [0.55 * this.S, 0], w = this.toWorld(0, c[0], c[1]); this.pl = c; this.pw = [w[1], w[2]];
-    this.mode = 'free'; this.vz = -0.55 * v; this.vy = 0.3; this.w = 0; // the snapped post barely slows the cart: it rolls on flat, so he is thrown straight ahead by his own inertia, not tossed up by a tumbling cart
+    // the cart is stopped at its front edge and its back end swings up over the nose. 15 mph: it noses up and drops back. 50 mph and more: it tips over the front and tumbles ahead.
+    this.mode = 'pivot'; this.pw = [0, this.knockedAt(v) ? this.pw[1] : this.bz + this.br]; this.pl = [0, this.zfOut];
+    this.tumble = v >= 10; this.pdamp = 0.05; this.burst = this.tumble; this.box.frontOpen = this.tumble; // 50 mph and up: the rider's weight bends the front wires open and he goes out over them
+    if (v < 30) { this.vz = v * 0.1; this.w = v < 10 ? v * 0.2 : Math.min(9, v * 0.34); if (this.tumble) { this.cyls.length = 0; this.bent = true; } return; } // the bent post no longer stops the rider (it leans over, see labImpact)
+    this.knocked = true; this.cyls.length = 0;
+    this.vz = -0.5 * v; this.w = Math.min(12, v * 0.3); this.pdamp = 0.6; // the snapped post barely slows it: it rolls on and goes over
   }
+  knockedAt(v) { return v >= 30; }
   savePrev() { this.prev = { a: this.a, pw: this.pw.slice(), pl: this.pl.slice() }; }
   toLocalPrev(X, Y, Z) { const p = this.prev || this, c = Math.cos(p.a), s = Math.sin(p.a), yy = Y - p.pw[0], zz = Z - p.pw[1]; return [X - this.lane, yy * c - zz * s + p.pl[0], yy * s + zz * c + p.pl[1]]; }
   step(dt) {
     this.savePrev();
     if (this.mode === 'roll') { this.pw[1] += this.vz * dt; return this.pw[1] <= this.bz + this.br; } // true = touching the bollard
     if (this.mode === 'pivot') {
-      this.pw[1] += this.vz * dt; this.vz *= Math.pow(0.05, dt); this.w -= 20 * Math.cos(this.a) * dt; this.a += this.w * dt;
-      if (this.a < 0) { this.a = 0; this.w = -this.w * 0.25; } if (this.a > 1.35) { this.a = 1.35; this.w = Math.min(0, this.w); }
+      this.pw[1] += this.vz * dt; this.vz *= Math.pow(this.pdamp ?? 0.05, dt); this.w -= 20 * Math.cos(this.a) * dt; this.a += this.w * dt;
+      if (this.a < 0) { this.a = 0; this.w = -this.w * 0.25; }
+      if (!this.tumble) { if (this.a > 1.35) { this.a = 1.35; this.w = Math.min(0, this.w); } return false; }
+      // tumbling: once the weight is ahead of the front edge the cart goes over it and flies on as a free body
+      const cw = this.toWorld(0, 0.55 * this.S, 0), ry = cw[1] - this.pw[0], rz = cw[2] - this.pw[1];
+      if (rz < 0 && this.w > 0) { this.pl = [0.55 * this.S, 0]; this.vy = this.w * rz; const vz = this.vz - this.w * ry; this.pw = [cw[1], cw[2]]; this.vz = vz; this.mode = 'free'; }
       return false;
     }
     this.vy -= 9.8 * dt; this.pw[0] += this.vy * dt; this.pw[1] += this.vz * dt; this.a += this.w * dt;
     let minY = 1e9, low = null; for (const y of [0, this.H]) for (const z of [this.zfOut, this.zbOut]) { const wy = this.toWorld(0, y, z)[1]; if (wy < minY) { minY = wy; low = [y, z]; } }
     if (minY < 0 && this.vy < -2.5 && this.onHit) this.onHit(low, -this.vy); // a corner slams into the floor
-    if (minY < 0) { this.pw[0] -= minY; if (this.vy < 0) this.vy = -this.vy * 0.25; this.vz *= Math.pow(0.02, dt * 4); this.w *= Math.pow(0.02, dt * 3); this.w -= Math.sin(2 * this.a) * 8 * dt; }
+    if (minY < 0) { this.pw[0] -= minY; if (this.vy < 0) this.vy = -this.vy * 0.35; this.vz *= Math.pow(0.12, dt); this.w *= Math.pow(0.2, dt); if (Math.abs(this.w) < 2.5) this.w -= Math.sin(2 * this.a) * 8 * dt; }
     return false;
   }
 }
@@ -2619,6 +2627,10 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   core.skipBox = new Uint8Array(core.n);
   // no grip: Daggie doesn't hold on to the cart, he's carried only by the basket walls and his own inertia
   core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
+  const fast = impactV >= 10; // 50 mph and up: the tipping cart throws him out ahead in an arc, head first, spinning forward (tested offline)
+  if (fast) { const pk = I.pel * 3, yc = core.x[pk + 1] + 0.3, zc = core.x[pk + 2], up = clamp(0.22 * impactV, 4.5, 7), om = -3;
+    for (let i = 0; i < core.n; i++) { const k = i * 3, ry = core.x[k + 1] - yc, rz = core.x[k + 2] - zc; core.vel(i, vel.x, vel.y + up - om * rz, vel.z + om * ry, 1 / 240); }
+    core.friction = 0.995; core.drag = 0.01; }
   const pk0 = I.pel * 3, seatY = CART.toLocal(core.x[pk0], core.x[pk0 + 1], core.x[pk0 + 2])[1];
   const restB = {}, corr = {}; for (const n in RAG_PARTS) { const q = RAG_PARTS[n]; restB[n] = ragBasis(rest[q[0]], rest[q[1]], rest[q[2]], rest[q[3]], new THREE.Matrix4()); }
   // keep each part's own twist: remember how its real rotation differs from the one rebuilt from the points
@@ -2628,13 +2640,13 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
     for (let i = 0; i < 16; i++) spawnDrop(pos.clone(), new V3(rand(-2, 2), rand(0.5, 3), rand(-2, 2)), rand(0.012, 0.024)); burst(pos, 50, SPARK, 8); clank(10); tone(1500, 300, 0.25, 'sawtooth', 0.06);
     lastPop = 0; pop({ armL: 'ARM OFF!', armR: 'ARM OFF!', legL: 'LEG OFF!', legR: 'LEG OFF!', head: 'HEADLESS!' }[g], 'lilac'); setFace('hit', 1500); };
   core.onRelease = () => { lastPop = 0; pop('LET GO!', 'lilac'); setFace('scared', 1500); };
-  RAGSIM = { core, I, rest, restB, corr, t: 0, seatY };
+  RAGSIM = { core, I, rest, restB, corr, t: 0, seatY, fast };
 }
 function ragSimStep(dt) {
   const S = RAGSIM; if (!S) return; S.t += dt;
   // fixed 1/240 s physics steps (the grip and tearing limits were tuned at this rate), also in slow motion
   S.acc = (S.acc || 0) + dt; let n = 0;
-  S.core.relax = true; S.core.capUp = CART.knocked ? (S.t < 0.3 ? 3 : 7) : 3; // soft joint limits and a cap on upward kicks (m/s): he lunges forward and is thrown ahead, he is not catapulted up; tested offline
+  if (S.fast) { S.core.relax = S.t < 0.25; S.core.capUp = 0; } else { S.core.relax = true; S.core.capUp = 3; } // 15 mph: soft joint limits and no upward kicks, so he lurches forward and settles instead of bouncing around; tested offline
   while (S.acc >= 1 / 240 && n < 12) { labCartStep(1 / 240); S.core.step(1 / 240, 10); S.acc -= 1 / 240; n++; }
   if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); bollardFall(1 - Math.pow(1 - LAB.bollardTip, 3)); }
   if (n === 12) S.acc = 0;
@@ -2654,7 +2666,7 @@ function ragApply() { // move every mesh part to where its points are
 const LAB_LANE = 0, BOLLARD_Z = -8, BOLLARD_R = 0.16, BOLLARD_H = 1.1;
 let BOLLARD = null;
 // the post snaps just above its concrete base and falls forward, the way the cart was going (-z), turned a little by an off-centre hit
-function bollardFall(e) { if (!BOLLARD) return; BOLLARD.rotation.set(-1.35 * e, (LAB.tipYaw || 0) * e, 0); }
+function bollardFall(e) { if (!BOLLARD) return; BOLLARD.rotation.set(-(CART.knocked ? 1.35 : 0.5) * e, (LAB.tipYaw || 0) * e, 0); } // snapped: falls flat; bent (50 mph): leans over and stays
 const CART = new CartSim(CART_S, LAB_LANE, BOLLARD_Z, BOLLARD_R);
 CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); clank(Math.min(12, v)); };
 function labDentAt(y, z, v) { // crush the wires around a corner that slammed into the floor, toward the middle of the basket
@@ -2694,9 +2706,10 @@ function labImpact() {
   const dd = labDent(v); CART.box.zf = -0.45 * CART_S + dd * CART_S * 0.75; // the crumpled front wires are a wall further back now
   ragStart(new V3(0, 0, -v), v);
   if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.25, 0.25); lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
+  else if (CART.bent) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.1, 0.1); lastPop = 0; pop('POST BENT!', 'lilac'); }
   const bp = new V3(LAB_LANE, 0.8, BOLLARD_Z); burst(bp, 60 + v * 2, SPARK, 6 + v * 0.1); clank(12); tone(90, 30, 0.4, 'sine', 0.4); tone(1600, 400, 0.3, 'sawtooth', 0.05);
   if (!reduceMotion) shake = Math.min(0.9, 0.2 + v * 0.012);
-  slowUntil = performance.now() + 1200; slowK = 0.3; setFace('hit', 99999); if (!CART.knocked) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
+  slowUntil = performance.now() + 1200; slowK = 0.3; setFace('hit', 99999); if (!CART.knocked && !CART.bent) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
 }
 function labBollardOutcome() {
   const S = RAGSIM, c = S.core, torn = c.broken.length, inCart = c.inCart[S.I.pel], held = c.pins.some(p => p.on);
@@ -3243,10 +3256,10 @@ function labReplayStep(dt, now) {
   R2.t += dt * speed;
   const before = R2.t < R2.imp;
   if (R2.cage && R2.dent) { const want = before ? 'o' : 'd'; if (R2.shown !== want) { R2.cage.geometry.attributes.position.array.set(before ? R2.cage.geometry.userData.orig : R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; R2.shown = want; } }
-  bollardFall(before || !CART.knocked ? 0 : clamp((R2.t - R2.imp) * 5, 0, 1));
+  bollardFall(before || !(CART.knocked || CART.bent) ? 0 : clamp((R2.t - R2.imp) * 5, 0, 1));
   if (!before && !R2.boomed) { R2.boomed = true; burst(new V3(LAB_LANE, 0.8, BOLLARD_Z), 60, SPARK, 6); tone(90, 30, 0.5, 'sine', 0.4); if (!reduceMotion) shake = 0.5; }
   labReplayFrame(R2.t);
-  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
+  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked || CART.bent) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
 }
 function labReplayCam() {
   const R2 = LAB.replay, u = (R2.t - R2.from) / Math.max(0.01, R2.to - R2.from), shot = u < 0.34 ? 0 : u < 0.62 ? 1 : 2;
