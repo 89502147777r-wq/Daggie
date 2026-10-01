@@ -568,7 +568,7 @@ function makeCartMesh(S, wheelsOut) {
   const cage = new THREE.Mesh(mergeGeometries(geos), chrome); cage.castShadow = true; cage.name = 'cage'; cage.geometry.userData.orig = cage.geometry.attributes.position.array.slice(); g.add(cage);
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, W + 0.12, 14), red); handle.rotation.z = Math.PI / 2; handle.position.set(0, y1 + 0.1, zb1 + 0.14); handle.castShadow = true; g.add(handle);
   const flap = new THREE.Mesh(new THREE.BoxGeometry(W * 0.92, 0.02, 0.24), red); flap.position.set(0, y1 - 0.05, zb1 - 0.13); flap.rotation.x = -0.45; g.add(flap);
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; g.add(plate);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; plate.name = 'plate'; plate.userData.home = plate.position.clone(); g.add(plate);
   for (const [x, z] of [[-0.27, -0.44], [0.27, -0.44], [-0.27, 0.52], [0.27, 0.52]]) {
     const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), chrome); fork.position.set(x, 0.11, z); g.add(fork);
     const w = new THREE.Group(); w.position.set(x, 0.06, z); const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 16), black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); g.add(w); if (wheelsOut) wheelsOut.push(w);
@@ -1707,7 +1707,7 @@ function resetRun() {
   $('testNo').textContent = '#' + String(testNo).padStart(3, '0');
   snapCam = true;
   dlvReset();
-  if (VEH === 'cart' && MODE !== 'lab') { const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); } for (const w of wheels) w.visible = true; }
+  if (VEH === 'cart' && MODE !== 'lab') { const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); } for (const w of wheels) w.visible = true; const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
   recStart(); REC.test = testNo; REC.trick = trick.name; REC.gates = GATE_LAYOUT.map(a => a.slice());
   if (MODE === 'lab') labReset();
 }
@@ -2395,7 +2395,7 @@ class RagCore {
       if (B.frontOpen && L[2] < B.zf) this.inCart[i] = 0; // the front wall burst: anything past it is out
       else {
         // walls have thickness from the point's radius: the inside for this point is the basket shrunk by r
-        const hx = B.hw - r, zfi = B.frontOpen ? -1e9 : B.zf + r, zbi = B.zb - r, y0i = B.y0 + r;
+        const m0 = B.inset || 0, hx = B.hw - r - m0, zfi = B.frontOpen ? -1e9 : B.zf + r + m0, zbi = B.zb - r - m0, y0i = B.y0 + r; // inset: keep the (bigger) visible parts off the wires
         const inN = Math.abs(L[0]) < hx && L[2] > zfi && L[2] < zbi && L[1] > y0i && L[1] < B.y1, was = this.inCart[i];
         if (L[1] < B.y1 && L[1] > B.y0 - 0.3) {
           let n = null;
@@ -2453,14 +2453,14 @@ class RagCore {
       if (dirs) for (const h of this.hinges) if (h.on !== false) this.solveHinge(h, dirs);
       for (const p of this.pins) if (p.on) { const t = p.target(), k = p.i * 3, dx = (t[0] - x[k]) * p.stiff, dy = (t[1] - x[k + 1]) * p.stiff, dz = (t[2] - x[k + 2]) * p.stiff; x[k] += dx; x[k + 1] += dy; x[k + 2] += dz; p.tens = (p.tens || 0) + Math.hypot(dx, dy, dz); }
       for (let i = 0; i < n; i++) this.collide(i);
-      for (const s of this.segs) { this.segMid(s); const I = s.i * 3, mx = x[I], my = x[I + 1], mz = x[I + 2]; this.cf[s.i] = 0; this.collide(s.i); const dx = x[I] - mx, dy = x[I + 1] - my, dz = x[I + 2] - mz; if (dx || dy || dz) { for (const e of [s.a, s.b]) { const E = e * 3; x[E] += dx; x[E + 1] += dy; x[E + 2] += dz; } } }
+      for (const s of this.segs) { this.segMid(s); const I = s.i * 3, mx = x[I], my = x[I + 1], mz = x[I + 2]; this.cf[s.i] = 0; this.collide(s.i); const dx = x[I] - mx, dy = x[I + 1] - my, dz = x[I + 2] - mz; if (dx || dy || dz) { for (const e of [s.a, s.b]) { const E = e * 3; x[E] += dx; x[E + 1] += dy; x[E + 2] += dz; if (this.cf[s.i] && !this.cf[e]) { this.cn[E] = this.cn[I]; this.cn[E + 1] = this.cn[I + 1]; this.cn[E + 2] = this.cn[I + 2]; this.cf[e] = 2; } } } /* bone contacts: stop the motion into the wall, no friction */ }
     }
     // contacts are inelastic: remove the speed going into the surface, add some friction along it
     for (let i = 0; i < n; i++) if (this.cf[i]) {
       const k = i * 3, nx = this.cn[k], ny = this.cn[k + 1], nz = this.cn[k + 2];
       let vx = x[k] - o[k], vy = x[k + 1] - o[k + 1], vz = x[k + 2] - o[k + 2]; const vn = vx * nx + vy * ny + vz * nz;
       if (vn < 0) { vx -= nx * vn; vy -= ny * vn; vz -= nz * vn; if (this.limbOf && this.tearSpeed && -vn / this.dt > this.tearSpeed) { const g = this.limbOf[i]; if (g && Math.random() < 0.6) this.breakGroup(g); } }
-      const f = this.friction ?? 0.75; vx *= f; vz *= f; if (Math.abs(ny) < 0.7) vy *= f;
+      if (this.cf[i] === 1) { const f = this.friction ?? 0.75; vx *= f; vz *= f; if (Math.abs(ny) < 0.7) vy *= f; }
       o[k] = x[k] - vx; o[k + 1] = x[k + 1] - vy; o[k + 2] = x[k + 2] - vz;
     }
     // resting contacts fall asleep: tiny leftover motion between touching parts is damped away, so a body at rest lies still instead of trembling
@@ -2619,7 +2619,7 @@ function ragSimStep(dt) {
   // fixed 1/240 s physics steps (the grip and tearing limits were tuned at this rate), also in slow motion
   S.acc = (S.acc || 0) + dt; let n = 0;
   while (S.acc >= 1 / 240 && n < 12) { labCartStep(1 / 240); S.core.step(1 / 240, 10); S.acc -= 1 / 240; n++; }
-  if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); BOLLARD.rotation.x = -1.35 * (1 - Math.pow(1 - LAB.bollardTip, 3)); }
+  if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); BOLLARD.rotation.z = (LAB.tipSide || 1) * 1.35 * (1 - Math.pow(1 - LAB.bollardTip, 3)); }
   if (n === 12) S.acc = 0;
   ragApply();
 }
@@ -2640,10 +2640,10 @@ const CART = new CartSim(CART_S, LAB_LANE, BOLLARD_Z, BOLLARD_R);
 CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); clank(Math.min(12, v)); };
 function labDentAt(y, z, v) { // crush the wires around a corner that slammed into the floor, toward the middle of the basket
   const cage = board.getObjectByName('cage'); if (!cage) return;
-  const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 30, 0.03, 0.28), R = 0.28;
+  const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 40, 0.02, 0.12), R = 0.22;
   for (let i = 0; i < a.length; i += 3) {
     const dy = a[i + 1] - y, dz = a[i + 2] - z, d = Math.hypot(dy, dz); if (d > R) continue;
-    const k = (1 - d / R) ** 2; a[i + 1] += (0.71 - a[i + 1]) * depth * k * 0.9; a[i + 2] += (0.05 - a[i + 2]) * depth * k * 0.9; a[i] *= 1 + depth * 0.25 * k;
+    const k = (1 - d / R) ** 2; a[i + 1] += Math.sign(0.71 - a[i + 1]) * depth * k * 0.5; a[i + 2] += Math.sign(0.05 - a[i + 2]) * depth * k * 0.5; a[i] *= 1 + depth * 0.25 * k;
   }
   pos.needsUpdate = true; cage.geometry.computeVertexNormals();
 }
@@ -2652,7 +2652,7 @@ function labCartPlace() { const w = CART.toWorld(0, 0, 0); board.position.set(w[
 function labCartStep(dt) { if (LABCART.hit) CART.step(dt); labCartPlace(); }
 function labDent(v) { // crumple the front of the basket: deeper, wider and higher the faster it hit
   const cage = board.getObjectByName('cage'); if (!cage) return;
-  const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 26, 0.06, 0.75), R = 0.16 + Math.min(0.3, v / 60);
+  const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 40, 0.05, 0.3), R = 0.16 + Math.min(0.3, v / 60);
   for (let i = 0; i < a.length; i += 3) {
     const x = a[i], y = a[i + 1], z = a[i + 2]; if (z > -0.1) continue;
     const fx = Math.max(0, 1 - Math.abs(x) / R), fz = clamp((-z - 0.1) / 0.37, 0, 1), k = fx * fx * (3 - 2 * fx) * fz;
@@ -2660,18 +2660,21 @@ function labDent(v) { // crumple the front of the basket: deeper, wider and high
     a[i + 2] = z + depth * k * (0.6 + 0.4 * fy); a[i + 1] = y - depth * 0.3 * k * fy; a[i] = x * (1 + depth * 0.45 * k);
   }
   pos.needsUpdate = true; cage.geometry.computeVertexNormals(); cage.geometry.computeBoundingSphere();
+  const plate = board.getObjectByName('plate'); if (plate) { plate.position.z += depth * 0.85; plate.position.y -= depth * 0.2; plate.rotation.set(-depth * 0.8, Math.PI, depth * rand(-0.6, 0.6)); if (v > 30) plate.visible = false; }
   if (v > 20) for (const w of wheels.slice(0, 2)) { w.visible = false; burst(w.getWorldPosition(new V3()), 20, SPARK, 6); }
+  return depth;
 }
 function labCartReset() {
   const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
-  for (const w of wheels) w.visible = true;
-  LABCART.hit = false; CART.place(BOLLARD_Z + BOLLARD_R + 14); CART.vz = 0; labCartPlace();
+  for (const w of wheels) w.visible = true; { const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
+  CART.box.zf = -0.45 * CART_S; LABCART.hit = false; CART.place(BOLLARD_Z + BOLLARD_R + 14); CART.vz = 0; labCartPlace();
   if (BOLLARD) BOLLARD.rotation.set(0, 0, 0); LAB.bollardTip = 0;
 }
 function labImpact() {
   const v = LABCART.v; LABCART.hit = true; CART.impact(v);
-  labDent(v); ragStart(new V3(0, 0, -v), v);
-  if (CART.knocked) { LAB.bollardTip = 0.001; lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
+  const dd = labDent(v); CART.box.zf = -0.45 * CART_S + dd * CART_S * 0.75; // the crumpled front wires are a wall further back now
+  ragStart(new V3(0, 0, -v), v);
+  if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipSide = Math.random() < 0.5 ? -1 : 1; lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
   const bp = new V3(LAB_LANE, 0.8, BOLLARD_Z); burst(bp, 60 + v * 2, SPARK, 6 + v * 0.1); clank(12); tone(90, 30, 0.4, 'sine', 0.4); tone(1600, 400, 0.3, 'sawtooth', 0.05);
   if (!reduceMotion) shake = Math.min(0.9, 0.2 + v * 0.012);
   slowUntil = performance.now() + 1200; slowK = 0.3; setFace('hit', 99999); if (!CART.knocked) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
@@ -3211,10 +3214,10 @@ function labReplayStep(dt, now) {
   R2.t += dt * speed;
   const before = R2.t < R2.imp;
   if (R2.cage && R2.dent) { const want = before ? 'o' : 'd'; if (R2.shown !== want) { R2.cage.geometry.attributes.position.array.set(before ? R2.cage.geometry.userData.orig : R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; R2.shown = want; } }
-  if (BOLLARD) BOLLARD.rotation.x = before || !CART.knocked ? 0 : -1.35 * clamp((R2.t - R2.imp) * 5, 0, 1);
+  if (BOLLARD) BOLLARD.rotation.z = before || !CART.knocked ? 0 : (LAB.tipSide || 1) * 1.35 * clamp((R2.t - R2.imp) * 5, 0, 1);
   if (!before && !R2.boomed) { R2.boomed = true; burst(new V3(LAB_LANE, 0.8, BOLLARD_Z), 60, SPARK, 6); tone(90, 30, 0.5, 'sine', 0.4); if (!reduceMotion) shake = 0.5; }
   labReplayFrame(R2.t);
-  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (BOLLARD && CART.knocked) BOLLARD.rotation.x = -1.35; LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
+  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (BOLLARD && CART.knocked) BOLLARD.rotation.z = (LAB.tipSide || 1) * 1.35; LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
 }
 function labReplayCam() {
   const R2 = LAB.replay, u = (R2.t - R2.from) / Math.max(0.01, R2.to - R2.from), shot = u < 0.34 ? 0 : u < 0.62 ? 1 : 2;
