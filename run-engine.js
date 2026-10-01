@@ -2483,7 +2483,7 @@ class CartSim {
   toLocal(X, Y, Z) { const c = Math.cos(this.a), s = Math.sin(this.a), yy = Y - this.pw[0], zz = Z - this.pw[1]; return [X - this.lane, yy * c - zz * s + this.pl[0], yy * s + zz * c + this.pl[1]]; }
   dirWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a); return [x, y * c - z * s, y * s + z * c]; }
   impact(v) { // v: speed at the moment the front touches the bollard
-    if (v < 20) { this.mode = 'pivot'; this.pw = [0, this.bz + this.br]; this.vz = v * 0.1; this.w = Math.min(14, v * 0.35); return; }
+    if (v < 50) { this.mode = 'pivot'; this.pw = [0, this.bz + this.br]; this.vz = v * 0.1; this.w = Math.min(5, v * 0.2); return; } // steel post holds up to ~110 mph: the cart stops dead and noses up
     this.knocked = true; this.cyls.length = 0; this.burst = v > 22; this.box.frontOpen = this.burst;
     const c = [0.55 * this.S, 0], w = this.toWorld(0, c[0], c[1]); this.pl = c; this.pw = [w[1], w[2]];
     this.mode = 'free'; this.vz = -0.3 * v; this.vy = 1.5 + v * 0.04; this.w = Math.min(18, v * 0.22);
@@ -2600,7 +2600,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   for (const s of [-1, 1]) {
     const side = s < 0 ? (SIDE.L < 0 ? 'L' : 'R') : (SIDE.L < 0 ? 'R' : 'L'), hi = I['ha' + side], wi = I['wr' + side];
     core.skipBox[hi] = 1; core.skipBox[wi] = 1; // a gripping hand and wrist reach over the rim
-    core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.35, maxErr: impactV < 12 ? 99 : RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 26 ? 0.03 + Math.random() * 0.04 : 0, target: () => CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, -0.12) });
+    core.pins.push({ i: hi, w: wi, body: I.chest, on: true, stiff: 0.35, maxErr: impactV < 12 ? 99 : RAG_TUNE.grip, grace: Math.min(0.15, 1.5 / Math.max(impactV, 1)), forceAt: impactV > 26 ? 0.03 + Math.random() * 0.04 : 0, target: () => { const ck = I.chest * 3, cz = CART.toLocal(core.x[ck], core.x[ck + 1], core.x[ck + 2])[2], zr = Math.max(CART.box.zf + 0.06, Math.min(-0.12, cz - 0.15)); return CART.toWorld(s * CART_RIM_X * 1.02, BOARD_TOP + CART_RIM_Y - 0.01, zr); } }); // the hand slides forward along the rail when he is thrown forward, so he hangs off the front instead of being dragged over the back
   }
   core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
   const pk0 = I.pel * 3, seatY = CART.toLocal(core.x[pk0], core.x[pk0 + 1], core.x[pk0 + 2])[1];
@@ -2619,7 +2619,7 @@ function ragSimStep(dt) {
   // fixed 1/240 s physics steps (the grip and tearing limits were tuned at this rate), also in slow motion
   S.acc = (S.acc || 0) + dt; let n = 0;
   while (S.acc >= 1 / 240 && n < 12) { labCartStep(1 / 240); S.core.step(1 / 240, 10); S.acc -= 1 / 240; n++; }
-  if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); BOLLARD.rotation.z = (LAB.tipSide || 1) * 1.35 * (1 - Math.pow(1 - LAB.bollardTip, 3)); }
+  if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); bollardFall(1 - Math.pow(1 - LAB.bollardTip, 3)); }
   if (n === 12) S.acc = 0;
   ragApply();
 }
@@ -2636,6 +2636,8 @@ function ragApply() { // move every mesh part to where its points are
 // ---- the test cart: the tested rigid-body cart from the physics core, drawn with the player's cart mesh ----
 const LAB_LANE = 0, BOLLARD_Z = -8, BOLLARD_R = 0.16, BOLLARD_H = 1.1;
 let BOLLARD = null;
+// the post snaps just above its concrete base and falls forward, the way the cart was going (-z), turned a little by an off-centre hit
+function bollardFall(e) { if (!BOLLARD) return; BOLLARD.rotation.set(-1.35 * e, (LAB.tipYaw || 0) * e, 0); }
 const CART = new CartSim(CART_S, LAB_LANE, BOLLARD_Z, BOLLARD_R);
 CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); clank(Math.min(12, v)); };
 function labDentAt(y, z, v) { // crush the wires around a corner that slammed into the floor, toward the middle of the basket
@@ -2668,13 +2670,13 @@ function labCartReset() {
   const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
   for (const w of wheels) w.visible = true; { const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
   CART.box.zf = -0.45 * CART_S; LABCART.hit = false; CART.place(BOLLARD_Z + BOLLARD_R + 14); CART.vz = 0; labCartPlace();
-  if (BOLLARD) BOLLARD.rotation.set(0, 0, 0); LAB.bollardTip = 0;
+  bollardFall(0); LAB.bollardTip = 0;
 }
 function labImpact() {
   const v = LABCART.v; LABCART.hit = true; CART.impact(v);
   const dd = labDent(v); CART.box.zf = -0.45 * CART_S + dd * CART_S * 0.75; // the crumpled front wires are a wall further back now
   ragStart(new V3(0, 0, -v), v);
-  if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipSide = Math.random() < 0.5 ? -1 : 1; lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
+  if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.25, 0.25); lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
   const bp = new V3(LAB_LANE, 0.8, BOLLARD_Z); burst(bp, 60 + v * 2, SPARK, 6 + v * 0.1); clank(12); tone(90, 30, 0.4, 'sine', 0.4); tone(1600, 400, 0.3, 'sawtooth', 0.05);
   if (!reduceMotion) shake = Math.min(0.9, 0.2 + v * 0.012);
   slowUntil = performance.now() + 1200; slowK = 0.3; setFace('hit', 99999); if (!CART.knocked) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
@@ -2952,7 +2954,7 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
-const LAB_SPEEDS = [15, 50, 80, 130, 200]; // mph for levels 1..5: stays in, hangs on, thrown out, flies far, loses limbs
+const LAB_SPEEDS = [15, 50, 80, 130, 200]; // mph for levels 1..5: stays in, hangs on, thrown out (post holds), post snaps + flies far, loses limbs
 const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
@@ -2990,7 +2992,7 @@ function buildLab() {
   labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard');
   for (const o of TRACK_OBJS) o.visible = false; // the lab has no track
   BIG.visible = false; board.visible = LAB.machine === 'bollard';
-  { const bm = new THREE.Group(), st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2; st.castShadow = true; bm.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H; bm.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = bm; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
+  { const bm = new THREE.Group(), post = new THREE.Group(); post.rotation.order = 'YXZ'; post.position.y = 0.12; bm.add(post); const st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2 - 0.12; st.castShadow = true; post.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H - 0.12; post.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = post; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
   scene.fog = new THREE.Fog(0x2a2733, 60, 260);
   const conc = tex(512, 512, (g, w, h) => {
     g.fillStyle = '#6f6c70'; g.fillRect(0, 0, w, h);
@@ -3214,10 +3216,10 @@ function labReplayStep(dt, now) {
   R2.t += dt * speed;
   const before = R2.t < R2.imp;
   if (R2.cage && R2.dent) { const want = before ? 'o' : 'd'; if (R2.shown !== want) { R2.cage.geometry.attributes.position.array.set(before ? R2.cage.geometry.userData.orig : R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; R2.shown = want; } }
-  if (BOLLARD) BOLLARD.rotation.z = before || !CART.knocked ? 0 : (LAB.tipSide || 1) * 1.35 * clamp((R2.t - R2.imp) * 5, 0, 1);
+  bollardFall(before || !CART.knocked ? 0 : clamp((R2.t - R2.imp) * 5, 0, 1));
   if (!before && !R2.boomed) { R2.boomed = true; burst(new V3(LAB_LANE, 0.8, BOLLARD_Z), 60, SPARK, 6); tone(90, 30, 0.5, 'sine', 0.4); if (!reduceMotion) shake = 0.5; }
   labReplayFrame(R2.t);
-  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (BOLLARD && CART.knocked) BOLLARD.rotation.z = (LAB.tipSide || 1) * 1.35; LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
+  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
 }
 function labReplayCam() {
   const R2 = LAB.replay, u = (R2.t - R2.from) / Math.max(0.01, R2.to - R2.from), shot = u < 0.34 ? 0 : u < 0.62 ? 1 : 2;
