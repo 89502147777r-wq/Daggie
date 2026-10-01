@@ -2468,8 +2468,8 @@ class RagCore {
     const dirs = this.frame ? this.frame(this) : null;
     this.cf.fill(0);
     for (let it = 0; it < iters; it++) {
-      for (const L of this.links) if (L.on) this.solveLink(L);
-      if (dirs) for (const h of this.hinges) if (h.on !== false) this.solveHinge(h, dirs);
+      for (const L of this.links) if (L.on && !(this.relax && L.type === 1)) this.solveLink(L);
+      if (dirs && !this.relax) for (const h of this.hinges) if (h.on !== false) this.solveHinge(h, dirs); // relax: in the first moments of a crash the joint limits only add energy (they pole-vault the body)
       for (const p of this.pins) if (p.on) { const t = p.target(), k = p.i * 3, dx = (t[0] - x[k]) * p.stiff, dy = (t[1] - x[k + 1]) * p.stiff, dz = (t[2] - x[k + 2]) * p.stiff; x[k] += dx; x[k + 1] += dy; x[k + 2] += dz; p.tens = (p.tens || 0) + Math.hypot(dx, dy, dz); }
       for (let i = 0; i < n; i++) this.collide(i);
       for (const s of this.segs) { this.segMid(s); const I = s.i * 3, mx = x[I], my = x[I + 1], mz = x[I + 2]; this.cf[s.i] = 0; this.collide(s.i); const dx = x[I] - mx, dy = x[I + 1] - my, dz = x[I + 2] - mz; if (dx || dy || dz) { for (const e of [s.a, s.b]) { const E = e * 3; x[E] += dx; x[E + 1] += dy; x[E + 2] += dz; if (this.cf[s.i] && !this.cf[e]) { this.cn[E] = this.cn[I]; this.cn[E + 1] = this.cn[I + 1]; this.cn[E + 2] = this.cn[I + 2]; this.cf[e] = 2; } } } /* bone contacts: stop the motion into the wall, no friction */ }
@@ -2482,6 +2482,7 @@ class RagCore {
       if (this.cf[i] === 1) { const f = this.friction ?? 0.75; vx *= f; vz *= f; if (Math.abs(ny) < 0.7) vy *= f; }
       o[k] = x[k] - vx; o[k + 1] = x[k + 1] - vy; o[k + 2] = x[k + 2] - vz;
     }
+    if (this.capUp) for (let i = 0; i < n; i++) { const k = i * 3, vy = x[k + 1] - o[k + 1], cap = this.capUp * dt; if (vy > cap) o[k + 1] = x[k + 1] - cap; } // nothing gets kicked upward faster than capUp (m/s)
     // resting contacts fall asleep: tiny leftover motion between touching parts is damped away, so a body at rest lies still instead of trembling
     const sv = (this.sleepV ?? 0.35) * dt;
     for (let i = 0; i < n; i++) { const k = i * 3, vx = x[k] - o[k], vy = x[k + 1] - o[k + 1], vz = x[k + 2] - o[k + 2], sp = Math.hypot(vx, vy, vz);
@@ -2505,7 +2506,7 @@ class CartSim {
     if (v < 30) { this.mode = 'pivot'; this.pw = [0, this.bz + this.br]; this.vz = v * 0.1; this.w = Math.min(5, v * 0.2); return; } // the post holds at 15 and 50 mph: the cart stops dead and noses up; from 80 mph it snaps
     this.knocked = true; this.cyls.length = 0; this.burst = v > 22; this.box.frontOpen = this.burst;
     const c = [0.55 * this.S, 0], w = this.toWorld(0, c[0], c[1]); this.pl = c; this.pw = [w[1], w[2]];
-    this.mode = 'free'; this.vz = -0.3 * v; this.vy = 1.5 + v * 0.04; this.w = Math.min(18, v * 0.22);
+    this.mode = 'free'; this.vz = -0.55 * v; this.vy = 0.3; this.w = 0; // the snapped post barely slows the cart: it rolls on flat, so he is thrown straight ahead by his own inertia, not tossed up by a tumbling cart
   }
   savePrev() { this.prev = { a: this.a, pw: this.pw.slice(), pl: this.pl.slice() }; }
   toLocalPrev(X, Y, Z) { const p = this.prev || this, c = Math.cos(p.a), s = Math.sin(p.a), yy = Y - p.pw[0], zz = Z - p.pw[1]; return [X - this.lane, yy * c - zz * s + p.pl[0], yy * s + zz * c + p.pl[1]]; }
@@ -2633,6 +2634,7 @@ function ragSimStep(dt) {
   const S = RAGSIM; if (!S) return; S.t += dt;
   // fixed 1/240 s physics steps (the grip and tearing limits were tuned at this rate), also in slow motion
   S.acc = (S.acc || 0) + dt; let n = 0;
+  S.core.relax = true; S.core.capUp = CART.knocked ? (S.t < 0.3 ? 3 : 7) : 3; // soft joint limits and a cap on upward kicks (m/s): he lunges forward and is thrown ahead, he is not catapulted up; tested offline
   while (S.acc >= 1 / 240 && n < 12) { labCartStep(1 / 240); S.core.step(1 / 240, 10); S.acc -= 1 / 240; n++; }
   if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); bollardFall(1 - Math.pow(1 - LAB.bollardTip, 3)); }
   if (n === 12) S.acc = 0;
@@ -3051,11 +3053,22 @@ let SPEEDO = null;
 function labDress() {
   const lane = new THREE.MeshBasicMaterial({ color: 0xffc21a });
   for (const x of [-1.6, 1.6]) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 200), lane); l.rotation.x = -Math.PI / 2; l.position.set(LAB_LANE + x, 0.011, BOLLARD_Z + 20 - 100); scene.add(l); }
-  // distance marks after the post: how far did he fly?
-  for (let d = 5; d <= 120; d += 5) {
-    const z = BOLLARD_Z - d, big = d % 10 === 0;
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(big ? 6 : 3.2, 0.08), new THREE.MeshBasicMaterial({ color: 0xffffff })); line.rotation.x = -Math.PI / 2; line.position.set(LAB_LANE, 0.012, z); scene.add(line);
-    if (big) { const t = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.6), new THREE.MeshBasicMaterial({ map: tex(256, 96, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#ffffff'; g.font = '700 70px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(d + ' m', w / 2, h / 2 + 4); }), transparent: true })); t.rotation.x = -Math.PI / 2; t.position.set(LAB_LANE + 3.6, 0.013, z); scene.add(t); }
+  // distance ruler painted on the floor, readable from the chase camera: short ticks every 5 m, a line and a label on both sides every 10 m
+  {
+    const flat = (w, h, mat, x, z) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.012, z); m.renderOrder = 2; scene.add(m); return m; };
+    const paint = (col, op) => new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false });
+    const wTick = paint(0xffffff, 0.8), wLine = paint(0xffffff, 0.35), cLine = paint(0x5ce1ff, 0.7), gLine = paint(0xffc21a, 0.85);
+    const label = (txt, col) => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, map: tex(320, 128, (g, cw, ch) => {
+      g.clearRect(0, 0, cw, ch); g.fillStyle = 'rgba(12,9,28,.62)'; g.beginPath(); if (g.roundRect) g.roundRect(6, 12, cw - 12, ch - 24, 30); else g.rect(6, 12, cw - 12, ch - 24); g.fill();
+      g.lineWidth = 5; g.strokeStyle = col; g.stroke(); g.fillStyle = '#fff'; g.font = '700 72px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, cw / 2, ch / 2 + 4); }) });
+    flat(6.8, 0.2, gLine, LAB_LANE, BOLLARD_Z - 0.4); // the start line at the post
+    for (let d = 5; d <= 120; d += 5) {
+      const z = BOLLARD_Z - d, big = d % 10 === 0, gold = d % 100 === 0, cyan = d % 50 === 0;
+      if (!big) { for (const sd of [-1, 1]) flat(0.9, 0.07, wTick, LAB_LANE + sd * 3.0, z); continue; }
+      flat(6.4, cyan ? 0.13 : 0.07, gold ? gLine : cyan ? cLine : wLine, LAB_LANE, z);
+      const lm = label(d + ' m', gold ? '#ffc21a' : cyan ? '#5ce1ff' : 'rgba(255,255,255,.7)');
+      for (const sd of [-1, 1]) flat(2.2, 0.88, lm, LAB_LANE + sd * 4.5, z);
+    }
   }
   const zone = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), stripeMat(4)); zone.rotation.x = -Math.PI / 2; zone.position.set(LAB_LANE, 0.009, BOLLARD_Z); zone.material = zone.material.clone(); zone.material.transparent = true; zone.material.opacity = 0.35; scene.add(zone);
   // speed gantry with a live readout
@@ -3188,12 +3201,9 @@ function labHall() {
       for (let k = 0; k < 3; k++) { const gb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.4, 12), new THREE.MeshStandardMaterial({ color: pick([0x2e6fd8, 0x9aa0aa, 0x2b8a4a]), metalness: 0.5, roughness: 0.4 })); gb.position.set(x - sd * 0.5, 0.7, z + 3 + k * 0.36); scene.add(gb); }
     }
   }
-  // landing zones where he ends up: target rings, crash mats and box stacks beside the lane
+  // landing zones where he ends up: crash mats and box stacks beside the lane (no painted targets)
   for (const [d, lbl] of [[12, 'ZONE A'], [30, 'ZONE B'], [60, 'ZONE C'], [95, 'ZONE D']]) {
     const z = BOLLARD_Z - d;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(2.3, 2.6, 48), new THREE.MeshBasicMaterial({ color: 0xff4a5a, transparent: true, opacity: 0.55, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.set(LAB_LANE, 0.015, z); scene.add(ring);
-    const ring2 = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.3, 40), ring.material); ring2.rotation.x = -Math.PI / 2; ring2.position.set(LAB_LANE, 0.015, z); scene.add(ring2);
-    const t = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.7), new THREE.MeshBasicMaterial({ transparent: true, map: tex(256, 76, (c, w, h) => { c.clearRect(0, 0, w, h); c.fillStyle = '#ff4a5a'; c.font = '700 60px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(lbl, w / 2, h / 2 + 3); }) })); t.rotation.x = -Math.PI / 2; t.position.set(LAB_LANE - 3.4, 0.016, z); scene.add(t);
     for (const sd of [-1, 1]) { const mat = new THREE.Mesh(new RoundedBoxGeometry(2, 0.45, 3, 2, 0.12), new THREE.MeshStandardMaterial({ color: 0x2455b8, roughness: 0.8 })); mat.position.set(LAB_LANE + sd * 5.2, 0.22, z); mat.castShadow = mat.receiveShadow = true; scene.add(mat);
       for (let k = 0; k < 6; k++) { const bx = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.7), new THREE.MeshStandardMaterial({ color: 0xc8a06a, roughness: 0.95 })); const row = k < 3 ? 0 : k < 5 ? 1 : 2, col = k < 3 ? k : k < 5 ? k - 3 : 0; bx.position.set(LAB_LANE + sd * 7.3, 0.3 + row * 0.6, z - 0.75 + col * 0.75 + row * 0.37); bx.rotation.y = rand(-0.15, 0.15); bx.castShadow = true; scene.add(bx); } }
   }
