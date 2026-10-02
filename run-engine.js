@@ -815,8 +815,8 @@ const GATE_S = L.gates;
 const GATE_INFO = { A: ['?', 'DOOR A', 0x9b4dff, '#7a2ee8'], B: ['?', 'DOOR B', 0xff8a1f, '#e86f0c'] };
 const MYSTERY = {
   'TNT RAIN': ['Crates falling from the sky!', 0], 'MOON GRAVITY': ['Floaty jumps for 6 s', 1], 'ROCKET BOOST': ['Full throttle!', 1],
-  'OIL SLICK': ['Slippery for 3 s', 0], 'SHIELD': ['One free hit', 1], 'ARM CANNON': ['3 shots', 1], 'REPAIR': ['All parts back', 1],
-  'SUPER JUMP': ['Jumps x1.5 for 6 s', 1], 'ANVIL': ['Look up!', 0], 'MATRIX MODE': ['Slow motion', 1],
+  'OIL SLICK': ['Slippery for 3 s', 0], 'FIRST AID': ['+50 health', 1], 'ARM CANNON': ['3 shots', 1], 'REPAIR': ['All parts back', 1],
+  'SUPER JUMP': ['Jumps x1.5 for 6 s', 1], 'BOWLING BALL': ['Strike! Dodge it', 0], 'LIGHTNING STORM': ['Watch the sky!', 0],
 };
 const MYSTERY_KEYS = Object.keys(MYSTERY);
 const GATE_TEX = {};
@@ -843,13 +843,13 @@ const GATES = GATE_S.map((s, gi) => {
     const cur = new THREE.Mesh(new THREE.PlaneGeometry(HALF - 0.36, 3.3), curMat); cur.position.set(0, 1.65, 0); grp.add(cur);
     return { grp, signMat, postMat, curMat, flash: 0 };
   });
-  return { s, gi, sides, keys: ['A', 'B'], fx: ['SHIELD', 'ANVIL'], used: false };
+  return { s, gi, sides, keys: ['A', 'B'], fx: ['FIRST AID', 'BOWLING BALL'], used: false };
 });
 let GATE_LAYOUT = [];
 function layoutGates(lay) {
   GATE_LAYOUT = lay.map(a => a.slice());
   GATES.forEach((gt, i) => {
-    const [fa, fb] = lay[i] || []; gt.fx = [MYSTERY[fa] ? fa : 'SHIELD', MYSTERY[fb] ? fb : 'ANVIL'];
+    const [fa, fb] = lay[i] || []; gt.fx = [MYSTERY[fa] ? fa : 'FIRST AID', MYSTERY[fb] ? fb : 'BOWLING BALL'];
     gt.keys = ['A', 'B'];
     gt.sides.forEach((sd, k) => {
       const col = GATE_INFO[gt.keys[k]][2];
@@ -859,7 +859,7 @@ function layoutGates(lay) {
     });
   });
 }
-function randomGates() { layoutGates(GATES.map(() => { const a = pick(MYSTERY_KEYS); let b = pick(MYSTERY_KEYS); while (b === a) b = pick(MYSTERY_KEYS); return [a, b]; })); for (const gt of GATES) gt.used = false; }
+function randomGates() { layoutGates(GATES.map(() => { const a = pick(MYSTERY_KEYS); let b = pick(MYSTERY_KEYS); while (b === a || (!MYSTERY[a][1] && !MYSTERY[b][1])) b = pick(MYSTERY_KEYS); return Math.random() < 0.5 ? [a, b] : [b, a]; })); // every door has at least one good side for (const gt of GATES) gt.used = false; }
 function animateGates(t, dt) {
   for (const gt of GATES) for (const sd of gt.sides) { sd.flash *= Math.pow(0.05, dt); sd.curMat.opacity = 0.16 + Math.sin(t * 4 + gt.s) * 0.05 + sd.flash * 0.7; }
 }
@@ -886,21 +886,141 @@ const ANVIL = new THREE.Group(); {
   ANVIL.visible = false; scene.add(ANVIL);
 }
 const ANVIL_RING = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.95, 32), new THREE.MeshBasicMaterial({ color: glowColor(0xff3a3a, 2), transparent: true, opacity: 0.8, depthWrite: false })); ANVIL_RING.rotation.x = -Math.PI / 2; ANVIL_RING.visible = false; scene.add(ANVIL_RING);
-function resetFx() { Object.assign(FX, { grav: 1, gravT: 0, jump: 1, jumpT: 0, boostT: 0 }); for (const r of RAIN) { r.on = false; r.m.visible = false; } FX.anvil = null; ANVIL.visible = false; ANVIL_RING.visible = false; }
+
+// ---------- bowling ball gate: a big glossy ball drops in ahead, bounces and rolls at him, smashing low things on its way ----------
+const BOWL = (() => {
+  const r = 0.7;
+  const skin = tex(1024, 512, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#0a1a66'); gr.addColorStop(0.5, '#1f4fd6'); gr.addColorStop(1, '#091347'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 52; i++) { g.strokeStyle = 'rgba(' + (i % 3 ? '150,205,255' : '255,255,255') + ',' + (0.05 + Math.random() * 0.15).toFixed(2) + ')'; g.lineWidth = 2 + Math.random() * 16; g.beginPath(); const y0 = Math.random() * h; g.moveTo(0, y0); g.bezierCurveTo(w * 0.3, y0 + (Math.random() - 0.5) * 240, w * 0.65, y0 + (Math.random() - 0.5) * 240, w, y0 + (Math.random() - 0.5) * 120); g.stroke(); }
+  });
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 32), new THREE.MeshPhysicalMaterial({ map: skin, roughness: 0.14, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.04, emissive: 0x0a1a55, emissiveIntensity: 0.3 }));
+  m.castShadow = true; m.visible = false; scene.add(m);
+  const holeM = new THREE.MeshBasicMaterial({ color: 0x03030a }), up = new V3(0, 0, 1);
+  for (const [th, ph, rr] of [[0.24, 0, 0.085], [0.24, 0.8, 0.085], [0.58, 3.9, 0.1]]) { // two finger holes and a thumb hole
+    const n = new V3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)), d = new THREE.Mesh(new THREE.CircleGeometry(rr, 20), holeM);
+    d.position.copy(n).multiplyScalar(r * 1.003); d.quaternion.setFromUnitVectors(up, n); m.add(d);
+  }
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(r * 1.15, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.visible = false; scene.add(shadow);
+  const mark = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.15, 40), new THREE.MeshBasicMaterial({ color: glowColor(0xff3a3a, 2), transparent: true, opacity: 0.85, depthWrite: false })); mark.rotation.x = -Math.PI / 2; mark.visible = false; scene.add(mark);
+  const smash = DESTR.filter(d => OBS.hurdles.includes(d.obj) || OBS.barrels.includes(d.obj));
+  return { r, m, shadow, mark, smash };
+})();
+function bowlShow(on, x, y, s, rot, markOn, mx, ms, t) {
+  const B = BOWL; B.m.visible = on;
+  if (on) { B.m.position.set(x, y, -s); B.m.rotation.set(rot, 0, 0); const gr = trackH(s); B.shadow.visible = gr != null; if (gr != null) { B.shadow.position.set(x, gr + 0.03, -s); B.shadow.scale.setScalar(clamp(1.3 - (y - gr - B.r) * 0.1, 0.5, 1.2)); } } else B.shadow.visible = false;
+  B.mark.visible = markOn; if (markOn) { B.mark.position.set(mx, (trackH(ms) ?? 0) + 0.04, -ms); B.mark.scale.setScalar(1 + Math.sin((t || 0) * 18) * 0.1); }
+}
+function spawnBowl() {
+  const T = 2.0, v0 = Math.max(R.speed, 8); let vs = 13, D = (v0 + vs) * T;
+  D = Math.min(D, 95); if (DLV) D = Math.min(D, DOOR_S - 4 - R.s);
+  while (D > 24 && trackH(R.s + D) == null) D -= 4;
+  if (D < 24 || trackH(R.s + D) == null) return;
+  vs = clamp(D / T - v0, 6, 16); // it reaches him about 2 s after it appears
+  const s0 = R.s + D, fl = trackH(s0), y0 = fl + BOWL.r + 3.2, tl = Math.sqrt(2 * 3.2 / 9.8);
+  FX.bowl = { on: true, s: s0, x: clamp(R.x, -HALF + 0.9, HALF - 0.9), y: y0, vy: 0, vs, t: 0, rot: 0, landed: false, ms: s0 - vs * tl, near: false, struck: false, rumble: 0 };
+  tone(90, 60, 0.4, 'sawtooth', 0.05); setFace('scared', 900);
+}
+function stepBowl(dt) {
+  const b = FX.bowl; if (!b || !b.on) return;
+  b.t += dt; b.s -= b.vs * dt; b.vy -= 9.8 * dt; b.y += b.vy * dt;
+  const fl = trackH(b.s), floor = fl == null ? -90 : fl;
+  if (floor > -80) {
+    if (b.y - BOWL.r <= floor) { b.y = floor + BOWL.r; if (b.vy < -1.2) { b.vy = -b.vy * 0.38; burst(new V3(b.x, floor + 0.15, -b.s), 14, SPARK, 3); clank(9); tone(80, 35, 0.25, 'sine', 0.1); if (!reduceMotion && Math.abs(R.s - b.s) < 40) shake = Math.min(0.5, shake + 0.1); b.landed = true; } else b.vy = 0; }
+  } else if (b.y < -6) { b.on = false; bowlShow(false); return; } // dropped into a gap
+  b.rot += b.vs / BOWL.r * dt;
+  if (b.landed && b.vy === 0 && (b.rumble -= dt) <= 0 && Math.abs(R.s - b.s) < 45) { b.rumble = 0.14; tone(55, 48, 0.2, 'sawtooth', 0.035); }
+  for (const d of BOWL.smash) { // low fences and barrels are flattened
+    if (d.obj.dead) continue;
+    if (Math.abs(b.s + d.z()) < BOWL.r + 0.45 && Math.abs(b.x - d.x()) < d.hw + BOWL.r * 0.6 && b.y - BOWL.r < d.yy()[1]) { d.obj.dead = true; d.vis.visible = false; burst(new V3(b.x, 0.8, -b.s), 18, CONF, 5); clank(8); if (!b.struck) { b.struck = true; lastPop = 0; pop('STRIKE!', 'green'); } }
+  }
+  for (const c of OBS.cones) if (!c.hit && Math.abs(b.s - c.s0) < BOWL.r + 0.4 && Math.abs(b.x - c.x0) < BOWL.r + 0.5) { c.hit = true; c.v.set((c.x0 - b.x) * 6 + rand(-2, 2), rand(4, 7), b.vs * 0.8); c.w.set(rand(-12, 12), 0, rand(-12, 12)); clank(4); }
+  if (b.s < R.s - 16) { b.on = false; bowlShow(false); return; } // rolled past him
+  bowlShow(true, b.x, b.y, b.s, b.rot, !b.landed, b.x, b.ms, b.t);
+}
+
+// ---------- lightning storm gate: red circles appear ahead, a moment later a bolt hits each one ----------
+const BOLT_BOX = new THREE.BoxGeometry(1, 1, 1);
+const STR = Array.from({ length: 8 }, () => {
+  const mk = (op) => new THREE.MeshBasicMaterial({ color: 0xff3a3a, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
+  const ringM = mk(0.8), discM = mk(0.15), coreM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, fog: false }), glowM = new THREE.MeshBasicMaterial({ color: 0x8fc8ff, transparent: true, depthWrite: false, fog: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.25, 40), ringM), disc = new THREE.Mesh(new THREE.CircleGeometry(1.25, 32), discM);
+  ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.visible = disc.visible = false; scene.add(ring, disc);
+  const seg = (m) => { const o = new THREE.Mesh(BOLT_BOX, m); o.visible = false; o.frustumCulled = false; scene.add(o); return o; };
+  const core = [], glow = []; for (let i = 0; i < 7; i++) { core.push(seg(coreM)); glow.push(seg(glowM)); }
+  return { ring, disc, ringM, discM, coreM, glowM, core, glow };
+});
+function srand(n) { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); }
+const _bp = Array.from({ length: 8 }, () => new V3()), _bu = new V3(0, 1, 0), _bd = new V3();
+function strikeShow(i, phase, x, s, age) {
+  const S = STR[i], warn = phase === 1, bolt = phase === 2, g = (warn || bolt) ? (trackH(s) ?? 0) : 0;
+  S.ring.visible = S.disc.visible = warn || bolt;
+  if (warn || bolt) {
+    S.ring.position.set(x, g + 0.04, -s); S.disc.position.set(x, g + 0.035, -s);
+    S.ring.scale.setScalar((1 + Math.sin(age * 22) * 0.08) * (bolt ? 1.2 : 1));
+    S.ringM.opacity = bolt ? 1 - age / 0.25 : 0.55 + Math.sin(age * 22) * 0.3; S.discM.opacity = warn ? 0.12 + age * 0.35 : 0.5 * (1 - age / 0.25);
+  }
+  for (let j = 0; j < 7; j++) S.core[j].visible = S.glow[j].visible = bolt;
+  if (!bolt) return;
+  const seed = s * 13.7 + x * 3.1, fl = (Math.floor(age * 60) % 2 ? 1 : 0.65) * Math.max(0, 1 - age / 0.25);
+  S.coreM.opacity = fl; S.glowM.opacity = fl * 0.45;
+  for (let j = 0; j < 8; j++) { const t = j / 7, k = 1 - t; _bp[j].set(x + (srand(seed + j * 3.1) * 2 - 1) * 2.4 * k * (j ? 1 : 1.5), 26 + (g - 26) * t, -s + (srand(seed + j * 5.3 + 9) * 2 - 1) * 0.9 * k); }
+  _bp[7].set(x, g, -s);
+  for (let j = 0; j < 7; j++) {
+    _bd.subVectors(_bp[j + 1], _bp[j]); const len = _bd.length(); _bd.normalize();
+    for (const [o, w] of [[S.core[j], 0.16], [S.glow[j], 0.6]]) { o.position.addVectors(_bp[j], _bp[j + 1]).multiplyScalar(0.5); o.quaternion.setFromUnitVectors(_bu, _bd); o.scale.set(w, len, w); }
+  }
+}
+function stepStorm(dt) {
+  const S = FX.storm; if (!S) return;
+  S.t += dt; let alive = false;
+  S.list.forEach((st, i) => {
+    if (st.done) return; alive = true;
+    if (st.phase === 0) {
+      if (S.t < st.t0) return;
+      st.s = R.s + Math.max(R.speed, 8) * 0.6 + (st.aim ? rand(5, 9) : rand(8, 34)); st.x = st.aim ? clamp(R.x, -HALF + 0.8, HALF - 0.8) : rand(-HALF + 0.8, HALF - 0.8);
+      if (trackH(st.s) == null) { st.done = true; return; } // no ground there
+      st.phase = 1; st.age = 0; tone(900, 900, 0.05, 'square', 0.025);
+    } else if (st.phase === 1) {
+      st.age += dt;
+      if (st.age >= 0.6) {
+        st.phase = 2; st.age = 0; burst(new V3(st.x, (trackH(st.s) ?? 0) + 0.4, -st.s), 30, SPARK, 6); tone(2400, 300, 0.1, 'square', 0.05); tone(70, 28, 0.6, 'sawtooth', 0.1);
+        if (!reduceMotion && Math.abs(R.s - st.s) < 25) shake = Math.min(0.5, shake + 0.12);
+        if (state === 'ride' && Math.abs(R.x - st.x) < 1.3 && Math.abs(R.s - st.s) < 1.5 && R.y < 2.5) { R.grounded = false; R.vy = 9; setHP(HP - 15); graze({}, R.x >= st.x ? 1 : -1, Math.random() < 0.3); if (state !== 'ride') return; lastPop = 0; pop('ZAP!'); }
+      }
+    } else { st.age += dt; if (st.age >= 0.25) { st.phase = 0; st.done = true; } }
+    strikeShow(i, st.phase, st.x, st.s, st.age);
+  });
+  if (!alive) { FX.storm = null; for (let i = 0; i < 8; i++) strikeShow(i, 0, 0, 0, 0); }
+}
+// what the replay needs: ball + strikes of this frame
+function bxRec() {
+  const B = FX.bowl, a = [B && B.on ? 1 : 0, B ? B.x : 0, B ? B.y : 0, B ? B.s : 0, B ? B.rot : 0, B && B.on && !B.landed ? 1 : 0, B ? B.ms : 0, B ? B.t : 0];
+  if (FX.storm) for (const st of FX.storm.list) a.push(st.phase, st.x, st.s, st.age); else for (let i = 0; i < 8; i++) a.push(0, 0, 0, 0);
+  return a;
+}
+function bxApply(a) {
+  if (!a) { bowlShow(false); for (let i = 0; i < 8; i++) strikeShow(i, 0, 0, 0, 0); return; }
+  bowlShow(!!a[0], a[1], a[2], a[3], a[4], !!a[5], a[1], a[6], a[7]);
+  for (let i = 0; i < 8; i++) strikeShow(i, a[8 + i * 4], a[9 + i * 4], a[10 + i * 4], a[11 + i * 4]);
+}
+function resetFx() { Object.assign(FX, { grav: 1, gravT: 0, jump: 1, jumpT: 0, boostT: 0 }); for (const r of RAIN) { r.on = false; r.m.visible = false; } FX.anvil = null; ANVIL.visible = false; ANVIL_RING.visible = false; FX.bowl = null; FX.storm = null; bxApply(null); }
 function applyFx(name) {
   const now = performance.now();
   if (name === 'TNT RAIN') { RAIN.forEach((r, i) => { Object.assign(r, { on: true, x: rand(-3.4, 3.4), vy: 0, lead: 4 + i * 3.5 + rand(0, 2.5) }); r.y = rand(12, 20) + i * 1.5; r.s = R.s + Math.max(R.speed, 12) * Math.sqrt(2 * r.y / 9.8) + r.lead; r.m.visible = true; }); }
   else if (name === 'MOON GRAVITY') { FX.grav = 0.35; FX.gravT = 6; }
   else if (name === 'ROCKET BOOST') { FX.boostT = 2.5; R.speed = Math.min(40, R.speed + 12); if (R.grounded) { R.grounded = false; R.vy = 4; } burst(new V3(R.x, R.y + 0.4, -R.s + 0.8), 60, SPARK, 8); tone(200, 1400, 0.6, 'sawtooth', 0.05); }
   else if (name === 'OIL SLICK') { R.slip = 3; }
-  else if (name === 'SHIELD') { R.shield = true; tone(500, 1500, 0.3, 'sine', 0.06); }
+  else if (name === 'FIRST AID') { setHP(Math.min(100, HP + 50)); burst(torso.getWorldPosition(new V3()), 40, CONF, 5); tone(500, 1500, 0.3, 'sine', 0.06); }
   else if (name === 'ARM CANNON') { equipCannon(); }
   else if (name === 'REPAIR') { while (detached.length) reattach(); stumps.length = 0; setHP(100); burst(torso.getWorldPosition(new V3()), 50, CONF, 6); }
   else if (name === 'SUPER JUMP') { FX.jump = 1.45; FX.jumpT = 6; }
   else if (name === 'ANVIL') { const T = 1.6; FX.anvil = { x: R.x, s: R.s + Math.max(R.speed, 12) * T + 5, y: 20 * T * T / 2 + 0.2, vy: 0, landed: false }; ANVIL.visible = true; ANVIL_RING.visible = true; tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
-  else if (name === 'MATRIX MODE') { slowUntil = now + 2200; slowK = 0.3; }
+  else if (name === 'BOWLING BALL') spawnBowl();
+  else if (name === 'LIGHTNING STORM') { FX.storm = { t: 0, list: Array.from({ length: 8 }, (_, i) => ({ t0: 0.15 + i * 0.45 + rand(0, 0.2), aim: i % 4 === 1, phase: 0, age: 0, done: false, x: 0, s: 0 })) }; tone(100, 40, 0.5, 'sawtooth', 0.06); }
 }
 function stepFx(dt) {
+  stepBowl(dt); stepStorm(dt);
   if (FX.gravT > 0 && (FX.gravT -= dt) <= 0) FX.grav = 1;
   if (FX.jumpT > 0 && (FX.jumpT -= dt) <= 0) FX.jump = 1;
   if (FX.boostT > 0) FX.boostT -= dt;
@@ -927,7 +1047,7 @@ function fallTime(h, vy, g) { const v = -vy; return h <= 0 ? 0 : (-v + Math.sqrt
 function explodeVisualSmall(c) { burst(c, 50, SPARK, 6); if (!reduceMotion) shake = Math.min(0.6, shake + 0.4); tone(90, 30, 0.35, 'sine', 0.35); clank(10); }
 function takeGate(i, side) {
   const name = GATES[i].fx[side]; recEvt('g', [i, side]); gateFlash(i, side);
-  if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 450; slowK = 0.45;
+  if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 100; slowK = 0.6;
   revealFx(name, false); applyFx(name);
   const good = MYSTERY[name][1]; setFace(good ? 'happy' : 'scared', 1200);
   if (good) { tone(300, 1200, 0.35, 'square', 0.05); tone(600, 1800, 0.3, 'square', 0.04, 0.15); } else tone(700, 150, 0.45, 'sawtooth', 0.05);
@@ -981,6 +1101,7 @@ function followerHits(x, s, y) {
   if (Math.abs(s - SAW_S) < 0.5) { const yy = clamp(BIG_Y, y0, y1); if (Math.hypot(Math.max(0, Math.abs(x) - 0.34), yy - BIG_Y) < BIG_R) return ['big', 0]; }
   for (const hu of OBS.hurdles) if (!hu.dead && Math.abs(s - hu.s) < 0.3 && y < hu.h - 0.12) return ['hurdle', 0];
   for (const b of OBS.balls) { if (b.dead || Math.abs(s - b.s) > 1.6) continue; const yy = clamp(b.pos.y, y0, y1); if (Math.hypot(x - b.pos.x, yy - b.pos.y, -s - b.pos.z) < b.r + 0.1) return ['ball', Math.sign(x - b.pos.x) || 1]; }
+  { const B = FX.bowl; if (B && B.on && Math.abs(s - B.s) < 1.6 && Math.hypot(x - B.x, clamp(B.y, y0, y1) - B.y, s - B.s) < BOWL.r + 0.1) return ['ball', Math.sign(x - B.x) || 1]; }
   for (const p of OBS.presses) if (!p.dead && Math.abs(s - p.s) < p.d / 2 + 0.3 && Math.abs(x - p.x) < p.w / 2 + 0.3 && p.bottom < y + 2.2) return ['press', 0];
   for (const b of OBS.barrels) if (!b.dead && Math.abs(s - b.s) < b.r + 0.3 && Math.abs(x - b.x) < 0.95 && y < b.r * 2 - 0.15) return ['barrel', 0];
   for (const sw of OBS.sweepers) { if (sw.dead || Math.abs(s - sw.s) > HALF) continue; const th = sw.arm.rotation.y, c = Math.cos(th), sn = Math.sin(th), dz = sw.s - s; if (Math.abs(x * c - dz * sn) < sw.len && Math.abs(c * dz + sn * x) < 0.32 && y < sw.h + 0.15) return ['sweeper', 0]; }
@@ -1091,7 +1212,7 @@ function applyFlockRec(f0, f1, a) {
 }
 function takeGateFlock(i, side) {
   const key = GATES[i].keys[side], good = GATE_INFO[key][2]; recEvt('g', [i, side]); gateFlash(i, side);
-  if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 450; slowK = 0.45;
+  if (!reduceMotion) shake = Math.min(0.5, shake + 0.2); slowUntil = performance.now() + 100; slowK = 0.6;
   const n = flockCount(), t = { 'x2': n * 2, '+1': n + 1, '+2': n + 2, '-1': n - 1, '-2': n - 2, '÷2': Math.floor(n / 2) }[key];
   lastPop = 0;
   if (good) {
@@ -1331,8 +1452,9 @@ function recordFrame(dt) {
   const DR = new Float32Array([drone.visible ? 1 : 0, drone.position.x, drone.position.y, drone.position.z, drone.rotation.x, drone.rotation.z]);
   const GX = { can: CANNON.on || (cannonG.visible && !!cannonG.parent) ? (CANNON.k === 'L' ? 1 : CANNON.k === 'R' ? 2 : (cannonG.parent === byName.foreL ? 1 : 2)) : 0, cs: cannonG.scale.x, sh: bubble.visible ? 1 : 0, dead: DESTR.map(dd => dd.obj.dead ? 1 : 0), pk: PICKS.map(p => p.taken ? 0 : 1), so: SOCIAL.map(p => p.taken ? 0 : 1), pj: PROJ.flatMap(p => p.on ? [p.m.position.x, p.m.position.y, p.m.position.z] : []), fm: formRec() };
   let DL = null; if (DLV) { DL = [D.left, D.t, D.tip]; SLC.meshes.forEach((m, i) => { if (SLC.on[i] && m.visible) DL.push(i, m.position.x, m.position.y, m.position.z, m.quaternion.x, m.quaternion.y, m.quaternion.z, m.quaternion.w); }); }
+  const BX = bxRec();
   const FXR = new Float32Array([ANVIL.visible ? 1 : 0, ANVIL.position.x, ANVIL.position.y, ANVIL.position.z, ANVIL_RING.visible ? 1 : 0, ...RAIN.flatMap(r => r.on ? [r.m.position.x, r.m.position.y, r.m.position.z] : [])]);
-  REC.frames.push({ DL, FXR, FL, GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
+  REC.frames.push({ BX, DL, FXR, FL, GX, DR, dt: REC.acc, st: STATE_CODE[state] ?? 1, face: faceMode, simT, P, B, bar, con, tnt, spr, deb: new Float32Array(deb), drp: new Float32Array(drp), spl: new Float32Array(spl), ev: REC.cur, hp: HP });
   REC.acc = 0; REC.cur = [];
 }
 // virtual director: plan hard cuts every ~2-3 s, choosing shots around what happens next
@@ -1343,7 +1465,7 @@ function planShots(rec) {
   const torsoI = parts.indexOf(torso) * 7;
   const firstOf = code => { const i = fr.findIndex(f => f.st === code); return i < 0 ? null : cum[i]; };
   const introEnd = firstOf(1) ?? 0, crashT = firstOf(3), passT = firstOf(2);
-  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|TNT RAIN|MOON|ROCKET|OIL|REPAIR|SUPER|ANVIL|MATRIX|FLATTENED/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
+  const evTimes = []; fr.forEach((f, i) => { for (const [k, d] of f.ev) if ((k === 'p' && /CLOSE|GONE|ARM|HEADLESS|BOING|KABOOM|SLAM|SLIPPERY|WHOA|BOOST|DESTROYED|SHIELD|CANNON|TNT RAIN|MOON|ROCKET|OIL|REPAIR|SUPER|ANVIL|FLATTENED/.test(d[0])) || k === 'x' || k === 'u') evTimes.push(cum[i]); });
   // highlight ranges: the drop, every big moment, and the crash or finish; calm riding is cut out
   let ranges = [[0, introEnd + 0.8]];
   for (const e of evTimes) ranges.push([Math.max(0, e - 1.0), e + 0.8]);
@@ -1459,6 +1581,7 @@ function applyRecFrame(P, dt, rdt) {
   const a = f1 === f0 ? 0 : clamp((P.t - P.cum[P.i]) / Math.max(1e-4, f1.dt), 0, 1);
   parts.forEach((p, i) => { const o = i * 7; _pa.fromArray(f0.P, o); _pb.fromArray(f1.P, o); p.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.P, o + 3); _qb.fromArray(f1.P, o + 3); p.quaternion.slerpQuaternions(_qa, _qb, a); });
   applyFlockRec(f0, f1, a);
+  bxApply(f0.BX);
   if (f0.FXR) { const X = f0.FXR; ANVIL.visible = !!X[0]; ANVIL.position.set(X[1], X[2], X[3]); ANVIL_RING.visible = !!X[4]; if (X[4]) ANVIL_RING.position.set(X[1], (trackH(-X[3]) ?? 0) + 0.02, X[3]); RAIN.forEach((r, k) => { const o = 5 + k * 3; r.m.visible = o + 2 < X.length; if (r.m.visible) r.m.position.set(X[o], X[o + 1], X[o + 2]); }); } else { ANVIL.visible = false; ANVIL_RING.visible = false; for (const r of RAIN) r.m.visible = false; }
   _pa.fromArray(f0.B, 0); _pb.fromArray(f1.B, 0); board.position.lerpVectors(_pa, _pb, a); _qa.fromArray(f0.B, 3); _qb.fromArray(f1.B, 3); board.quaternion.slerpQuaternions(_qa, _qb, a);
   simT = lerp(f0.simT, f1.simT, a);
@@ -1708,6 +1831,44 @@ const TRICKS = [
 const R = {};
 let state = 'intro', stateT = 0, testNo = 0, slowUntil = 0, slowK = 1, manualSlow = false, shake = 0, cause = '', trick = TRICKS[0];
 let simT = 0, orbitA = 0, crouch = 0.45, crouchV = 0, bal = 0, lastXv = 0, stanceBlend = 0;
+// ---------- opening captions: a fresh hook for every attempt (first frame of the video) ----------
+// '|' splits the two lines. {mph} {lv} {m} are filled in. Each pool is shuffled and used up before any caption repeats, even between sessions.
+const TITLES = {
+  delivery: ['CAN HE DELIVER|THE PIZZA?', '45 SECONDS|8 SLICES', '8 SLICES|HOW MANY SURVIVE?', 'WILL ANY SLICE|SURVIVE?', 'HOW MANY SLICES|WILL HE KEEP?', 'ALL 8 SLICES|OR NOTHING', 'ONLY 1% GET|ALL 8 SLICES', 'DELIVER ALL 8|OR NO TIP', '45 SECONDS|OR NO TIP', '$20 TIP|IF HE MAKES IT', 'HE HAS 45 SECONDS|TO SAVE DINNER', 'HE PROMISED|HOT PIZZA', 'PIZZA DELIVERY|GONE WRONG?', 'PIZZA VS|THE TRACK', 'EVERY SLICE|COUNTS', 'PIZZA DELIVERY|IMPOSSIBLE MODE', 'WILL THE PIZZA|SURVIVE?', "DON'T DROP|THE PIZZA", 'HOT PIZZA|COLD CRASH', 'ONE JOB:|DELIVER THE PIZZA', 'NO PIZZA|NO TIP', 'HE QUIT HIS JOB|FOR THIS?'],
+  skate: ['0.1% CAN|BEAT THIS TRACK', "ONE MISTAKE|AND IT'S OVER", 'CAN HE SURVIVE|THIS TRACK?', 'SAWS, BALLS,|AND CRUSHERS', 'TWO DOORS|ONE MISTAKE', 'PICK A DOOR|AND PRAY', 'EVERY DOOR IS|A GAMBLE', 'HE SKATES INTO|A GIANT SAW', 'WILL HE JUMP|OVER THE SAW?', 'A WRECKING BALL|IS COMING', "HE DOESN'T SEE|WHAT'S COMING", 'WATCH HIS FACE|THE WHOLE TIME', "HE'S SKATING|WITH NO BRAKES", 'TRAP AFTER TRAP|CAN HE LAST?', 'HOW MANY TRAPS|CAN HE SURVIVE?', 'THE LAST TRAP|IS THE WORST', 'WAIT FOR|THE LAST OBSTACLE', "DON'T BLINK|OR YOU'LL MISS IT", 'HE HAS 100 HP|WILL IT LAST?', 'THIS ONE|ENDS BADLY', "HE THINKS IT'S|EASY...", 'STARTS EASY|ENDS IN CHAOS', 'IT GETS WORSE|EVERY SECOND', 'HOW LONG CAN|HE LAST?'],
+  cart: ['CART VS|DEADLY TRACK', 'SHOPPING CART|AT FULL SPEED', 'CAN A CART|SURVIVE THIS?', 'NO BRAKES.|NO PLAN.', 'GROCERY RUN|GONE WRONG', "THE CART ISN'T|BUILT FOR THIS", 'WILL IT|TIP OVER?', 'ONE CART|ONE CHANCE', "THE CART WON'T|SURVIVE THIS", 'CART VS SAWS|WHO WINS?', 'HE FORGOT|TO BRAKE'],
+  city: ["DON'T LOOK|DOWN", 'ONE JUMP|TOO FAR', 'ONE SLIP|AND HE FALLS', 'CITY ROOFS|NO SAFETY NET', 'ROOFTOP CHASE|GONE WRONG', 'GAPS, SAWS|AND CRATES', 'HE JUMPS|OVER THE CITY', "ONE MISSED JUMP|AND IT'S OVER", 'SURVIVE THE|CITY ROOFS', 'HIGH ABOVE|THE CITY'],
+  bollard_any: ['CAN HE STAY|IN THE CART?', 'NO SEATBELT|NO PROBLEM?', 'CART VS POST|WHO WINS?', 'HOW FAR WILL|HE FLY?', 'CRASH TEST|LEVEL {lv}', 'CRASH TEST|SHOPPING CART'],
+  bollard_low: ['ONLY {mph} MPH?|NO PROBLEM...', 'JUST A TAP|{mph} MPH', 'HOW BAD CAN|{mph} MPH BE?', 'LEVEL 1:|IT GETS WORSE'],
+  bollard_mid: ['{mph} MPH|DOES IT HOLD?', 'CART AT {mph} MPH|HITS A POST', 'CAN HE SURVIVE|{mph} MPH?', '{mph} MPH|NO SEATBELT', '{mph} MPH|THE POST OR HIM?'],
+  bollard_high: ['CART AT {mph} MPH|HITS A POST', 'THE POST|WILL SNAP', '{mph} MPH|NO MERCY', 'WORLD RECORD|FLIGHT?', 'CAN YOU SEE|HIM LAND?', '{mph} MPH|INTO A POST', 'CAN HE SURVIVE|{mph} MPH?'],
+  bollard_far: ['WILL HE FLY|100 METERS?', '{mph} MPH|HOW FAR HE FLIES?', 'HOW FAR CAN|{mph} MPH THROW HIM?'],
+  bollard_top: ['LEVEL 5:|THE BIG ONE', '{mph} MPH:|THE FINAL LEVEL', 'THE FASTEST|CRASH YET'],
+  fart: ['HOW HIGH CAN|HE FLY?', 'FART POWER {lv}|HOW HIGH?', 'POWERED BY|PURE GAS', 'ROCKET FART|TEST', 'TOO MUCH|BEANS?', 'NO FUEL|JUST FARTS', 'WILL HE REACH|THE SKY?', 'ONE FART|TO THE MOON?', 'HOW MUCH GAS|DOES HE NEED?'],
+  sock: ['HOW BIG A|STINKY SOCK?', 'SOCK SIZE {lv}|TOO STINKY?', 'THE STINKIEST|SOCK EVER', 'SMELLY SOCK|VS DAGGIE', 'WHO WINS?|HIM OR SOCK', 'CAN HE TAKE|THIS SMELL?', 'THE SOCK|IS GETTING BIGGER'],
+  anvil: ['ANVIL FROM|{lv} METERS', 'HOW HIGH TO|BREAK HIM?', '1000 KG|FROM THE SKY', 'LOOK UP|DAGGIE!', 'CAN HE|TAKE THIS?', "THE ANVIL|DOESN'T MISS"],
+  any: ['CRASH TEST|DAGGIE', 'WILL HE|SURVIVE?'],
+};
+function rollTitle() {
+  try {
+    let pools = ['any'], v = {};
+    if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m;
+      if (m === 'bollard') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; pools = ['bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
+    else if (DLV) pools = ['delivery'];
+    else if (VEH === 'cart') pools = ['cart'];
+    else if (TH === 'city') pools = ['city', 'skate'];
+    else pools = ['skate'];
+    const key = pools.join('+') + (MODE === 'lab' ? ':' + (v.mph || '') : ''), all = pools.flatMap(p => TITLES[p]);
+    let bag = {}; try { bag = JSON.parse(localStorage.getItem('daggie-titles2') || '{}'); } catch (e) { bag = {}; }
+    const b = bag[key] || { left: [], last: -1 };
+    if (!b.left.length || b.left.some(i => i >= all.length)) { b.left = all.map((_, i) => i).filter(i => i !== b.last); }
+    const k = Math.floor(Math.random() * b.left.length), idx = b.left.splice(k, 1)[0]; b.last = idx; bag[key] = b;
+    try { localStorage.setItem('daggie-titles2', JSON.stringify(bag)); } catch (e) { /* storage full or blocked: titles just repeat sooner */ }
+    const txt = all[idx].replace(/\{(\w+)\}/g, (_, n) => v[n] ?? '');
+    L.title = txt.split('|');
+    const hk = $('hook'); hk.textContent = ''; for (const t of L.title) { const sp = document.createElement('span'); sp.textContent = t; hk.appendChild(sp); }
+  } catch (e) { /* keep the old caption */ }
+}
 function resetRun() {
   if (liveRecOn()) finishLiveRec();
   liveWant = LIVE_REC;
@@ -1728,7 +1889,7 @@ function resetRun() {
   state = 'intro'; stateT = performance.now(); cause = '';
   crouch = 0.45; crouchV = 0; stanceBlend = 0;
   setFace('scared'); slowUntil = 0; shake = 0;
-  $('result').hidden = true; $('hook').classList.add('show');
+  $('result').hidden = true; rollTitle(); $('hook').classList.add('show');
   $('testNo').textContent = '#' + String(testNo).padStart(3, '0');
   snapCam = true;
   dlvReset();
@@ -1858,6 +2019,7 @@ function crash(kind, saw) {
     const leg = /thigh|shin|foot/.test(p.name);
     if (kind === 'hurdle' || kind === 'barrel' || kind === 'cart' || kind === 'wall') { if (leg) u.v.z *= 0.15; else { u.v.y += rand(1.5, 3); } if (kind === 'wall') u.v.z = Math.abs(u.v.z) * rand(0.1, 0.3); }
     if (kind === 'ball') { const dir = saw && saw.pos ? Math.sign(R.x - saw.pos.x) || 1 : 1; u.v.x += dir * rand(6, 11); u.v.y += rand(2, 4); u.v.z *= 0.5; }
+    if (kind === 'bowl') { const dir = saw && saw.pos ? Math.sign(R.x - saw.pos.x) || (Math.random() < 0.5 ? -1 : 1) : 1; u.v.x += dir * rand(2, 8); u.v.y += rand(4, 9); u.v.z = rand(1, 7); } // thrown up and back by the ball
     if (kind === 'press') { u.v.y = rand(-1, 0.5); u.v.x += rand(-5, 5); u.v.z += rand(-3, 3); }
     if (kind === 'spikes') { u.v.y += rand(4, 7); }
     if (kind === 'bones') { u.v.x += rand(-5, 5); u.v.y += rand(2, 5); u.v.z += rand(-4, 4); }
@@ -1898,7 +2060,7 @@ function showResult() {
   const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fire: 'The ring of fire', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', gap: 'Missed the jump' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fire: 'The ring of fire', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', bowl: 'A bowling ball', gap: 'Missed the jump' }[cause] || cause);
   if (DLV) $('rCause').textContent = (ok ? D.stars + '★ delivery' : 'Delivery failed') + ' · ' + D.left + '/' + DLV.slices + ' slices · tip $' + Math.max(0, Math.round(D.tip));
   $('result').hidden = false;
 }
@@ -2100,6 +2262,11 @@ function stepRide(dt, now) {
     if (d < b.r + 0.45) { graze(b, Math.sign(R.x - b.pos.x) || 1, b.pos.y > R.y + 1.7); if (state !== 'ride') return; }
     if (!b.near && d < b.r + 1.4) { b.near = true; R.close++; pop('CLOSE!', 'lilac'); setFace('scared', 700); }
   }
+  { const B = FX.bowl; if (B && B.on && Math.abs(R.s - B.s) < 1.6) { // the gate's bowling ball
+    const yy = clamp(B.y, bodyY0, bodyY1), d = Math.hypot(R.x - B.x, yy - B.y, R.s - B.s);
+    if (d < BOWL.r + 0.05) { crash('bowl', { pos: new V3(B.x, B.y, -B.s) }); return; }
+    if (!B.near && d < BOWL.r + 1.0) { B.near = true; R.close++; pop('CLOSE!', 'lilac'); setFace('scared', 700); }
+  } }
   for (const p of OBS.presses) {
     if (p.dead) continue;
     if (Math.abs(R.s - p.s) < p.d / 2 + 0.3 && Math.abs(R.x - p.x) < p.w / 2 + 0.3) {
