@@ -859,7 +859,7 @@ function layoutGates(lay) {
     });
   });
 }
-function randomGates() { layoutGates(GATES.map(() => { const a = pick(MYSTERY_KEYS); let b = pick(MYSTERY_KEYS); while (b === a || (!MYSTERY[a][1] && !MYSTERY[b][1])) b = pick(MYSTERY_KEYS); return Math.random() < 0.5 ? [a, b] : [b, a]; })); // every door has at least one good side for (const gt of GATES) gt.used = false; }
+function randomGates() { layoutGates(GATES.map(() => { const a = pick(MYSTERY_KEYS); let b = pick(MYSTERY_KEYS); while (b === a || (!MYSTERY[a][1] && !MYSTERY[b][1])) b = pick(MYSTERY_KEYS); return Math.random() < 0.5 ? [a, b] : [b, a]; })); for (const gt of GATES) gt.used = false; } // every door has at least one good side
 function animateGates(t, dt) {
   for (const gt of GATES) for (const sd of gt.sides) { sd.flash *= Math.pow(0.05, dt); sd.curMat.opacity = 0.16 + Math.sin(t * 4 + gt.s) * 0.05 + sd.flash * 0.7; }
 }
