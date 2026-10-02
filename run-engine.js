@@ -1293,10 +1293,16 @@ let REC = null, LAST_REC = null, PLAY = null;
 // on-screen overlays, mirrored into recorded videos
 const OVL = { items: [] };
 function ovlAdd(text, cls, slot) { OVL.items.push({ text, cls, slot: slot || 0, t: performance.now(), kind: 'pop' }); if (OVL.items.length > 12) OVL.items.shift(); }
+(function () { // like / subscribe badge: big and bright, sits right under the pizza board
+  if (document.getElementById('socialCss')) return;
+  const st = document.createElement('style'); st.id = 'socialCss';
+  st.textContent = `.social{position:absolute!important;left:50%!important;right:auto!important;bottom:auto!important;top:calc(env(safe-area-inset-top,0px) + 82px)!important;display:flex!important;align-items:center;gap:10px;white-space:nowrap;padding:8px 26px 10px!important;border-radius:24px!important;background:linear-gradient(#ff4a4a,#d40f1f)!important;border:3px solid #fff!important;color:#fff!important;font:800 min(36px,9vw) "Chakra Petch",ui-sans-serif,system-ui,sans-serif!important;letter-spacing:1px;text-shadow:0 3px 0 rgba(90,0,10,.55);box-shadow:0 6px 0 #7a0a14,0 0 30px rgba(255,70,70,.95),0 0 0 3px rgba(0,0,0,.35)!important;z-index:9!important;pointer-events:none;animation:socialPop2 1.5s ease-out both!important;transform-origin:50% 50%}.social span{font-size:1.25em;line-height:1}@keyframes socialPop2{0%{transform:translateX(-50%) scale(.4);opacity:0}14%{transform:translateX(-50%) scale(1.18);opacity:1}28%{transform:translateX(-50%) scale(1)}78%{transform:translateX(-50%) scale(1.05);opacity:1}100%{transform:translateX(-50%) scale(1);opacity:0}}`;
+  document.head.appendChild(st);
+})();
 function socialFx(kind) {
   recEvt('u', [kind]);
   const el = document.createElement('div'); el.className = 'social'; el.innerHTML = kind === 'like' ? '<span>👍</span> LIKE' : 'SUBSCRIBE <span>🔔</span>';
-  stage.appendChild(el); setTimeout(() => el.remove(), 1200);
+  stage.appendChild(el); setTimeout(() => el.remove(), 1500);
   if (!reduceMotion) { const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
   OVL.items.push({ kind, t: performance.now() });
   tone(880, 880, 0.12, 'sine', 0.08); tone(1320, 1320, 0.18, 'sine', 0.07, 0.12);
@@ -1655,7 +1661,7 @@ function composite() {
     cctx.fillStyle = 'rgba(255,255,255,0.07)'; for (let i = 0; i < 4; i++) cctx.fillRect(0, Math.random() * H, W, H * rand(0.004, 0.03));
     if (Math.floor(now / 250) % 2) strokeText('◀◀ REWIND', W * 0.3, H * 0.13, W * 0.075, '#ffffff');
   }
-  OVL.items = OVL.items.filter(it => now - it.t < (it.kind === 'pop' ? 1000 : it.kind === 'reveal' ? 1900 : 1200));
+  OVL.items = OVL.items.filter(it => now - it.t < (it.kind === 'pop' ? 1000 : it.kind === 'reveal' ? 1900 : 1500));
   for (const it of OVL.items) {
     const age = (now - it.t) / 1000;
     if (it.kind === 'pop') {
@@ -1672,10 +1678,10 @@ function composite() {
       cctx.restore(); cctx.globalAlpha = 1;
     } else {
       if (age < 0.3 && !reduceMotion) { cctx.fillStyle = 'rgba(255,255,255,' + (0.35 * (1 - age / 0.3)).toFixed(3) + ')'; cctx.fillRect(0, 0, W, H); }
-      const pulse = 1 + Math.sin(age * 14) * 0.06, s = Math.min(1, age / 0.18) * pulse, bw = W * (it.kind === 'like' ? 0.26 : 0.4), bh = W * 0.09;
-      cctx.save(); cctx.globalAlpha = age > 0.9 ? Math.max(0, 1 - (age - 0.9) / 0.3) : 1; cctx.translate(W / 2, H * 0.24); cctx.scale(s, s);
-      cctx.fillStyle = '#ff2b2b'; cctx.beginPath(); cctx.roundRect ? cctx.roundRect(-bw / 2, -bh / 2, bw, bh, bh * 0.3) : cctx.rect(-bw / 2, -bh / 2, bw, bh); cctx.fill();
-      cctx.font = '700 ' + Math.round(bh * 0.46) + 'px "Chakra Petch", ui-sans-serif, sans-serif'; cctx.fillStyle = '#fff'; cctx.textAlign = 'center'; cctx.textBaseline = 'middle';
+      const pulse = 1 + Math.sin(age * 14) * 0.06, s = Math.min(1, age / 0.18) * pulse, bw = W * (it.kind === 'like' ? 0.4 : 0.64), bh = W * 0.14;
+      cctx.save(); cctx.globalAlpha = age > 1.2 ? Math.max(0, 1 - (age - 1.2) / 0.3) : 1; cctx.translate(W / 2, H * 0.2); cctx.scale(s, s);
+      cctx.fillStyle = '#ff2b2b'; cctx.beginPath(); cctx.roundRect ? cctx.roundRect(-bw / 2, -bh / 2, bw, bh, bh * 0.3) : cctx.rect(-bw / 2, -bh / 2, bw, bh); cctx.fill(); cctx.strokeStyle = '#fff'; cctx.lineWidth = bh * 0.06; cctx.stroke();
+      cctx.font = '800 ' + Math.round(bh * 0.5) + 'px "Chakra Petch", ui-sans-serif, sans-serif'; cctx.fillStyle = '#fff'; cctx.textAlign = 'center'; cctx.textBaseline = 'middle';
       cctx.fillText(it.kind === 'like' ? '👍 LIKE' : 'SUBSCRIBE 🔔', 0, bh * 0.04); cctx.restore();
     }
   }
@@ -2875,8 +2881,8 @@ function buildDlvHud() {
   const css = document.createElement('style');
   css.textContent = `.dlvon .meters{display:none!important}
 .dlvon .hook{top:30%!important}
-.dlvhud{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 36px);width:max-content;white-space:nowrap;background:rgba(11,7,32,.62);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:5px 12px 6px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-family:"Chakra Petch",ui-sans-serif,sans-serif}
-.recmode.playing .dlvhud,.recmode.filming .dlvhud{top:calc(env(safe-area-inset-top,0px) + 12px)}
+.dlvhud{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 6px);width:max-content;white-space:nowrap;background:rgba(11,7,32,.62);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:5px 12px 6px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-family:"Chakra Petch",ui-sans-serif,sans-serif}
+.recmode.playing .dlvhud,.recmode.filming .dlvhud{top:calc(env(safe-area-inset-top,0px) + 6px)}
 .dlvhud .sl{font-size:22px;letter-spacing:0;white-space:nowrap;filter:drop-shadow(0 2px 0 #16112a)}
 .dlvhud .sl i{font-style:normal;transition:opacity .25s,filter .25s}
 .dlvhud .sl i.gone{opacity:.25;filter:grayscale(1)}
