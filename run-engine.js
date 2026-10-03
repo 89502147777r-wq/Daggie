@@ -887,6 +887,51 @@ const ANVIL = new THREE.Group(); {
 }
 const ANVIL_RING = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.95, 32), new THREE.MeshBasicMaterial({ color: glowColor(0xff3a3a, 2), transparent: true, opacity: 0.8, depthWrite: false })); ANVIL_RING.rotation.x = -Math.PI / 2; ANVIL_RING.visible = false; scene.add(ANVIL_RING);
 
+// ---------- hydraulic press (lab): the plate comes down slowly, the pressure counter climbs, parts give way one by one ----------
+const PRESS_TONS = [50, 100, 200, 500, 1000]; // the five press levels
+const PRESS = new THREE.Group(); PRESS.visible = false; scene.add(PRESS);
+Object.assign(PRESS, { mode: 'idle', bottom: 0, t: 0, step: 0, snd: 0 });
+{
+  const steel = new THREE.MeshStandardMaterial({ color: 0x4b515c, metalness: 0.75, roughness: 0.4 }), yellow = new THREE.MeshStandardMaterial({ color: 0xffc21a, metalness: 0.5, roughness: 0.45 }), chrome = new THREE.MeshStandardMaterial({ color: 0xd5dae2, metalness: 0.95, roughness: 0.15 }), orange = new THREE.MeshStandardMaterial({ color: 0xe0501b, metalness: 0.4, roughness: 0.5 });
+  const box = (w, h, d, x, y, z, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = true; PRESS.add(o); return o; };
+  for (const sx of [-2.6, 2.6]) box(0.4, 6.5, 0.5, sx, 3.25, 0, steel); // two columns
+  box(6.0, 0.8, 1.0, 0, 6.45, 0, steel); // top beam
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 1.2, 24), orange); cyl.position.y = 5.5; cyl.castShadow = true; PRESS.add(cyl);
+  PRESS.rod = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 18), chrome); PRESS.rod.castShadow = true; PRESS.add(PRESS.rod);
+  PRESS.plate = new THREE.Group(); PRESS.add(PRESS.plate);
+  const pl = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.36, 2.6), yellow); pl.castShadow = true; PRESS.plate.add(pl);
+  for (const sz of [-1.31, 1.31]) { const b = new THREE.Mesh(new THREE.BoxGeometry(2.64, 0.12, 0.05), new THREE.MeshStandardMaterial({ color: 0x16141c })); b.position.set(0, 0, sz); PRESS.plate.add(b); }
+  PRESS.gauge = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), sign('PRESS 10 TONS', '#16141c', '#ffc21a', 768, 192)); PRESS.gauge.position.set(0, 0, 1.32); PRESS.plate.add(PRESS.gauge);
+}
+function pressPlace(bottom) { PRESS.bottom = bottom; PRESS.plate.position.y = bottom + 0.18; const top = bottom + 0.36, L = Math.max(0.05, 5.0 - top); PRESS.rod.scale.set(1, L, 1); PRESS.rod.position.y = top + L / 2; }
+function pressYaw() { return LAB_YAW + Math.atan2(FACE_N ? FACE_N.x : 0, FACE_N ? FACE_N.z : 1); }
+function pressStep(dt, lv) {
+  const T = PRESS_TONS[clamp(lv, 1, 5) - 1], contact = HEAD_TOP - 0.2, M = PRESS.mode; PRESS.snd -= dt;
+  if (M === 'desc') {
+    pressPlace(PRESS.bottom - 0.55 * dt);
+    if (PRESS.snd <= 0) { PRESS.snd = 0.28; if (AC) { OUT(); noise(AC.currentTime, 0.3, 0.035, 'bandpass', 1300, 500, 1.2); } } // hydraulic hiss
+    if (PRESS.bottom <= contact) { pressPlace(contact); PRESS.mode = 'load'; PRESS.t = 0; PRESS.step = 0; tone(180, 90, 0.2, 'sine', 0.2); }
+  } else if (M === 'load') {
+    PRESS.t += dt; const e = clamp(PRESS.t / 2.6, 0, 1), p = T * e * e * (3 - 2 * e);
+    labDmg(true, p, 'PRESSURE', ' TONS');
+    crouch = Math.min(1, 0.3 + e * (0.25 + T / 150)); pressPlace(contact - 0.1 * e * Math.min(1, T / 100));
+    if (!reduceMotion) shake = Math.max(shake, 0.015 + 0.05 * e);
+    if (PRESS.snd <= 0) { PRESS.snd = 0.16; tone(200 + p * 2, 170 + p * 2, 0.12, 'sawtooth', 0.02 + e * 0.02); } // creaking metal
+    const hp = new V3(0, HEAD_TOP, 0);
+    if (PRESS.step < 1 && p >= 60) { PRESS.step = 1; labLose(1); burst(hp, 50, SPARK, 6); ripSound(); lastPop = 0; pop('CRACK!', 'lilac'); setFace('hit', 99999); }
+    if (PRESS.step < 2 && p >= 120) { PRESS.step = 2; labLose(1); burst(hp, 70, SPARK, 8); ripSound(); lastPop = 0; pop('SNAP!', 'lilac'); }
+    if (PRESS.step < 3 && p >= 200) {
+      PRESS.step = 3; labCrash('press'); crashSound(clamp(T / 1000 + 0.35, 0.4, 1)); hitStopUntil = performance.now() + 70; burst(hp, 120, SPARK, 10);
+      if (T >= 500) { labPancake(); LAB.text = 'flattened into a pancake'; } else { labScatter(1 + T / 500, 0.5); LAB.text = 'crushed to pieces'; }
+      if (!reduceMotion) shake = Math.min(0.9, 0.4 + T / 1500); PRESS.mode = 'crush'; return;
+    }
+    if (e >= 1) { if (PRESS.step === 0) { lastPop = 0; pop('HE HOLDS!', 'green'); labFinish('survived'); } else labFinish('lost ' + LAB.lost + (LAB.lost === 1 ? ' part' : ' parts')); PRESS.mode = 'hold'; PRESS.t = 0; }
+  } else if (M === 'crush') {
+    pressPlace(Math.max(STAND_H + 0.02, PRESS.bottom - 1.6 * dt)); if (PRESS.bottom <= STAND_H + 0.021) { PRESS.mode = 'hold'; PRESS.t = 0; if (!reduceMotion) shake = Math.max(shake, 0.5); }
+  } else if (M === 'hold') { PRESS.t += dt; if (PRESS.t > 1.4) PRESS.mode = 'lift'; }
+  else if (M === 'lift') { pressPlace(PRESS.bottom + 1.6 * dt); if (PRESS.bottom >= HEAD_TOP + 1.6) PRESS.mode = 'idle'; }
+}
+
 // ---------- bowling ball gate: a big glossy ball drops in ahead, bounces and rolls at him, smashing low things on its way ----------
 const BOWL = (() => {
   const r = 0.7;
@@ -1235,7 +1280,9 @@ const spGeo = new THREE.BufferGeometry();
 spGeo.setAttribute('position', new THREE.BufferAttribute(spPos, 3));
 spGeo.setAttribute('color', new THREE.BufferAttribute(spCol, 3));
 const SPARK_TEX = tex(64, 64, (g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
-scene.add(new THREE.Points(spGeo, new THREE.PointsMaterial({ size: 0.12, map: SPARK_TEX, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
+const SPARK_POINTS = new THREE.Points(spGeo, new THREE.PointsMaterial({ size: 0.12, map: SPARK_TEX, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+SPARK_POINTS.frustumCulled = false; // its bounding sphere was computed once from the parked particles (all at one point under the floor), so it was always culled and no spark was ever drawn
+scene.add(SPARK_POINTS);
 let spNext = 0;
 const SPARK = [[4, 2.6, 0.6], [4, 1.8, 0.4], [3, 3, 2.2]], CONF = [[4, 2.8, 0.2], [2.8, 1, 4], [0.8, 3, 4], [0.8, 4, 1.8]];
 function burst(p, n, pal, sp) {
@@ -1876,13 +1923,14 @@ const TITLES = {
   bollard_top: ['LEVEL 5:|THE BIG ONE', '{mph} MPH:|THE FINAL LEVEL', 'THE FASTEST|CRASH YET'],
   fart: ['HOW HIGH CAN|HE FLY?', 'FART POWER {lv}|HOW HIGH?', 'POWERED BY|PURE GAS', 'ROCKET FART|TEST', 'TOO MUCH|BEANS?', 'NO FUEL|JUST FARTS', 'WILL HE REACH|THE SKY?', 'ONE FART|TO THE MOON?', 'HOW MUCH GAS|DOES HE NEED?'],
   sock: ['HOW BIG A|STINKY SOCK?', 'SOCK SIZE {lv}|TOO STINKY?', 'THE STINKIEST|SOCK EVER', 'SMELLY SOCK|VS DAGGIE', 'WHO WINS?|HIM OR SOCK', 'CAN HE TAKE|THIS SMELL?', 'THE SOCK|IS GETTING BIGGER'],
+  press: ['HYDRAULIC PRESS|VS DAGGIE', 'HOW MANY TONS|CAN HE TAKE?', '{t} TONS|ON ONE ROBOT', 'WILL HE SURVIVE|{t} TONS?', 'SLOWLY CRUSHED|{t} TONS', "THE PRESS|DOESN'T STOP", "DON'T BLINK|THE PRESS IS COMING", 'WHAT HAPPENS AT|{t} TONS?'],
   anvil: ['ANVIL FROM|{lv} METERS', 'HOW HIGH TO|BREAK HIM?', '1000 KG|FROM THE SKY', 'LOOK UP|DAGGIE!', 'CAN HE|TAKE THIS?', "THE ANVIL|DOESN'T MISS"],
   any: ['CRASH TEST|DAGGIE', 'WILL HE|SURVIVE?'],
 };
 function rollTitle() {
   try {
     let pools = ['any'], v = {};
-    if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m;
+    if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m; v.t = PRESS_TONS[clamp(lv, 1, 5) - 1];
       if (m === 'bollard') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; pools = ['bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
     else if (DLV) pools = ['delivery'];
     else if (VEH === 'cart') pools = ['cart'];
@@ -2090,7 +2138,7 @@ function showResult() {
   const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fire: 'The ring of fire', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', bowl: 'A bowling ball', gap: 'Missed the jump' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fire: 'The ring of fire', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', bowl: 'A bowling ball', press: 'A hydraulic press', gap: 'Missed the jump' }[cause] || cause);
   if (DLV) $('rCause').textContent = (ok ? D.stars + '★ delivery' : 'Delivery failed') + ' · ' + D.left + '/' + DLV.slices + ' slices · tip $' + Math.max(0, Math.round(D.tip));
   $('result').hidden = false;
 }
@@ -2858,12 +2906,12 @@ function ragSparks(S, dt) {
     else if (c.x[k + 1] < 0.2 && hv > 6 && S.spk.t[nm] <= 0) { burst(p, 2 + Math.round(hv * 0.18), SPARK, 2 + hv * 0.12); S.spk.t[nm] = 0.035; if (S.spk.snd <= 0 && hv > 9) { scrapeSound(hv); S.spk.snd = 0.12; } } // dragging along the floor
   }
 }
-function labDmg(show, val) {
+function labDmg(show, val, label, unit, dec) {
   let el = document.getElementById('labDmg');
   if (!el) { if (!show) return; const st = document.createElement('style'); st.textContent = '#labDmg{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 112px);transform:translateX(-50%);z-index:8;pointer-events:none;white-space:nowrap;font:800 min(40px,10vw) "Chakra Petch",ui-sans-serif,system-ui,sans-serif;color:#ffd23a;-webkit-text-stroke:2px #1a1020;paint-order:stroke fill;text-shadow:0 4px 0 #1a1020,0 0 22px rgba(255,170,30,.8);font-variant-numeric:tabular-nums}'; document.head.appendChild(st); el = document.createElement('div'); el.id = 'labDmg'; stage.appendChild(el); }
-  el.style.display = show ? 'block' : 'none'; if (show) { const tx = 'DAMAGE ' + Math.round(val).toLocaleString('en-US'); if (el.textContent !== tx) el.textContent = tx; }
+  el.style.display = show ? 'block' : 'none'; if (show) { const d = dec || 0, tx = (label || 'DAMAGE') + ' ' + val.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) + (unit || ''); if (el.textContent !== tx) el.textContent = tx; }
 }
-function labDamage() { const S = RAGSIM; if (!S) return 0; const k = S.I.pel * 3; S.maxFlight = Math.max(S.maxFlight || 0, BOLLARD_Z - S.core.x[k + 2]); return LABCART.v / 0.447 * 20 + S.core.broken.length * 1500 + S.maxFlight * 40; }
+function labDist() { const S = RAGSIM; if (!S) return 0; const k = S.I.pel * 3; S.maxFlight = Math.max(S.maxFlight || 0, BOLLARD_Z - S.core.x[k + 2]); return S.maxFlight * 3.28084; } // how far he flew from the post, in feet
 function ragSimStep(dt) {
   const S = RAGSIM; if (!S) return; S.t += dt;
   // fixed 1/240 s physics steps (the grip and tearing limits were tuned at this rate), also in slow motion
@@ -3209,15 +3257,17 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
 const LAB_SPEEDS = [15, 50, 80, 130, 200]; // mph for levels 1..5. The post holds on 1-2 and snaps on 3-5; Daggie doesn't grip the cart
-const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : 100);
+const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : LAB.machine === 'press' ? 5 : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
   fart: { title: 'FART POWER', ask: 'How high does he fly?' },
   sock: { title: 'SOCK SIZE', ask: 'How big a foot can he take?' },
   anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
+  press: { title: 'HYDRAULIC PRESS', ask: 'How many tons can he take?' },
 };
+if (Array.isArray(L.machines) && !L.machines.includes('press') && !L.machines.every(m => m === 'bollard')) L.machines.push('press'); // the press joins the stand lab
 const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
-try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); } catch (e) {}
+try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press') LAB.level = Math.min(LAB.level, 5); } catch (e) {}
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
 let LAB_YAW = 0, labBuilt = false, LEG = null;
 const GAS = [];
@@ -3535,7 +3585,7 @@ function buildLabUI() {
   p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div>';
   stage.appendChild(p);
   const chips = $('labChips');
-  for (const m of (L.machines || Object.keys(LAB_INFO))) { const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; labSave(); labUI(); }; chips.appendChild(b); }
+  for (const m of (L.machines || Object.keys(LAB_INFO))) { const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
   for (const b of p.querySelectorAll('.sm')) { if (Math.abs(Number(b.dataset.d)) === 10) b.style.display = 'none'; b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, LAB_MAX()); labSave(); labUI(); }; }
   $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, LAB_MAX()); labSave(); labUI(); };
   $('labGo').onclick = () => { initAudio(); labStart(); };
@@ -3548,9 +3598,10 @@ function buildLabUI() {
 function labSave() { try { localStorage.setItem('daggie-lab', JSON.stringify({ m: LAB.machine, l: LAB.level })); } catch (e) {} }
 function labUI() {
   if (!labBuilt) return;
+  PRESS.visible = LAB.machine === 'press'; if (PRESS.visible && PRESS.mode === 'idle') { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
   $('labKnob').style.left = ((LAB.level - 1) / (LAB_MAX() - 1) * 100) + '%'; $('labRange').max = String(LAB_MAX());
-  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : 'LEVEL ' + LAB.level;
+  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : 'LEVEL ' + LAB.level;
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labRec').setAttribute('aria-pressed', String(REC_MODE));
@@ -3562,19 +3613,21 @@ function labReset() {
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
   drone.visible = false; BB.free = false; RAGSIM = null;
   if (LAB.machine === 'bollard') { board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); }
-  state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dmg = 0; labDmg(false);
+  state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dist = 0; labDmg(false);
   if (LEG) { LEG.visible = false; }
+  PRESS.mode = 'idle'; PRESS.visible = LAB.machine === 'press'; if (PRESS.visible) { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
   setFace('idle', 0); snapCam = true;
 }
 function labStart() {
   resetRun(); // fresh Daggie on the stand
-  LAB.text = ''; LAB.lost = 0; LAB.dmg = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; labBars(false);
+  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
   if (LAB.machine === 'bollard') { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
   else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
+  else if (LAB.machine === 'press') { LAB.phase = 'fall'; PRESS.visible = true; PRESS.rotation.y = pressYaw(); PRESS.gauge.material = sign('PRESS ' + PRESS_TONS[clamp(lv, 1, 5) - 1] + ' TONS', '#16141c', '#ffc21a', 768, 192); pressPlace(HEAD_TOP + 1.6); PRESS.mode = 'desc'; PRESS.t = 0; PRESS.step = 0; setFace('scared', 5000); tone(300, 300, 0.1, 'square', 0.04); }
   else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
   lastPop = 0; pop('LEVEL ' + lv, 'lilac'); snapCam = true;
 }
@@ -3603,9 +3656,9 @@ function labStep(dt, now) {
     labSpeedo(P === 'roll' && state === 'ride' ? LABCART.v / 0.447 : P === 'idle' ? 0 : LABCART.v / 0.447 * (LABCART.hit ? 1 : 0));
     if (state === 'ride' && (P === 'roll' || P === 'crash')) labRec(dt);
     if (LAB_STREAKS) LAB_STREAKS.visible = P === 'roll' && state === 'ride' && LABCART.v >= 22.3; // 50 mph and up
-    if (P === 'replay') { labDmg(true, LAB.dmg || 0); labReplayStep(dt, now); return; }
+    if (P === 'replay') { labDmg(true, LAB.dist || 0, 'DISTANCE', ' FT', 0); labReplayStep(dt, now); return; }
     if (P === 'roll' && state === 'ride') { if (CART.pw[1] - BOLLARD_Z < 7 && faceMode !== 'scared') setFace('scared', 5000); if (CART.step(dt)) labImpact(); labCartPlace(); for (const w of wheels) w.rotation.x -= LABCART.v / WHEEL_R * dt; if (LABCART.hit) { LAB.phase = 'crash'; LAB.t = 0; } }
-    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); labDmg(true, LAB.dmg = labDamage()); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
+    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); labDmg(true, LAB.dist = labDist(), 'DISTANCE', ' FT', 0); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
     else if (P === 'done' && RAGSIM) ragSimStep(dt);
     return;
   }
@@ -3643,6 +3696,8 @@ function labStep(dt, now) {
     } else if (P === 'press') { LEG.position.y = Math.max(STAND_H, LEG.position.y - LAB.v * 1.5 * dt); if (LEG.position.y <= STAND_H + 0.01) { LAB.phase = 'hold'; LAB.t = 0; } }
     else if (P === 'hold') { if (LAB.t > 1.0) LAB.phase = 'lift'; }
     else if (P === 'lift' || P === 'done') { if (LEG.visible) { LEG.position.y += 12 * dt; if (LEG.position.y > HEAD_TOP + 30) LEG.visible = false; } }
+  } else if (LAB.machine === 'press') {
+    pressStep(dt, lv);
   } else if (LAB.machine === 'anvil') {
     if (P === 'fall') {
       LAB.v -= 9.8 * dt; ANVIL.position.y += LAB.v * dt;
@@ -3688,6 +3743,7 @@ function labCam(now, dt) {
   if (m === 'fart' && LAB.phase === 'air') { const y = T.y; wantPos.copy(face).multiplyScalar(6 + Math.min(40, y * 0.25)).addScaledVector(side, 2).setY(Math.max(1.6, Math.min(y * 0.55, y - 2))); wantLook.set(T.x, y, T.z); return 6; }
   if (m === 'sock' && LEG && LEG.visible) { const k = LEG.scale.x, dist = 5.5 + k * 1.6; wantPos.copy(face).multiplyScalar(dist).addScaledVector(side, 1.6).setY(STAND_H + 1.8 + k * 0.6); wantLook.set(0, Math.min(LEG.position.y, HEAD_TOP + 4 * k) * 0.45 + STAND_H * 0.55 + 0.6, 0); return 4; }
   if (m === 'anvil' && ANVIL.visible && LAB.phase === 'fall') { const ay = ANVIL.position.y, d = 5.5 + Math.min(12, LAB.h * 0.1); wantPos.copy(face).multiplyScalar(d).addScaledVector(side, 1.8).setY(STAND_H + 1.2); wantLook.set(0, Math.min(ay, HEAD_TOP + 14) * 0.6 + (STAND_H + 1.2) * 0.4, 0); return 5; }
+  if (m === 'press') { const e = PRESS.mode === 'load' ? clamp(PRESS.t / 2.6, 0, 1) : PRESS.mode === 'desc' ? 0 : 0.6, d = 8.2 - 2.6 * e; wantPos.copy(face).multiplyScalar(d).addScaledVector(side, 1.1 * Math.sin(now / 3000)).setY(STAND_H + 2.0 - 0.5 * e); wantLook.set(0, STAND_H + 2.0 - 0.7 * e, 0); return 3; }
   const sway = Math.sin(now / 2600) * 0.6;
   wantPos.copy(face).multiplyScalar(5.2).addScaledVector(side, 1.6 + sway).setY(STAND_H + 1.7); wantLook.set(0, STAND_H + 1.15, 0); return 3;
 }
@@ -3696,7 +3752,7 @@ function labDone() {
   const survived = LAB.text === 'survived' || LAB.text === 'stayed in the cart', lost = LAB.machine === 'bollard' ? 0 : cause ? 15 : LAB.lost;
   $('labRes').innerHTML = '';
   const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
-  $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (LAB.machine === 'bollard' && LAB.dmg ? ' · DAMAGE ' + Math.round(LAB.dmg).toLocaleString('en-US') : '')));
+  $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (LAB.machine === 'bollard' && LAB.dist ? ' · FLEW ' + Math.round(LAB.dist).toLocaleString('en-US') + ' FT' : '')));
   $('labPanel').hidden = false; labUI();
   lastPop = 0; pop(survived ? 'SURVIVED!' : lost >= 15 ? 'DESTROYED!' : 'DAMAGED!', survived ? 'green' : 'lilac');
 }
