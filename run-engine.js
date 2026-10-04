@@ -3747,8 +3747,8 @@ const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes
 ];
 const CAN_PAL = { glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
 const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
-const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7, CAN_NX = 8, CAN_NY = 5, CAN_W = 6, CAN_H = 3.8;
-const CAN = { built: false, group: null, walls: [], tiles: [], mats: [], cracks: [], posters: [], shards: [], models: [], geo: null, phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
+const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7, CAN_NX = 16, CAN_NY = 10, CAN_W = 6, CAN_H = 3.8;
+const CAN = { built: false, group: null, walls: [], tiles: [], mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
 const cannonWallZ = i => WALL_Z0 - i * WALL_DZ;
 const cannonVis = mph => 16 + 44 * Math.sqrt(Math.max(0, mph) / 1000); // how fast he moves on screen (m/s); the mph shown is the model's
 const CAN_SPEC = [
@@ -3885,8 +3885,11 @@ function cannonBuild() {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), pm); mesh.position.set(px, py, CANNON_WALLS[wi].T / 2 + 0.03); mesh.rotation.z = rot; CAN.walls[wi].add(mesh); CAN.posters.push({ wi, x: px, y: py, mesh, alive: true });
     loader.load('poster-' + (idx) + '.jpg', t => { t.colorSpace = THREE.SRGBColorSpace; pm.map = t; pm.needsUpdate = true; }, undefined, () => {});
   }
-  const sm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, side: THREE.DoubleSide });
-  for (let i = 0; i < 150; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), sm); m.visible = false; scene.add(m); CAN.shards.push({ m, v: new V3(), w: new V3(), life: 0, rest: false }); }
+  const G = canShardGeo(), gm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false });
+  const tri = new THREE.BufferGeometry(); tri.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0.1, 0, 0.35, 1, 0], 3)); tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0.1, 0.35, 1], 2)); tri.computeVertexNormals();
+  CAN.glass = new CanDebris(tri, gm, 900); CAN.glass.mesh.setColorAt(0, new THREE.Color(0xffffff));
+  CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; CAN.sets.push({ main, aux }); });
+  for (let p = 0; p < 24; p++) { const mesh = new THREE.Mesh(G.paper[0], new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); mesh.visible = false; scene.add(mesh); CAN.paper.push({ m: mesh, v: new V3(), w: new V3(), life: 0 }); }
 }
 function cannonShow(on) {
   if (BOLLARD) BOLLARD.visible = !on;
@@ -3897,12 +3900,12 @@ function cannonShow(on) {
   const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L;
   const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
   CAN.tiles.forEach((tl, i) => { tl.alive.fill(1); tl.mesh.geometry.attributes.position.array.set(tl.pos0); tl.mesh.geometry.attributes.position.needsUpdate = true; CAN.cracks[i].visible = false; });
-  for (const sh of CAN.shards) { sh.m.visible = false; sh.life = 0; }
+  CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.touch = new Array(15).fill(false);
   board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
 }
 function cannonStart(lv) {
   cannonBuild(); cannonShow(true); lv = clamp(lv, 1, 5);
-  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0 }); CAN.vmph = CAN.mph;
+  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0 }); CAN.vmph = CAN.mph;
   LAB.phase = 'cannon'; board.visible = false; daggie.visible = false; rider.visible = false; // he is inside the barrel until the shot
   labSpeedo(0); labDmg(true, 0, 'WALLS', ' / 15', 0);
 }
@@ -3910,8 +3913,7 @@ function cannonFire() {
   CAN.phase = 'fly'; CAN.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false; daggie.visible = true; rider.visible = true;
   const vis = cannonVis(CAN.mph); ragStart(new V3(0, 2.2, -vis), 0);
   const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0.01; c.g = -2.2; S.hook = cannonHold; S.t = 0;
-  { const pk = I.pel * 3, yc = c.x[pk + 1] + 0.3, zc = c.x[pk + 2], om = rand(-1.6, -0.8), wz = rand(-2.2, 2.2), xc = c.x[pk];
-    for (let i = 0; i < c.n; i++) { const k = i * 3, ry = c.x[k + 1] - yc, rz = c.x[k + 2] - zc, rx = c.x[k] - xc; c.vel(i, -wz * ry, 2.2 - om * rz + wz * rx, -vis + om * ry, 1 / 240); } }
+  canDive(S); for (let i = 0; i < c.n; i++) c.vel(i, 0, 2.2, -vis, 1 / 240); // head first, no spin yet: the first wall starts it
   const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); crashSound(1); CAN.recoil = 1;
   if (!reduceMotion) { shake = 0.8; const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
   lastPop = 0; pop('BOOM!', 'lilac'); setFace('wow', 4000); slowUntil = performance.now() + 9000; slowK = 0.4;
@@ -3920,30 +3922,81 @@ function cannonHold(core) { // the wall that stopped him: nothing gets through i
   if (CAN.stuck < 0) return; const zp = cannonWallZ(CAN.stuck) + 0.2;
   for (let i = 0; i < core.n; i++) { const k = i * 3; if (core.x[k + 2] < zp) { core.x[k + 2] = zp; core.o[k + 2] = zp; core.o[k] = core.x[k] - (core.x[k] - core.o[k]) * 0.6; } }
 }
-function canShardSpawn(W, i, cx, cy, n, dirZ) {
-  const G = canShardGeo(), z = cannonWallZ(i); let made = 0; const kinds = W.kind === 'glass' ? ['glass', 'glass', 'glass', 'chunk'] : W.kind === 'jelly' || W.kind === 'cake' ? ['blob', 'blob', 'chunk'] : W.kind === 'wood' ? ['splint', 'splint', 'chunk', 'plate'] : W.kind === 'metal' ? ['plate', 'plate', 'chunk'] : W.kind === 'ice' ? ['chunk', 'glass', 'chunk'] : ['chunk', 'chunk', 'chunk', 'plate'];
-  for (let q = 0; q < n; q++) {
-    let sh = CAN.shards.find(s => s.life <= 0); if (!sh) { sh = CAN.shards.reduce((a, b) => (a.life < b.life ? a : b)); }
-    const kd = pick(kinds), arr = G[kd], m = sh.m, big = kd === 'chunk' ? rand(0.1, 0.26) : kd === 'blob' ? rand(0.1, 0.22) : 1;
-    m.geometry = pick(arr); m.material = CAN.mats[i]; m.scale.setScalar(kd === 'chunk' || kd === 'blob' ? big : 1); m.visible = true;
-    const ox = cx + rand(-0.45, 0.45), oy = cy + rand(-0.45, 0.45); m.position.set(LAB_LANE + ox, clamp(oy, 0.1, 3.7), z + rand(-0.15, 0.15)); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6));
-    const out = new V3(ox - cx, oy - cy, 0).normalize(); sh.v.set(out.x * rand(1.5, 5), out.y * rand(1, 5) + rand(0, 3), dirZ * rand(0.35, 1) * cannonVis(CAN.vmph) * 0.5 + rand(-2, 3)); sh.w.set(rand(-12, 12), rand(-12, 12), rand(-12, 12)); sh.life = rand(7, 11); sh.rest = false;
+class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pieces
+  constructor(geo, mat, N) { this.N = N; this.mesh = new THREE.InstancedMesh(geo, mat, N); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh);
+    this.p = new Float32Array(N * 3); this.v = new Float32Array(N * 3); this.w = new Float32Array(N * 3); this.s = new Float32Array(N * 3); this.q = Array.from({ length: N }, () => new THREE.Quaternion()); this.life = new Float32Array(N); this.rest = new Uint8Array(N); this.next = 0; this.d = new THREE.Object3D(); this.col = new THREE.Color(); this.hasCol = false; this.clear(); }
+  clear() { const z = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < this.N; i++) { this.mesh.setMatrixAt(i, z); this.life[i] = 0; } this.mesh.instanceMatrix.needsUpdate = true; this.mesh.visible = false; }
+  spawn(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still) {
+    const i = this.next, k = i * 3; this.next = (i + 1) % this.N; this.p[k] = px; this.p[k + 1] = py; this.p[k + 2] = pz; this.v[k] = vx; this.v[k + 1] = vy; this.v[k + 2] = vz; this.s[k] = sx; this.s[k + 1] = sy; this.s[k + 2] = sz;
+    this.w[k] = rand(-14, 14); this.w[k + 1] = rand(-14, 14); this.w[k + 2] = rand(-14, 14); this.q[i].setFromEuler(new THREE.Euler(rand(0, 6.3), rand(0, 6.3), rand(0, 6.3))); this.life[i] = life; this.rest[i] = still ? 1 : 0;
+    if (color !== undefined) { this.mesh.setColorAt(i, this.col.setHex(color)); this.mesh.instanceColor.needsUpdate = true; this.hasCol = true; }
+    this.mesh.visible = true; this.put(i);
+  }
+  put(i) { const k = i * 3, d = this.d; d.position.set(this.p[k], this.p[k + 1], this.p[k + 2]); d.quaternion.copy(this.q[i]); d.scale.set(this.s[k], this.s[k + 1], this.s[k + 2]); d.updateMatrix(); this.mesh.setMatrixAt(i, d.matrix); }
+  step(dt) {
+    if (!this.mesh.visible) return; let any = false; const ax = _cdA, dq = _cdQ;
+    for (let i = 0; i < this.N; i++) {
+      if (this.life[i] <= 0) continue; any = true; this.life[i] -= dt; const k = i * 3;
+      if (this.life[i] <= 0) { this.mesh.setMatrixAt(i, _cdZ); continue; } if (this.rest[i]) continue;
+      this.v[k + 1] -= 9.8 * dt; const dr = 1 / (1 + 0.05 * dt * Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2])); this.v[k] *= dr; this.v[k + 1] *= dr; this.v[k + 2] *= dr;
+      this.p[k] += this.v[k] * dt; this.p[k + 1] += this.v[k + 1] * dt; this.p[k + 2] += this.v[k + 2] * dt;
+      const wl = Math.hypot(this.w[k], this.w[k + 1], this.w[k + 2]); if (wl > 1e-3) { ax.set(this.w[k] / wl, this.w[k + 1] / wl, this.w[k + 2] / wl); dq.setFromAxisAngle(ax, wl * dt); this.q[i].premultiply(dq); }
+      if (this.p[k + 1] < 0.04) { this.p[k + 1] = 0.04; this.v[k + 1] *= -0.3; const f = Math.exp(-4 * dt); this.v[k] *= f; this.v[k + 2] *= Math.exp(-3 * dt); this.w[k] *= f; this.w[k + 1] *= f; this.w[k + 2] *= f; if (Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2]) < 0.5) { this.rest[i] = 1; this.w[k] = this.w[k + 1] = this.w[k + 2] = 0; } }
+      this.put(i);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true; if (!any) this.mesh.visible = false;
   }
 }
-function cannonShardStep(dt) {
-  for (const sh of CAN.shards) {
-    if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } if (sh.rest) continue;
-    sh.v.y -= 9.8 * dt; sh.v.multiplyScalar(1 / (1 + 0.04 * dt * sh.v.length())); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; sh.m.rotation.z += sh.w.z * dt;
-    if (sh.m.position.y < 0.06) { sh.m.position.y = 0.06; if (sh.v.y < -3 && Math.random() < 0.4) burst(sh.m.position, 3, SPARK, 2.5); sh.v.y *= -0.32; sh.v.x *= Math.exp(-4 * dt); sh.v.z *= Math.exp(-3.5 * dt); sh.w.multiplyScalar(Math.exp(-4 * dt)); if (sh.v.length() < 0.5) { sh.rest = true; sh.w.set(0, 0, 0); } }
-  }
+const _cdA = new V3(), _cdQ = new THREE.Quaternion(), _cdZ = new THREE.Matrix4().makeScale(0, 0, 0);
+const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 0.7;
+function canHole(i, px, py, small) { // punch a hole with an uneven edge: the radius changes all the way round
+  const W = CANNON_WALLS[i], tl = CAN.tiles[i], pos = tl.mesh.geometry.attributes.position.array, gone = [], full = (W.draw === 'glass' || W.draw === 'glass2') && !small;
+  px = clamp(px, -2.3, 2.3); py = clamp(py, 0.7, 3.1); const ph = [rand(0, 6.3), rand(0, 6.3), rand(0, 6.3), rand(0, 6.3)], R = W.R * (small ? 0.45 : 1);
+  const rad = th => R * (0.5 + 0.95 * (0.5 + 0.22 * Math.sin(2 * th + ph[0]) + 0.17 * Math.sin(4 * th + ph[1]) + 0.12 * Math.sin(7 * th + ph[2]) + 0.09 * Math.sin(11 * th + ph[3])));
+  tl.cen.forEach(([cx, cy], t) => { if (!tl.alive[t]) return; const dx = cx - px, dy = cy - py, ok = full || Math.hypot(dx, dy) < rad(Math.atan2(dy, dx)) * (0.88 + 0.24 * Math.random()); if (!ok) return;
+    tl.alive[t] = 0; gone.push([cx, cy]); for (let v = 0; v < 24; v++) { const k = (t * 24 + v) * 3; pos[k] = cx; pos[k + 1] = cy; pos[k + 2] = 0; } });
+  tl.mesh.geometry.attributes.position.needsUpdate = true; return { gone, px, py, rad };
 }
-function canHole(i, px, py) { // punch a hole: tiles near (px, py) turn into flying pieces
-  const W = CANNON_WALLS[i], tl = CAN.tiles[i], pos = tl.mesh.geometry.attributes.position.array, gone = [];
-  px = clamp(px, -2.3, 2.3); py = clamp(py, 0.7, 3.1);
-  tl.cen.forEach(([cx, cy], t) => { if (!tl.alive[t] || Math.hypot(cx - px, cy - py) > W.R * (0.72 + 0.5 * Math.random())) return; tl.alive[t] = 0; gone.push([cx, cy]); for (let v = 0; v < 24; v++) { const k = (t * 24 + v) * 3; pos[k] = cx; pos[k + 1] = cy; pos[k + 2] = 0; } });
-  tl.mesh.geometry.attributes.position.needsUpdate = true; return { gone, px, py };
+function canDebris(W, i, h, stuck) { // what a broken wall turns into
+  const z = cannonWallZ(i), vis = cannonVis(CAN.vmph), set = CAN.sets[i], gl = CAN.glass, ix = h.px, iy = h.py, n = h.gone.length;
+  const out = (cx, cy) => { const dx = cx - ix, dy = cy - iy, d = Math.hypot(dx, dy) || 0.01; return [dx / d, dy / d, d]; };
+  if ((W.draw === 'glass' || W.draw === 'glass2') && !stuck) { // the whole pane bursts into hundreds of slivers
+    const total = W.draw === 'glass' ? 420 : 340;
+    for (let q = 0; q < total; q++) { const near = Math.random() < 0.6, px = near ? clamp(ix + gauss() * 0.8, -3, 3) : rand(-3, 3), py = near ? clamp(iy + gauss() * 0.8, 0.1, 3.85) : rand(0.1, 3.85), [ux, uy, d] = out(px, py), sp = (4.5 / (0.6 + d)) * rand(0.4, 1.2);
+      gl.spawn(LAB_LANE + px, py, z + rand(-0.05, 0.05), ux * sp, uy * sp + rand(0, 2.5), -vis * rand(0.12, 0.55) + rand(-1, 2), rand(0.04, 0.26), rand(0.04, 0.26), 1, rand(8, 11), W.draw === 'glass' ? 0xd8f4ff : 0xa8e8dc); }
+    return;
+  }
+  if (W.kind === 'glass') { for (const [cx, cy] of h.gone) for (let q = 0; q < (stuck ? 2 : 4); q++) { const [ux, uy] = out(cx, cy), sp = rand(1.5, 6); gl.spawn(LAB_LANE + cx + rand(-0.15, 0.15), cy + rand(-0.15, 0.15), z + rand(-0.05, 0.05), ux * sp, uy * sp + rand(0, 2), -vis * rand(0.12, 0.5), rand(0.04, 0.2), rand(0.04, 0.2), 1, rand(8, 11), 0x5fb0c2); } return; }
+  const dirz = stuck ? 0.25 : 1;
+  for (const [cx, cy] of h.gone) {
+    const [ux, uy] = out(cx, cy), sp = rand(1.5, 5.5), px = LAB_LANE + cx + rand(-0.1, 0.1), py = cy + rand(-0.1, 0.1), vz = -vis * rand(0.15, 0.5) * dirz + rand(-1.5, 2.5), life = rand(7, 11), main = set.main, aux = set.aux;
+    if (W.kind === 'wood') { main.spawn(px, py, z + rand(-0.1, 0.1), ux * sp, uy * sp + rand(0, 3), vz, rand(0.6, 1.5), rand(0.6, 1.5), rand(0.5, 1.4), life); if (Math.random() < 0.4) aux.spawn(px, py, z, ux * sp, uy * sp + rand(0, 2), vz, rand(0.07, 0.16), rand(0.05, 0.12), rand(0.07, 0.16), life); }
+    else if (W.kind === 'metal') { if (Math.random() < 0.35) main.spawn(px, py, z, ux * sp * 0.6, uy * sp * 0.6 + rand(0, 2), vz * 0.7, rand(0.5, 0.9), rand(0.5, 0.9), 1, life); if (Math.random() < 0.7) aux.spawn(px, py, z, ux * sp, uy * sp + rand(0, 3), vz, rand(0.05, 0.12), rand(0.05, 0.12), rand(0.05, 0.12), life); }
+    else { const sz = rand(0.07, 0.2); main.spawn(px, py, z + rand(-0.1, 0.1), ux * sp, uy * sp + rand(0, 3), vz, sz * rand(0.7, 1.4), sz * rand(0.6, 1.2), sz * rand(0.7, 1.3), life); if (W.kind === 'ice' && Math.random() < 0.5) gl.spawn(px, py, z, ux * sp, uy * sp + rand(0, 2), vz, rand(0.05, 0.18), rand(0.05, 0.18), 1, life, 0xeaf8ff); }
+  }
+  if (stuck) return;
+  const T = W.T, ring = (k, fn) => { for (let q = 0; q < k; q++) { const th = rand(0, 6.283), r = h.rad(th) * rand(0.92, 1.04); fn(ix + Math.cos(th) * r, iy + Math.sin(th) * r, th); } };
+  if (W.kind === 'wood') ring(14, (x, y) => set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z - T / 2 - rand(0.05, 0.25), 0, 0, 0, rand(0.5, 1.2), rand(0.5, 1.2), rand(0.35, 0.9), 999, undefined, true)); // splintered teeth around the hole, pointing out the back
+  else if (W.kind === 'metal') ring(9, (x, y, th) => { const m = set.main; m.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z - T / 2 - 0.05, 0, 0, 0, 0.9, 0.9, 1, 999, undefined, true); const k = (m.next - 1 + m.N) % m.N; m.q[k].setFromEuler(new THREE.Euler(Math.sin(th) * 0.9, -Math.cos(th) * 0.9, th)); m.put(k); }); // torn petals bent outwards
+  else if (W.kind === 'brick' || W.kind === 'stone') ring(8, (x, y) => set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z + rand(-0.1, 0.1), 0, 0, 0, rand(0.08, 0.16), rand(0.08, 0.16), rand(0.08, 0.16), 999, undefined, true));
+}
+function canDive(S) { // head first, arms stretched forward, legs trailing: the standing rest pose turned to point along the flight
+  const c = S.core, I = S.I, rest = S.rest, pk = I.pel * 3, o = [c.x[pk], c.x[pk + 1], c.x[pk + 2]], p0 = rest.pel, sgn = (rest.toL[2] - rest.anL[2]) >= 0 ? 1 : -1;
+  const map = v => { const x = v[0] - p0[0], y = v[1] - p0[1], z = v[2] - p0[2]; return sgn > 0 ? [-x, -z, -y] : [x, z, -y]; }, P = {};
+  for (const n of RAG_NAMES) { const m = map(rest[n]); P[n] = [o[0] + m[0], o[1] + m[1], o[2] + m[2]]; }
+  for (const sd of ['L', 'R']) { let prev = P['sh' + sd]; const side = Math.sign(prev[0] - P.chest[0]) || (sd === 'L' ? 1 : -1);
+    for (const [a, b] of [['sh', 'el'], ['el', 'wr'], ['wr', 'ha']]) { const len = Math.hypot(rest[a + sd][0] - rest[b + sd][0], rest[a + sd][1] - rest[b + sd][1], rest[a + sd][2] - rest[b + sd][2]), dx = side * 0.14, dy = -0.03, dz = -1, dl = Math.hypot(dx, dy, dz); prev = P[b + sd] = [prev[0] + dx / dl * len, prev[1] + dy / dl * len, prev[2] + dz / dl * len]; } }
+  for (const n of RAG_NAMES) { const k = I[n] * 3; c.x[k] = c.o[k] = P[n][0]; c.x[k + 1] = c.o[k + 1] = P[n][1]; c.x[k + 2] = c.o[k + 2] = P[n][2]; }
+}
+function cannonSpin(c, I, wz, wx) { // wind him up: roll about the flight line (wz) and a bit of somersault (wx), rad/s
+  const pk = I.pel * 3, cx = c.x[pk], cy = c.x[pk + 1], cz = c.x[pk + 2];
+  for (let q = 0; q < c.n; q++) { const k = q * 3, rx = c.x[k] - cx, ry = c.x[k + 1] - cy, rz = c.x[k + 2] - cz; c.o[k] -= (-wz * ry) / 240; c.o[k + 1] -= (wz * rx - wx * rz) / 240; c.o[k + 2] -= (wx * ry) / 240; }
 }
 function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-1, 1) * amt / 240; c.o[k + 1] -= rand(-0.4, 1) * amt / 240; } }
+function cannonShardStep(dt) {
+  CAN.glass.step(dt); for (const st of CAN.sets) { st.main.step(dt); if (st.aux) st.aux.step(dt); }
+  for (const sh of CAN.paper) { if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } sh.v.y -= 2.5 * dt; sh.v.multiplyScalar(1 / (1 + 1.5 * dt)); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; if (sh.m.position.y < 0.03) { sh.m.position.y = 0.03; sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); } }
+}
 function wallSound(W, i) {
   tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
   if (!AC) return; OUT(); const t = AC.currentTime;
@@ -3953,28 +4006,38 @@ function wallSound(W, i) {
   else if (W.kind === 'wood') { noiseDist(t, 0.14, 0.3, 2000, 280, 1.2); sweep(t, 190, 60, 0.2, 0.3, 'sine'); }
   else crashSound(clamp(0.12 + W.c / 220000 * 0.7, 0.12, 0.85));
 }
+const CAN_LIMB = { haL: 'armL', wrL: 'armL', haR: 'armR', wrR: 'armR', toL: 'legL', anL: 'legL', knL: 'legL', toR: 'legR', anR: 'legR', knR: 'legR' };
 function cannonWalls() {
   const C = CAN, S = RAGSIM, c = S.core, I = S.I; if (C.stuck >= 0) return;
-  let lead = 1e9, sx = 0, sy = 0; for (const nm of CAN_LEAD) { const k = I[nm] * 3; lead = Math.min(lead, c.x[k + 2]); sx += c.x[k]; sy += c.x[k + 1]; } sx /= CAN_LEAD.length; sy /= CAN_LEAD.length;
-  while (C.next < 15 && C.stuck < 0 && lead <= cannonWallZ(C.next) + 0.25) {
-    const i = C.next, W = CANNON_WALLS[i], v2 = C.vmph * C.vmph - W.c;
+  const zmin = names => { let m = 1e9, who = null; for (const nm of names) { const z = c.x[I[nm] * 3 + 2]; if (z < m) { m = z; who = nm; } } return [m, who]; };
+  while (C.next < 15 && C.stuck < 0) {
+    const i = C.next, W = CANNON_WALLS[i], wz = cannonWallZ(i) + 0.25, hard = W.c >= 30000, [leadAll, who] = zmin(CAN_LEAD), [leadTorso] = zmin(['top', 'chest', 'pel']);
+    if (hard && !C.touch[i] && leadAll <= wz) { // a hand or a foot gets there first and takes the first blow: it can be torn off, the wall only cracks
+      C.touch[i] = true; const k = I[who] * 3, g = CAN_LIMB[who]; burst(new V3(c.x[k], c.x[k + 1], cannonWallZ(i)), 25, CAN_PAL[W.kind] || SPARK, 5); clank(10);
+      CAN.cracks[i].position.set(clamp(c.x[k], -2.3, 2.3), clamp(c.x[k + 1], 0.7, 3.1), W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(0.55); CAN.cracks[i].visible = true;
+      if (g && !c.broken.includes(g) && Math.random() < 0.75) c.breakGroup(g); cannonKick(c, 0.6);
+    }
+    if ((hard ? leadTorso : leadAll) > wz) break;
+    let sx = 0, sy = 0; for (const nm of ['top', 'chest', 'pel']) { sx += c.x[I[nm] * 3]; sy += c.x[I[nm] * 3 + 1]; } sx /= 3; sy /= 3; // the hole is centred on his body, not on a fingertip
+    const v2 = C.vmph * C.vmph - W.c;
     if (v2 > 0) { // through: he slows down by what the wall took, a hole opens, pieces fly
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(C.vmph); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
-      C.broken++; C.next++; const h = canHole(i, sx, sy); canShardSpawn(W, i, h.px, h.py, Math.min(60, h.gone.length * (W.kind === 'glass' ? 4 : 2)), -1);
-      if (W.kind === 'glass') { CAN.cracks[i].position.set(h.px, h.py, W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.25); CAN.cracks[i].visible = true; }
-      for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; const pw = new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)); canPaper(i, p, 7); burst(pw, 10, [[4, 4, 4]], 3); }
+      C.broken++; C.next++; const h = canHole(i, sx, sy); canDebris(W, i, h, false);
+      if (W.draw === 'armor') { CAN.cracks[i].position.set(h.px, h.py, W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.5); CAN.cracks[i].visible = true; }
+      for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; canPaper(i, p, 9); burst(new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)), 10, [[4, 4, 4]], 3); }
       const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
       if (W.c >= 100000 && Math.random() < 0.35 && !c.broken.includes('head')) c.breakGroup('head');
       cannonKick(c, Math.min(2.4, 0.3 + W.c / 70000));
+      { const first = !C.spun; if (first) C.sd = Math.random() < 0.5 ? -1 : 1; C.spun = Math.min(14, C.spun + (first ? 5 + Math.random() * 3 : 1.2)); cannonSpin(c, I, C.sd * (first ? C.spun : 1.2), first ? rand(-2, 2) : rand(-0.8, 0.8)); } // from the first wall on he spins, a bit faster with every wall
       if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
       lastPop = 0; pop(W.n + '!');
       if (C.next === 15) c.g = -6;
     } else { // stopped inside this wall
       C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
       CAN.cracks[i].position.set(clamp(sx, -2.3, 2.3), clamp(sy, 0.9, 3), W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.1); CAN.cracks[i].visible = true;
-      const h = canHole(i, sx, sy); canShardSpawn(W, i, h.px, h.py, Math.min(14, h.gone.length * 2), -0.3); // a dent: only the front pieces chip off
+      const h = canHole(i, sx, sy, true); canDebris(W, i, h, true); // a dent: only the front pieces chip off
       burst(new V3(sx + LAB_LANE, sy, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
       if (Math.random() < 0.5 && !c.broken.includes('head')) c.breakGroup('head');
       lastPop = 0; pop('STUCK IN ' + W.n + '!', 'lilac'); setFace('hit', 99999);
@@ -3982,7 +4045,7 @@ function cannonWalls() {
   }
 }
 function canPaper(i, p, n) { const G = canShardGeo(), z = cannonWallZ(i), pm = p.mesh.material;
-  for (let q = 0; q < n; q++) { let sh = CAN.shards.find(s => s.life <= 0); if (!sh) break; const m = sh.m; m.geometry = pick(G.paper); m.material = pm; m.scale.setScalar(1); m.visible = true; m.position.set(LAB_LANE + p.x + rand(-0.4, 0.4), p.y + rand(-0.5, 0.5), z + 0.1); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6)); sh.v.set(rand(-2, 2), rand(0, 3), -rand(2, 9)); sh.w.set(rand(-6, 6), rand(-6, 6), rand(-6, 6)); sh.life = rand(4, 7); sh.rest = false; } }
+  for (let q = 0; q < n; q++) { const sh = CAN.paper.find(s => s.life <= 0); if (!sh) break; const m = sh.m; m.geometry = pick(G.paper); m.material.map = pm.map; m.material.needsUpdate = true; m.scale.setScalar(1); m.visible = true; m.position.set(LAB_LANE + p.x + rand(-0.4, 0.4), p.y + rand(-0.5, 0.5), z + 0.1); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6)); sh.v.set(rand(-2, 2), rand(0, 3), -rand(2, 9)); sh.w.set(rand(-6, 6), rand(-6, 6), rand(-6, 6)); sh.life = rand(4, 7); } }
 function cannonStep(dt, now) {
   const C = CAN; C.t += dt; cannonShardStep(dt);
   if (C.recoil > 0) { C.recoil = Math.max(0, C.recoil - dt * 2.2); C.barrel.position.z = MUZZLE_Z + CAN_SPEC[clamp(C.lv, 1, 5) - 1].L + C.recoil * 0.9; }
@@ -4003,13 +4066,13 @@ function cannonStep(dt, now) {
   } else if (C.phase === 'end' && RAGSIM) ragSimStep(dt);
 }
 function cannonCam() {
-  if (!RAGSIM) { wantPos.set(LAB_LANE + 5.5, 1.9, MUZZLE_Z + 4.5); wantLook.set(LAB_LANE, 1.3, MUZZLE_Z - 5); return 6; }
+  if (!RAGSIM) { wantPos.set(LAB_LANE + 11, 2.6, MUZZLE_Z + 9); wantLook.set(LAB_LANE, 1.6, MUZZLE_Z - 4); return 6; }
   const c = RAGSIM.core, k = RAGSIM.I.pel * 3, pz = c.x[k + 2], py = c.x[k + 1];
-  wantPos.set(LAB_LANE + 6.5, 1.8 + Math.max(0, py - 1.2) * 0.3, pz + 3.2); wantLook.set(LAB_LANE, Math.max(1.0, py * 0.9), pz - 5); return 9;
+  wantPos.set(LAB_LANE + 12.5, 2.8 + Math.max(0, py - 1.5) * 0.25, pz + 6); wantLook.set(LAB_LANE, Math.max(1.4, py * 0.8), pz - 6); return 14; // far enough to see the whole wall and him in front of it
 }
 function labStep(dt, now) {
   stepGas(dt);
-  if (LAB.machine === 'cannon') { cannonStep(dt, now); return; }
+  if (LAB.machine === 'cannon') { if (state === 'lab' && LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } cannonStep(dt, now); return; } // (the result menu was never reached from here before)
   if (state === 'lab') { if (now - stateT > 2500) $('hook').classList.remove('show'); if (LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } }
   const lv = LAB.level, P = LAB.phase; LAB.t += dt;
   const butt = () => byName.pelvis.getWorldPosition(new V3()).add(new V3(0, -0.3, 0));
