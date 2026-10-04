@@ -1280,13 +1280,36 @@ function takeGateFlock(i, side) {
 // ---------- particles ----------
 const SPN = 900, spPos = new Float32Array(SPN * 3), spCol = new Float32Array(SPN * 3), spVel = Array.from({ length: SPN }, () => new V3()), spLife = new Float32Array(SPN);
 for (let i = 0; i < SPN; i++) spPos[i * 3 + 1] = -99;
-const spGeo = new THREE.BufferGeometry();
-spGeo.setAttribute('position', new THREE.BufferAttribute(spPos, 3));
-spGeo.setAttribute('color', new THREE.BufferAttribute(spCol, 3));
-const SPARK_TEX = tex(64, 64, (g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
-const SPARK_POINTS = new THREE.Points(spGeo, new THREE.PointsMaterial({ size: 0.12, map: SPARK_TEX, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-SPARK_POINTS.frustumCulled = false; // its bounding sphere was computed once from the parked particles (all at one point under the floor), so it was always culled and no spark was ever drawn
+// sparks are drawn as short glowing streaks stretched along their velocity (camera-facing quads), like real sparks, not round dots
+const spGeo = new THREE.BufferGeometry(), spQuadPos = new Float32Array(SPN * 12), spQuadCol = new Float32Array(SPN * 12), spQuadUv = new Float32Array(SPN * 8), spQuadIdx = new Uint16Array(SPN * 6);
+for (let i = 0; i < SPN; i++) { const v = i * 4; spQuadIdx.set([v, v + 1, v + 2, v + 2, v + 1, v + 3], i * 6); spQuadUv.set([0, 1, 1, 1, 0, 0, 1, 0], i * 8); for (let k = 0; k < 4; k++) spQuadPos[i * 12 + k * 3 + 1] = -99; }
+spGeo.setAttribute('position', new THREE.BufferAttribute(spQuadPos, 3)); spGeo.setAttribute('color', new THREE.BufferAttribute(spQuadCol, 3)); spGeo.setAttribute('uv', new THREE.BufferAttribute(spQuadUv, 2)); spGeo.setIndex(new THREE.BufferAttribute(spQuadIdx, 1));
+const SPARK_TEX = tex(32, 128, (g, w, h) => { // bright hot head at the bottom (v=1 is the head), thin fading tail; soft sides
+  g.clearRect(0, 0, w, h); const side = g.createLinearGradient(0, 0, w, 0); side.addColorStop(0, 'rgba(255,255,255,0)'); side.addColorStop(0.5, 'rgba(255,255,255,1)'); side.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = side; g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = 'destination-in'; const along = g.createLinearGradient(0, 0, 0, h); along.addColorStop(0, 'rgba(255,255,255,0)'); along.addColorStop(0.7, 'rgba(255,255,255,0.55)'); along.addColorStop(0.93, 'rgba(255,255,255,1)'); along.addColorStop(1, 'rgba(255,255,255,0.8)'); g.fillStyle = along; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over';
+});
+const SPARK_POINTS = new THREE.Mesh(spGeo, new THREE.MeshBasicMaterial({ map: SPARK_TEX, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+SPARK_POINTS.frustumCulled = false; // its bounding box was computed once from the parked sparks (all under the floor), so it was always culled and no spark was ever drawn
 scene.add(SPARK_POINTS);
+const _sv = new V3(), _sw = new V3(), _sd = new V3();
+function sparkQuads() {
+  const cp = camera.position;
+  for (let i = 0; i < SPN; i++) {
+    const o = i * 12;
+    if (spLife[i] <= 0) { for (let k = 0; k < 4; k++) { spQuadPos[o + k * 3] = 0; spQuadPos[o + k * 3 + 1] = -99; spQuadPos[o + k * 3 + 2] = 0; } continue; }
+    const px = spPos[i * 3], py = spPos[i * 3 + 1], pz = spPos[i * 3 + 2], v = spVel[i], sp = v.length();
+    _sv.copy(v); if (sp > 1e-3) _sv.multiplyScalar(1 / sp); else _sv.set(0, 1, 0);
+    _sd.set(px - cp.x, py - cp.y, pz - cp.z); _sw.crossVectors(_sv, _sd); const wl = _sw.length(); if (wl < 1e-5) _sw.set(1, 0, 0); else _sw.multiplyScalar(1 / wl);
+    const len = clamp(sp * 0.05, 0.07, 0.65), hw = 0.022 + Math.min(0.02, sp * 0.002), tx = px - _sv.x * len, ty = py - _sv.y * len, tz = pz - _sv.z * len, tw = hw * 0.55;
+    // vertices: tail-left, tail-right, head-left, head-right (uv v: 0 tail, 1 head matches the texture)
+    spQuadPos[o] = tx - _sw.x * tw; spQuadPos[o + 1] = ty - _sw.y * tw; spQuadPos[o + 2] = tz - _sw.z * tw;
+    spQuadPos[o + 3] = tx + _sw.x * tw; spQuadPos[o + 4] = ty + _sw.y * tw; spQuadPos[o + 5] = tz + _sw.z * tw;
+    spQuadPos[o + 6] = px - _sw.x * hw; spQuadPos[o + 7] = py - _sw.y * hw; spQuadPos[o + 8] = pz - _sw.z * hw;
+    spQuadPos[o + 9] = px + _sw.x * hw; spQuadPos[o + 10] = py + _sw.y * hw; spQuadPos[o + 11] = pz + _sw.z * hw;
+    const f = Math.min(1, spLife[i] * 3), r = spCol[i * 3] * f, g = spCol[i * 3 + 1] * f, b = spCol[i * 3 + 2] * f;
+    for (let k = 0; k < 4; k++) { spQuadCol[o + k * 3] = r; spQuadCol[o + k * 3 + 1] = g; spQuadCol[o + k * 3 + 2] = b; }
+  }
+}
 let spNext = 0;
 const SPARK = [[4, 2.6, 0.6], [4, 1.8, 0.4], [3, 3, 2.2]], CONF = [[4, 2.8, 0.2], [2.8, 1, 4], [0.8, 3, 4], [0.8, 4, 1.8]];
 function burst(p, n, pal, sp) {
@@ -1299,9 +1322,11 @@ function burst(p, n, pal, sp) {
     const c = pick(pal); spCol[i * 3] = c[0]; spCol[i * 3 + 1] = c[1]; spCol[i * 3 + 2] = c[2];
   }
 }
+let spWas = false;
 function updateSparks(dt) {
+  let any = false;
   for (let i = 0; i < SPN; i++) {
-    if (spLife[i] <= 0) continue;
+    if (spLife[i] <= 0) continue; any = true;
     spLife[i] -= dt;
     if (spLife[i] <= 0) { spPos[i * 3 + 1] = -99; continue; }
     spVel[i].y -= 9.8 * dt; spVel[i].multiplyScalar(Math.pow(0.5, dt));
@@ -1310,7 +1335,8 @@ function updateSparks(dt) {
     if (spPos[i * 3 + 1] < fl) { spPos[i * 3 + 1] = fl; spVel[i].y *= -0.3; }
     if (spLife[i] < 0.3) { spCol[i * 3] *= 0.93; spCol[i * 3 + 1] *= 0.93; spCol[i * 3 + 2] *= 0.93; }
   }
-  spGeo.attributes.position.needsUpdate = true; spGeo.attributes.color.needsUpdate = true;
+  if (!any && !spWas) return; spWas = any; // nothing alive: skip the buffer work
+  sparkQuads(); spGeo.attributes.position.needsUpdate = true; spGeo.attributes.color.needsUpdate = true;
 }
 // ---------- debris: nuts, bolts, gears, washers, springs + machine oil ----------
 const steelMat = new THREE.MeshStandardMaterial({ color: 0xbab8ca, metalness: 0.95, roughness: 0.28 });
