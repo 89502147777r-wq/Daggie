@@ -3735,60 +3735,184 @@ function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(k
 
 // ---------- wall cannon: 15 walls from thin glass to a vault door; the cannon's power decides how many he breaks ----------
 const CANNON_MPH = [100, 200, 350, 600, 1000];
-const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes. Checked offline: 100/200/350/600/1000 mph break 3/6/9/12/15 walls
-  { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, op: 0.35, kind: 'glass' }, { n: 'JELLY', c: 2500, col: 0x5cff9a, op: 0.7, kind: 'jelly' }, { n: 'CAKE', c: 4000, col: 0xffb6d9, op: 1, kind: 'cake' },
-  { n: 'ICE', c: 4000, col: 0xbfe8ff, op: 0.8, kind: 'ice' }, { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, op: 1, kind: 'wood' }, { n: 'OAK', c: 13000, col: 0x7a4a22, op: 1, kind: 'wood' },
-  { n: 'BRICK', c: 14000, col: 0xb5452f, op: 1, kind: 'brick' }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, op: 0.5, kind: 'glass' }, { n: 'STONE', c: 26000, col: 0x7d7f86, op: 1, kind: 'stone' },
-  { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, op: 1, kind: 'stone' }, { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, op: 0.55, kind: 'glass' }, { n: 'STEEL', c: 100000, col: 0x8e99a8, op: 1, kind: 'metal' },
-  { n: 'GOLD', c: 120000, col: 0xffc928, op: 1, kind: 'metal' }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, op: 0.75, kind: 'ice' }, { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, op: 1, kind: 'metal' },
+const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes. Checked offline: 100/200/350/600/1000 mph break 3/6/9/12/15 walls. T: thickness, R: size of the hole he punches (m)
+  { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, kind: 'glass', T: 0.1, R: 1.5, draw: 'glass' }, { n: 'JELLY', c: 2500, col: 0x5cff9a, kind: 'jelly', T: 0.45, R: 1.2, draw: 'jelly' },
+  { n: 'CAKE', c: 4000, col: 0xffb6d9, kind: 'cake', T: 0.5, R: 1.3, draw: 'cake' }, { n: 'ICE', c: 4000, col: 0xbfe8ff, kind: 'ice', T: 0.3, R: 1.4, draw: 'ice' },
+  { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, kind: 'wood', T: 0.12, R: 1.3, draw: 'ply' }, { n: 'OAK', c: 13000, col: 0x7a4a22, kind: 'wood', T: 0.22, R: 1.25, draw: 'oak' },
+  { n: 'BRICK', c: 14000, col: 0xb5452f, kind: 'brick', T: 0.35, R: 1.3, draw: 'brick' }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, kind: 'glass', T: 0.2, R: 1.4, draw: 'glass2' },
+  { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone' }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete' },
+  { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, kind: 'glass', T: 0.3, R: 1.2, draw: 'armor' }, { n: 'STEEL', c: 100000, col: 0x8e99a8, kind: 'metal', T: 0.15, R: 0.95, draw: 'steel' },
+  { n: 'GOLD', c: 120000, col: 0xffc928, kind: 'metal', T: 0.2, R: 1.0, draw: 'gold' }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, kind: 'ice', T: 0.3, R: 1.1, draw: 'diamond' },
+  { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault' },
 ];
 const CAN_PAL = { glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
 const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
-const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7;
-const CAN = { built: false, group: null, walls: [], barrel: null, shards: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0 };
+const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7, CAN_NX = 8, CAN_NY = 5, CAN_W = 6, CAN_H = 3.8;
+const CAN = { built: false, group: null, walls: [], tiles: [], mats: [], cracks: [], posters: [], shards: [], models: [], geo: null, phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
 const cannonWallZ = i => WALL_Z0 - i * WALL_DZ;
 const cannonVis = mph => 16 + 44 * Math.sqrt(Math.max(0, mph) / 1000); // how fast he moves on screen (m/s); the mph shown is the model's
+const CAN_SPEC = [
+  { L: 3.2, r0: 0.55, r1: 0.48, col: 0x4d7a3a, band: 0x2b2b30, glow: 0, wheel: 'wood', wr: 0.8 }, { L: 4.2, r0: 0.65, r1: 0.55, col: 0x23252b, band: 0xb08a3a, glow: 0, wheel: 'iron', wr: 0.95 },
+  { L: 5.2, r0: 0.8, r1: 0.68, col: 0x7a1f22, band: 0x30343c, glow: 0, wheel: 'steel', wr: 1.1 }, { L: 6.2, r0: 0.9, r1: 0.78, col: 0x15171c, band: 0x00e5ff, glow: 1, wheel: 'track', wr: 0.9 },
+  { L: 7.6, r0: 1.05, r1: 0.9, col: 0x24201a, band: 0xffa21a, glow: 1, wheel: 'track', wr: 1.1 },
+];
+const rgba = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
+  speck(g, w, h, n, cols, s, a) { for (let i = 0; i < n; i++) { g.fillStyle = pick(cols); g.globalAlpha = a * rand(0.4, 1); g.fillRect(rand(0, w), rand(0, h), s * rand(0.5, 1.6), s * rand(0.5, 1.6)); } g.globalAlpha = 1; },
+  streaks(g, w, h, n, col, a, len) { g.strokeStyle = col; for (let i = 0; i < n; i++) { g.globalAlpha = a * rand(0.3, 1); g.lineWidth = rand(0.5, 1.8); const y = rand(0, h), x = rand(-20, w); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(len * 0.4, len), y + rand(-1, 1)); g.stroke(); } g.globalAlpha = 1; },
+  glassBase(g, w, h, tint, a1, a2, edge) {
+    g.clearRect(0, 0, w, h); const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, rgba(tint, a1)); gr.addColorStop(0.5, rgba(tint, a2)); gr.addColorStop(1, rgba(tint, a1)); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (const [x0, wd, a] of [[0.1, 0.08, 0.32], [0.28, 0.025, 0.5], [0.6, 0.12, 0.2], [0.8, 0.03, 0.4]]) { const sk = g.createLinearGradient(w * x0, 0, w * (x0 + wd), 0); sk.addColorStop(0, 'rgba(255,255,255,0)'); sk.addColorStop(0.5, 'rgba(255,255,255,' + a + ')'); sk.addColorStop(1, 'rgba(255,255,255,0)'); g.save(); g.transform(1, 0, -0.5, 1, h * 0.5, 0); g.fillStyle = sk; g.fillRect(w * x0 - h * 0.25, 0, w * wd + 4, h); g.restore(); }
+    g.strokeStyle = edge; g.lineWidth = 12; g.strokeRect(6, 6, w - 12, h - 12); g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 2; g.strokeRect(14, 14, w - 28, h - 28);
+  },
+  glass(g, w, h) { this.glassBase(g, w, h, [190, 235, 255], 0.28, 0.14, 'rgba(120,190,220,0.8)'); this.streaks(g, w, h, 14, 'rgba(255,255,255,0.7)', 0.4, 60); },
+  glass2(g, w, h) { this.glassBase(g, w, h, [110, 200, 190], 0.5, 0.32, 'rgba(40,120,110,0.95)'); g.fillStyle = 'rgba(20,90,80,0.25)'; g.fillRect(0, 0, w, 26); g.fillRect(0, h - 26, w, 26); this.streaks(g, w, h, 10, 'rgba(255,255,255,0.8)', 0.35, 80); },
+  armor(g, w, h) { this.glassBase(g, w, h, [40, 110, 130], 0.7, 0.5, 'rgba(25,30,36,1)'); g.strokeStyle = 'rgba(10,20,25,0.7)'; g.lineWidth = 3; for (let x = 0; x <= w; x += w / 4) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } for (let y = 0; y <= h; y += h / 3) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    g.fillStyle = 'rgba(150,160,170,1)'; for (let x = 0; x <= w; x += w / 4) for (let y = 0; y <= h; y += h / 3) { g.beginPath(); g.arc(Math.min(w - 14, Math.max(14, x)), Math.min(h - 14, Math.max(14, y)), 7, 0, 7); g.fill(); }
+    for (let k = 0; k < 5; k++) { const cx = rand(60, w - 60), cy = rand(50, h - 50); g.strokeStyle = 'rgba(220,240,250,0.55)'; g.lineWidth = 1.2; for (let a = 0; a < 9; a++) { const an = a * 0.7 + rand(0, 0.3); g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(an) * rand(8, 22), cy + Math.sin(an) * rand(8, 22)); g.stroke(); } } },
+  jelly(g, w, h) { const gr = g.createRadialGradient(w * 0.4, h * 0.35, 10, w / 2, h / 2, w * 0.7); gr.addColorStop(0, 'rgba(170,255,190,0.92)'); gr.addColorStop(1, 'rgba(40,200,110,0.85)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 46; i++) { const x = rand(0, w), y = rand(0, h), r = rand(3, 14); g.fillStyle = 'rgba(255,255,255,0.18)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.3, r * 0.28, 0, 7); g.fill(); }
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 3; for (let k = 0; k < 5; k++) { g.beginPath(); for (let x = 0; x <= w; x += 16) g.lineTo(x, 40 + k * 60 + Math.sin(x * 0.03 + k) * 10); g.stroke(); } g.strokeStyle = 'rgba(20,120,60,0.8)'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10); },
+  cake(g, w, h) { const layers = [['#c68a4b', 70], ['#fff2e0', 30], ['#d3344d', 26], ['#c68a4b', 70], ['#fff2e0', 30], ['#e8b6c8', 94]]; let y = h; for (const [c, t] of layers) { y -= t; g.fillStyle = c; g.fillRect(0, y, w, t); }
+    this.speck(g, w, h, 900, ['#8a5a2a', '#e0a860', '#6b3f1d'], 3, 0.6); for (let i = 0; i < 160; i++) { g.fillStyle = pick(['#ff4d6d', '#4dd2ff', '#ffe14d', '#7dff6a', '#b06bff']); g.save(); g.translate(rand(0, w), rand(0, 90)); g.rotate(rand(0, 3)); g.fillRect(0, 0, 9, 3.5); g.restore(); }
+    g.fillStyle = '#fff6ee'; g.beginPath(); g.moveTo(0, 96); for (let x = 0; x <= w; x += 24) g.quadraticCurveTo(x + 6, 96 + rand(18, 34), x + 12, 96); g.lineTo(w, 0); g.lineTo(0, 0); g.fill(); g.fillStyle = '#d01f3c'; for (const x of [70, 190, 310, 430]) { g.beginPath(); g.arc(x, 30, 17, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(x - 5, 24, 4, 0, 7); g.fill(); g.fillStyle = '#d01f3c'; } },
+  ice(g, w, h) { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, 'rgba(190,230,255,0.9)'); gr.addColorStop(0.5, 'rgba(235,248,255,0.85)'); gr.addColorStop(1, 'rgba(150,205,240,0.9)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    this.speck(g, w, h, 500, ['#ffffff', '#cfeaff'], 3, 0.6); for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.arc(rand(0, w), rand(0, h), rand(2, 9), 0, 7); g.fill(); }
+    g.strokeStyle = 'rgba(255,255,255,0.85)'; for (let k = 0; k < 9; k++) { g.lineWidth = rand(0.8, 2.2); g.beginPath(); let x = rand(0, w), y = rand(0, h); g.moveTo(x, y); for (let q = 0; q < 6; q++) { x += rand(-40, 40); y += rand(-30, 30); g.lineTo(x, y); } g.stroke(); } g.strokeStyle = 'rgba(120,180,230,0.8)'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10); },
+  ply(g, w, h) { g.fillStyle = '#d9b27a'; g.fillRect(0, 0, w, h); this.streaks(g, w, h, 260, '#a8793f', 0.5, 220); this.streaks(g, w, h, 90, '#f0cf9a', 0.5, 160);
+    for (let k = 0; k < 6; k++) { const x = rand(30, w - 30), y = rand(20, h - 20); g.strokeStyle = 'rgba(120,75,30,0.7)'; for (let r = 4; r < 20; r += 4) { g.lineWidth = 1.5; g.beginPath(); g.ellipse(x, y, r * 1.8, r, 0, 0, 7); g.stroke(); } }
+    g.strokeStyle = 'rgba(90,55,20,0.8)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke(); g.fillStyle = 'rgba(70,70,70,0.9)'; for (let x = 20; x < w; x += 40) { g.fillRect(x, 10, 3, 3); g.fillRect(x, h - 14, 3, 3); } },
+  oak(g, w, h) { const n = 6, pw = w / n; for (let i = 0; i < n; i++) { g.fillStyle = pick(['#6a3f1c', '#74461f', '#5f3818', '#7b4d24']); g.fillRect(i * pw, 0, pw, h); g.save(); g.beginPath(); g.rect(i * pw, 0, pw, h); g.clip(); g.strokeStyle = 'rgba(30,15,5,0.55)'; for (let k = 0; k < 40; k++) { g.lineWidth = rand(0.6, 2); const x = i * pw + rand(0, pw); g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + rand(-8, 8), h * 0.3, x + rand(-8, 8), h * 0.7, x + rand(-6, 6), h); g.stroke(); } g.restore(); g.fillStyle = 'rgba(15,8,3,0.95)'; g.fillRect(i * pw - 1.5, 0, 3, h); g.fillStyle = 'rgba(160,160,160,0.9)'; for (const y of [18, h - 18]) { g.beginPath(); g.arc(i * pw + pw / 2, y, 3.5, 0, 7); g.fill(); } } },
+  brick(g, w, h) { g.fillStyle = '#c9c2b0'; g.fillRect(0, 0, w, h); const bw = 42, bh = 17, gap = 3; for (let r = 0, y = 0; y < h; r++, y += bh + gap) for (let x = (r % 2) * -bw / 2; x < w; x += bw + gap) { g.fillStyle = pick(['#a63f2b', '#b5452f', '#9a3626', '#bf5236', '#8f3223']); g.fillRect(x, y, bw, bh); g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x, y + bh - 3, bw, 3); g.fillStyle = 'rgba(255,200,170,0.15)'; g.fillRect(x, y, bw, 2); }
+    this.speck(g, w, h, 1400, ['#5a2a1f', '#d9a08a', '#7a3a2c', '#e8d9c0'], 2.2, 0.5); },
+  stone(g, w, h) { g.fillStyle = '#4a4c52'; g.fillRect(0, 0, w, h); let y = 0; while (y < h) { const bh = rand(46, 78); let x = -rand(0, 60); while (x < w) { const bw = rand(70, 150); const v = rand(100, 150) | 0; g.fillStyle = 'rgb(' + v + ',' + (v + 2) + ',' + (v + 8) + ')'; g.fillRect(x + 2, y + 2, bw - 4, bh - 4); const gr = g.createLinearGradient(x, y, x, y + bh); gr.addColorStop(0, 'rgba(255,255,255,0.18)'); gr.addColorStop(1, 'rgba(0,0,0,0.25)'); g.fillStyle = gr; g.fillRect(x + 2, y + 2, bw - 4, bh - 4); x += bw; } y += bh; }
+    this.speck(g, w, h, 1800, ['#222', '#cfcfcf', '#777'], 2, 0.45); g.strokeStyle = 'rgba(20,20,20,0.6)'; for (let k = 0; k < 7; k++) { g.lineWidth = 1.2; g.beginPath(); let x = rand(0, w), yy = rand(0, h); g.moveTo(x, yy); for (let q = 0; q < 4; q++) { x += rand(-25, 25); yy += rand(5, 25); g.lineTo(x, yy); } g.stroke(); } },
+  concrete(g, w, h) { g.fillStyle = '#a2a29c'; g.fillRect(0, 0, w, h); this.speck(g, w, h, 3200, ['#888', '#bbb', '#777', '#c8c8c0'], 2.4, 0.4); for (let k = 0; k < 8; k++) { const x = rand(0, w), gr = g.createLinearGradient(x, 0, x + 20, h); gr.addColorStop(0, 'rgba(60,55,45,0)'); gr.addColorStop(0.5, 'rgba(60,55,45,0.22)'); gr.addColorStop(1, 'rgba(60,55,45,0)'); g.fillStyle = gr; g.fillRect(x, 0, 30, h); }
+    g.strokeStyle = 'rgba(40,40,40,0.55)'; g.lineWidth = 2; for (const x of [w / 3, 2 * w / 3]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke(); g.fillStyle = 'rgba(40,40,40,0.8)'; for (const x of [w / 6, w / 2, 5 * w / 6]) for (const y of [h / 4, 3 * h / 4]) { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); } g.fillStyle = 'rgba(150,70,30,0.5)'; for (let k = 0; k < 5; k++) g.fillRect(rand(0, w), rand(0, h * 0.5), 3, rand(20, 60)); },
+  steel(g, w, h) { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#aab3c0'); gr.addColorStop(0.5, '#8a94a3'); gr.addColorStop(1, '#6f7886'); g.fillStyle = gr; g.fillRect(0, 0, w, h); this.streaks(g, w, h, 420, 'rgba(255,255,255,0.5)', 0.35, 300); this.streaks(g, w, h, 200, 'rgba(30,35,45,0.5)', 0.3, 260);
+    g.strokeStyle = 'rgba(25,28,34,0.9)'; g.lineWidth = 4; g.strokeRect(3, 3, w - 6, h - 6); for (const x of [w / 2]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    for (let x = 18; x < w; x += 34) for (const y of [14, h - 14, h / 2 - 12, h / 2 + 12]) { g.fillStyle = '#5d6572'; g.beginPath(); g.arc(x, y, 4.5, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.6)'; g.beginPath(); g.arc(x - 1.2, y - 1.2, 1.6, 0, 7); g.fill(); } },
+  gold(g, w, h) { const bw = 120, bh = 56; g.fillStyle = '#6b4a00'; g.fillRect(0, 0, w, h); for (let r = 0, y = 4; y < h; r++, y += bh + 6) for (let x = (r % 2) * -bw / 2 + 4; x < w; x += bw + 6) { const gr = g.createLinearGradient(x, y, x + bw, y + bh); gr.addColorStop(0, '#fff0a8'); gr.addColorStop(0.35, '#ffc928'); gr.addColorStop(0.7, '#e0a010'); gr.addColorStop(1, '#fff0a0'); g.fillStyle = gr; g.beginPath(); g.moveTo(x + 8, y); g.lineTo(x + bw - 8, y); g.lineTo(x + bw, y + bh); g.lineTo(x, y + bh); g.closePath(); g.fill(); g.fillStyle = 'rgba(120,70,0,0.7)'; g.font = '700 14px ' + FONT; g.textAlign = 'center'; g.fillText('999.9', x + bw / 2, y + bh / 2 + 5); g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(x + 12, y + 3, bw - 30, 3); } },
+  diamond(g, w, h) { g.fillStyle = '#bfefff'; g.fillRect(0, 0, w, h); for (let i = 0; i < 70; i++) { const cx = rand(0, w), cy = rand(0, h), n = 3 + (Math.random() * 3 | 0); g.beginPath(); for (let k = 0; k < n; k++) { const an = k / n * 6.283 + rand(0, 0.5), r = rand(24, 70); g.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r); } g.closePath(); g.fillStyle = 'rgba(' + pick(['255,255,255', '170,225,255', '210,240,255', '150,210,250', '230,250,255']) + ',' + rand(0.25, 0.7).toFixed(2) + ')'; g.fill(); g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.2; g.stroke(); }
+    for (let i = 0; i < 26; i++) { const x = rand(10, w - 10), y = rand(10, h - 10), r = rand(6, 16); g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke(); } g.strokeStyle = 'rgba(90,170,220,0.9)'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10); },
+  vault(g, w, h) { g.fillStyle = '#31353e'; g.fillRect(0, 0, w, h); this.streaks(g, w, h, 300, 'rgba(255,255,255,0.18)', 0.4, 250); const cx = w / 2, cy = h / 2;
+    g.fillStyle = '#e8b800'; for (const y of [0, h - 26]) { g.fillRect(0, y, w, 26); g.fillStyle = '#16141c'; for (let x = -20; x < w + 20; x += 40) { g.beginPath(); g.moveTo(x, y + 26); g.lineTo(x + 20, y); g.lineTo(x + 40, y); g.lineTo(x + 20, y + 26); g.fill(); } g.fillStyle = '#e8b800'; }
+    for (let k = 0; k < 16; k++) { const an = k / 16 * 6.283; g.fillStyle = '#9aa3b0'; g.beginPath(); g.arc(cx + Math.cos(an) * 128, cy + Math.sin(an) * 128, 7, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(cx + Math.cos(an) * 128 - 2, cy + Math.sin(an) * 128 - 2, 2.4, 0, 7); g.fill(); }
+    g.strokeStyle = '#aeb6c2'; g.lineWidth = 14; g.beginPath(); g.arc(cx, cy, 98, 0, 7); g.stroke(); g.lineWidth = 9; for (let k = 0; k < 6; k++) { const an = k / 6 * 6.283; g.beginPath(); g.moveTo(cx + Math.cos(an) * 20, cy + Math.sin(an) * 20); g.lineTo(cx + Math.cos(an) * 98, cy + Math.sin(an) * 98); g.stroke(); g.fillStyle = '#c8301f'; g.beginPath(); g.arc(cx + Math.cos(an) * 112, cy + Math.sin(an) * 112, 11, 0, 7); g.fill(); }
+    g.fillStyle = '#16141c'; g.beginPath(); g.arc(cx, cy, 30, 0, 7); g.fill(); g.strokeStyle = '#e8b800'; g.lineWidth = 3; for (let k = 0; k < 24; k++) { const an = k / 24 * 6.283; g.beginPath(); g.moveTo(cx + Math.cos(an) * 24, cy + Math.sin(an) * 24); g.lineTo(cx + Math.cos(an) * 29, cy + Math.sin(an) * 29); g.stroke(); } },
+  cracks(g, w, h) { g.clearRect(0, 0, w, h); const cx = w / 2, cy = h / 2; g.lineCap = 'round'; for (let pass = 0; pass < 2; pass++) { g.strokeStyle = pass ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,15,0.55)'; for (let a = 0; a < 18; a++) { let an = a / 18 * 6.283 + rand(-0.15, 0.15), x = cx, y = cy, r = 0; g.lineWidth = pass ? 1.6 : 3.2; g.beginPath(); g.moveTo(x, y); while (r < w * rand(0.28, 0.5)) { r += rand(10, 24); an += rand(-0.25, 0.25); x = cx + Math.cos(an) * r + (pass ? 0 : 1.5); y = cy + Math.sin(an) * r + (pass ? 0 : 1.5); g.lineTo(x, y); if (Math.random() < 0.18) { g.stroke(); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an + 0.9) * rand(10, 30), y + Math.sin(an + 0.9) * rand(10, 30)); g.stroke(); g.beginPath(); g.moveTo(x, y); } } g.stroke(); }
+    for (const rr of [26, 54, 86, 120]) { g.lineWidth = pass ? 1.2 : 2.4; g.beginPath(); for (let a = 0; a <= 12; a++) { const an = a / 12 * 6.283, r = rr * rand(0.85, 1.12); g.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r); } g.stroke(); } } },
+};
+function canTileGeo(T) { // a wall made of 8 x 5 loose tiles, so a hole can be punched through it
+  const tw = CAN_W / CAN_NX, th = CAN_H / CAN_NY, pos = [], uv = [], idx = [], cen = []; let v0 = 0;
+  for (let iy = 0; iy < CAN_NY; iy++) for (let ix = 0; ix < CAN_NX; ix++) {
+    const x0 = -CAN_W / 2 + ix * tw, x1 = x0 + tw, y0 = iy * th, y1 = y0 + th, z0 = -T / 2, z1 = T / 2, u0 = ix / CAN_NX, u1 = (ix + 1) / CAN_NX, w0 = iy / CAN_NY, w1 = (iy + 1) / CAN_NY, um = (u0 + u1) / 2, wm = (w0 + w1) / 2;
+    const F = [[[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [u0, w0], [u1, w0], [u1, w1], [u0, w1]], [[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [u1, w0], [u0, w0], [u0, w1], [u1, w1]],
+      [[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], [[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]]];
+    for (const f of F) { for (let k = 0; k < 4; k++) { pos.push(...f[k]); if (f.length > 4) uv.push(...f[4 + k]); else uv.push(um + (k % 2 ? 0.004 : -0.004), wm + (k > 1 ? 0.004 : -0.004)); } idx.push(v0, v0 + 1, v0 + 2, v0, v0 + 2, v0 + 3); v0 += 4; }
+    cen.push([(x0 + x1) / 2, (y0 + y1) / 2]);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); g.userData.cen = cen; return g;
+}
+function canShardGeo() {
+  if (CAN.geo) return CAN.geo; const G = CAN.geo = { glass: [], chunk: [], blob: [], splint: [], plate: [], paper: [] };
+  for (let i = 0; i < 6; i++) { const a = rand(0.2, 0.55), sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(a * rand(0.7, 1.3), a * rand(-0.15, 0.15)); sh.lineTo(a * rand(0.1, 0.7), a * rand(0.5, 1.3)); if (i % 2) sh.lineTo(-a * rand(0.1, 0.4), a * rand(0.2, 0.6)); G.glass.push(new THREE.ShapeGeometry(sh)); }
+  for (let i = 0; i < 7; i++) { const g = new THREE.IcosahedronGeometry(1, 0), p = g.attributes.position, jit = new Map(); for (let k = 0; k < p.count; k++) { const key = p.getX(k).toFixed(3) + ',' + p.getY(k).toFixed(3) + ',' + p.getZ(k).toFixed(3); if (!jit.has(key)) jit.set(key, rand(0.7, 1.25)); const f = jit.get(key); p.setXYZ(k, p.getX(k) * f, p.getY(k) * f, p.getZ(k) * f); } g.scale(rand(0.7, 1.3), rand(0.5, 1), rand(0.6, 1.2)); g.computeVertexNormals(); G.chunk.push(g); }
+  for (let i = 0; i < 3; i++) { const g = new THREE.SphereGeometry(1, 9, 7); g.scale(rand(0.8, 1.3), rand(0.6, 1), rand(0.8, 1.2)); G.blob.push(g); }
+  for (let i = 0; i < 6; i++) { const g = new THREE.BoxGeometry(rand(0.04, 0.09), rand(0.03, 0.06), rand(0.4, 1.3)), p = g.attributes.position; for (let k = 0; k < p.count; k++) if (p.getZ(k) > 0) p.setXYZ(k, p.getX(k) * 0.15, p.getY(k) * 0.3, p.getZ(k)); g.computeVertexNormals(); G.splint.push(g); }
+  for (let i = 0; i < 4; i++) { const g = new THREE.PlaneGeometry(rand(0.35, 0.65), rand(0.25, 0.5), 4, 4), p = g.attributes.position, ph = rand(0, 6); for (let k = 0; k < p.count; k++) p.setXYZ(k, p.getX(k) + rand(-0.04, 0.04), p.getY(k) + rand(-0.04, 0.04), Math.sin(p.getX(k) * 7 + ph) * 0.07 + p.getY(k) * 0.18); g.computeVertexNormals(); G.plate.push(g); }
+  G.paper.push(new THREE.PlaneGeometry(0.22, 0.3), new THREE.PlaneGeometry(0.3, 0.2), new THREE.PlaneGeometry(0.16, 0.16));
+  return G;
+}
+function canWheel(r, wd, spokes, rimM, spokeM) {
+  const g = new THREE.Group(), ring = new THREE.Group(); const rim = new THREE.Mesh(new THREE.TorusGeometry(r, wd * 0.5, 8, 28), rimM); ring.add(rim);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.18, wd * 1.6, 14), rimM); hub.rotation.x = Math.PI / 2; ring.add(hub);
+  for (let k = 0; k < spokes; k++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(r * 0.09, r * 1.9, wd * 0.5), spokeM); sp.rotation.z = k * Math.PI / spokes; ring.add(sp); }
+  ring.rotation.y = Math.PI / 2; g.add(ring); return g;
+}
+function canModel(lv) { // five cannons, each bigger and meaner; the muzzle is at z = MUZZLE_Z
+  const S = CAN_SPEC[lv - 1], g = new THREE.Group(), M = (c, m = 0.75, r = 0.4, e = 0) => new THREE.MeshStandardMaterial({ color: c, metalness: m, roughness: r, emissive: e ? c : 0x000000, emissiveIntensity: e });
+  const wood = M(0x7a4d28, 0.05, 0.8), iron = M(0x2b2d33, 0.8, 0.45), steel = M(0x6b7280, 0.85, 0.35), barrelM = M(S.col, 0.7, 0.35), bandM = M(S.band, S.glow ? 0.3 : 0.8, 0.3, S.glow ? 1.6 : 0), dark = M(0x101114, 0.5, 0.6);
+  const yb = S.wr + 0.35, zc = MUZZLE_Z + S.L * 0.55, barrel = new THREE.Group(); barrel.position.set(LAB_LANE, yb, MUZZLE_Z + S.L); g.add(barrel); g.userData.barrel = barrel;
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(S.r1, S.r0, S.L, 36), barrelM); tube.rotation.x = -Math.PI / 2; tube.position.z = -S.L / 2; tube.castShadow = true; barrel.add(tube);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(S.r0, 24, 16), barrelM); cap.position.z = 0; barrel.add(cap);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(S.r0 * 0.3, 12, 10), bandM); knob.position.z = S.r0 * 0.95; barrel.add(knob);
+  const nb = 3 + lv; for (let k = 0; k < nb; k++) { const t = (k + 0.7) / (nb + 0.5), r = S.r0 + (S.r1 - S.r0) * t, b = new THREE.Mesh(new THREE.TorusGeometry(r + 0.025, 0.045 + lv * 0.01, 8, 36), bandM); b.position.z = -S.L * t; barrel.add(b); }
+  const flare = new THREE.Mesh(new THREE.TorusGeometry(S.r1 + 0.03, 0.09 + lv * 0.012, 10, 36), bandM); flare.position.z = -S.L; barrel.add(flare);
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(S.r1 * 0.9, 28), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })); hole.position.z = -S.L + 0.04; barrel.add(hole);
+  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), dark); fuse.position.set(0, S.r0 + 0.1, S.r0 * 0.4); fuse.rotation.x = 0.4; barrel.add(fuse);
+  if (S.wheel === 'wood' || S.wheel === 'iron' || S.wheel === 'steel') {
+    const rimM = S.wheel === 'wood' ? wood : S.wheel === 'iron' ? iron : steel, spM = S.wheel === 'wood' ? wood : steel, sp = S.wheel === 'steel' ? 10 : 8;
+    for (const sx of [-1, 1]) { const w = canWheel(S.wr, S.wr * 0.16, sp, rimM, spM); w.position.set(LAB_LANE + sx * (S.r0 + 0.55), S.wr, zc); g.add(w); if (S.wheel !== 'wood') { const tyre = new THREE.Mesh(new THREE.TorusGeometry(S.wr, S.wr * 0.12, 8, 28), iron); tyre.rotation.y = Math.PI / 2; tyre.position.copy(w.position); g.add(tyre); } }
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, (S.r0 + 0.55) * 2, 10), iron); axle.rotation.z = Math.PI / 2; axle.position.set(LAB_LANE, S.wr, zc); g.add(axle);
+    for (const sx of [-1, 1]) { const ck = new THREE.Mesh(new THREE.BoxGeometry(0.22, S.wr * 0.9, S.L * 0.8), S.wheel === 'wood' ? wood : steel); ck.position.set(LAB_LANE + sx * (S.r0 + 0.3), yb - S.wr * 0.25, zc + 0.2); ck.castShadow = true; g.add(ck); }
+    const trail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, S.L * 0.55), S.wheel === 'wood' ? wood : steel); trail.position.set(LAB_LANE, 0.22, MUZZLE_Z + S.L + S.L * 0.3); trail.rotation.x = -0.12; g.add(trail);
+    if (lv === 3) for (let k = 0; k < 6; k++) { const bag = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 8), M(0x9a8a62, 0, 0.95)); bag.scale.set(1.3, 0.6, 1); bag.position.set(LAB_LANE + (k % 2 ? 1 : -1) * (S.r0 + 1.8) + rand(-0.2, 0.2), 0.2 + ((k / 2) | 0) * 0.28, zc - 1.0 + ((k / 2) | 0) * 0.5); g.add(bag); }
+  } else { // tracked bases with glowing cores
+    for (const sx of [-1, 1]) { const tr = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7 + lv * 0.1, S.L * 0.85), dark); tr.position.set(LAB_LANE + sx * (S.r0 + 0.65), 0.45 + lv * 0.05, zc); tr.castShadow = true; g.add(tr);
+      for (let k = 0; k < 11; k++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.06, 0.2), steel); st.position.set(tr.position.x, tr.position.y + (0.35 + lv * 0.05), zc - S.L * 0.4 + k * (S.L * 0.8 / 10)); g.add(st); } }
+    const deck = new THREE.Mesh(new THREE.BoxGeometry((S.r0 + 0.65) * 2, 0.4, S.L * 0.7), steel); deck.position.set(LAB_LANE, yb - S.r0 * 0.9, zc); deck.castShadow = true; g.add(deck);
+    for (let k = 0; k < 6; k++) { const fin = new THREE.Mesh(new THREE.TorusGeometry(S.r0 + 0.12, 0.03, 6, 30), steel); fin.position.set(0, 0, -S.L * (0.15 + k * 0.06)); barrel.add(fin); }
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 10), bandM); core.position.set(LAB_LANE, yb - S.r0 * 0.4, zc + S.L * 0.3); g.add(core);
+    if (lv === 5) { for (let k = 0; k < 8; k++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 8), bandM); const an = k / 8 * 6.283; sp.position.set(Math.cos(an) * (S.r0 + 0.2), Math.sin(an) * (S.r0 + 0.2), -S.L * 0.6); sp.rotation.z = an - Math.PI / 2; barrel.add(sp); }
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(S.r1 + 0.7, 0.06, 8, 40), bandM); halo.position.z = -S.L - 0.5; barrel.add(halo); for (const sx of [-1, 1]) { const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 1.3, 10), steel); pipe.position.set(LAB_LANE + sx * (S.r0 + 0.65), 1.7, zc + S.L * 0.25); g.add(pipe); } }
+  }
+  g.visible = false; return g;
+}
 function cannonBuild() {
   if (CAN.built || !labBuilt) return; CAN.built = true;
   const g = CAN.group = new THREE.Group(); g.visible = false; scene.add(g);
-  const steel = new THREE.MeshStandardMaterial({ color: 0x3a3f4a, metalness: 0.8, roughness: 0.4 });
-  CAN.barrelMat = new THREE.MeshStandardMaterial({ color: 0x3f7d4a, metalness: 0.7, roughness: 0.35 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.0), steel); base.position.set(LAB_LANE, 0.55, MUZZLE_Z + 1.2); base.castShadow = true; g.add(base);
-  for (const sx of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.25, 20), steel); w.rotation.z = Math.PI / 2; w.position.set(LAB_LANE + sx * 1.0, 0.55, MUZZLE_Z + 1.2); w.castShadow = true; g.add(w); }
-  CAN.barrel = new THREE.Group(); CAN.barrel.position.set(LAB_LANE, 1.3, MUZZLE_Z + 2.4); g.add(CAN.barrel);
-  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.62, 3.4, 28), CAN.barrelMat); tube.rotation.x = Math.PI / 2; tube.position.z = -1.7; tube.castShadow = true; CAN.barrel.add(tube);
-  const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.3, 28), steel); ring.rotation.x = Math.PI / 2; ring.position.z = -3.35; CAN.barrel.add(ring);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 20, 14), CAN.barrelMat); cap.position.z = 0.05; CAN.barrel.add(cap);
+  for (let lv = 1; lv <= 5; lv++) { const m = canModel(lv); CAN.models[lv] = m; g.add(m); }
+  const crackTex = tex(256, 256, (c, w, h) => CAN_DRAW.cracks(c, w, h)), frameM = new THREE.MeshStandardMaterial({ color: 0x23262e, metalness: 0.6, roughness: 0.5 });
   CANNON_WALLS.forEach((W, i) => {
-    const grp = new THREE.Group(); grp.position.set(LAB_LANE, 0, cannonWallZ(i));
-    const mat = new THREE.MeshStandardMaterial({ color: W.col, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : 0.7, metalness: W.kind === 'metal' ? 0.8 : 0.05, transparent: W.op < 1, opacity: W.op });
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(6, 3.8, 0.3), mat); panel.position.y = 1.9; panel.castShadow = true; grp.add(panel);
-    const frameM = new THREE.MeshStandardMaterial({ color: 0x23262e, metalness: 0.6, roughness: 0.5 });
-    for (const sx of [-3.1, 3.1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, 0.45), frameM); p.position.set(sx, 2.0, 0); grp.add(p); }
-    const top = new THREE.Mesh(new THREE.BoxGeometry(6.45, 0.25, 0.45), frameM); top.position.y = 4.0; grp.add(top);
-    const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), sign((i + 1) + '  ' + W.n, '#16141c', '#' + W.col.toString(16).padStart(6, '0'), 640, 160)); tag.position.set(0, 4.65, 0.24); grp.add(tag);
-    grp.visible = false; scene.add(grp); CAN.walls.push(grp);
+    const grp = new THREE.Group(); grp.position.set(LAB_LANE, 0, cannonWallZ(i)); grp.visible = false; scene.add(grp);
+    const map = tex(512, 320, (c, w, h) => CAN_DRAW[W.draw](c, w, h)), clear = W.kind === 'glass' || W.kind === 'jelly' || W.kind === 'ice';
+    const mat = new THREE.MeshStandardMaterial({ map, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : W.kind === 'metal' ? 0.35 : 0.75, metalness: W.kind === 'metal' ? 0.85 : 0.05, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear, envMapIntensity: 1 });
+    if (W.draw === 'diamond') { mat.emissive = new THREE.Color(0x9fd8ff); mat.emissiveMap = map; mat.emissiveIntensity = 0.35; }
+    const geo = canTileGeo(W.T), mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh);
+    for (const sx of [-3.1, 3.1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, W.T + 0.2), frameM); p.position.set(sx, 2.0, 0); grp.add(p); }
+    const top = new THREE.Mesh(new THREE.BoxGeometry(6.45, 0.25, W.T + 0.2), frameM); top.position.y = 4.0; grp.add(top);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), sign((i + 1) + '  ' + W.n, '#16141c', '#' + W.col.toString(16).padStart(6, '0'), 640, 160)); tag.position.set(0, 4.65, W.T / 2 + 0.1); grp.add(tag);
+    const cr = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: crackTex, transparent: true, depthWrite: false, opacity: 0.95 })); cr.position.z = W.T / 2 + 0.013; cr.visible = false; grp.add(cr);
+    CAN.walls.push(grp); CAN.mats.push(mat); CAN.cracks.push(cr); CAN.tiles.push({ mesh, alive: new Uint8Array(CAN_NX * CAN_NY).fill(1), cen: geo.userData.cen, pos0: geo.attributes.position.array.slice() });
   });
-  for (let i = 0; i < 96; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })); m.visible = false; scene.add(m); CAN.shards.push({ m, v: new V3(), w: new V3(), life: 0, max: 1 }); }
+  // posters on a few of the walls: poster-N.jpg from the repo, a printed fallback until (or if) they load
+  const FALL = [['WANTED', 'MY HEAD · REWARD $5', '#5a3a1a', '#f3e6c8'], ['TEST #001', 'HE SURVIVED* *NOT', '#0f1c3a', '#ffffff'], ['CRASH MART', 'SALE -50%', '#e0322b', '#ffffff'], ['EMPLOYEE OF', 'THE MONTH x47', '#16141c', '#ffc21a'], ["DON'T", 'BLINK', '#161222', '#3dff9a']];
+  const loader = new THREE.TextureLoader(); let pn = 0;
+  for (const [wi, px, py, rot] of [[4, -1.7, 2.0, 0.05], [5, 1.5, 1.9, -0.06], [6, -1.6, 2.1, -0.04], [6, 1.9, 1.7, 0.07], [8, 1.2, 2.0, 0.03], [9, -1.8, 1.9, -0.05], [9, 1.7, 2.2, 0.06]]) {
+    const f = FALL[pn % 5], idx = ((pn * 4 + 1) % 26) + 1; pn++;
+    const pm = new THREE.MeshStandardMaterial({ map: sign(f[0], f[2], f[3], 256, 340).map, roughness: 0.6, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), pm); mesh.position.set(px, py, CANNON_WALLS[wi].T / 2 + 0.03); mesh.rotation.z = rot; CAN.walls[wi].add(mesh); CAN.posters.push({ wi, x: px, y: py, mesh, alive: true });
+    loader.load('poster-' + (idx) + '.jpg', t => { t.colorSpace = THREE.SRGBColorSpace; pm.map = t; pm.needsUpdate = true; }, undefined, () => {});
+  }
+  const sm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, side: THREE.DoubleSide });
+  for (let i = 0; i < 150; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), sm); m.visible = false; scene.add(m); CAN.shards.push({ m, v: new V3(), w: new V3(), life: 0, rest: false }); }
 }
 function cannonShow(on) {
   if (BOLLARD) BOLLARD.visible = !on;
+  if (!on) { daggie.visible = true; rider.visible = true; }
   if (on) cannonBuild(); if (!CAN.built) return;
-  CAN.group.visible = on; CAN.walls.forEach(w => { w.visible = on; });
-  if (on) { CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0; CAN.barrel.position.z = MUZZLE_Z + 2.4; for (const sh of CAN.shards) { sh.m.visible = false; sh.life = 0; } const lv = LAB.level; CAN.barrelMat.color.setHex([0x3f7d4a, 0x6b7280, 0xa83232, 0x20232b, 0xd4a017][clamp(lv, 1, 5) - 1]); CAN.barrel.scale.set(1 + 0.08 * lv, 1 + 0.08 * lv, 1 + 0.1 * lv); board.position.set(LAB_LANE, 0.55, MUZZLE_Z - 0.7); }
+  CAN.group.visible = on; CAN.walls.forEach(w => { w.visible = on; }); if (!on) return;
+  CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0;
+  const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L;
+  const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
+  CAN.tiles.forEach((tl, i) => { tl.alive.fill(1); tl.mesh.geometry.attributes.position.array.set(tl.pos0); tl.mesh.geometry.attributes.position.needsUpdate = true; CAN.cracks[i].visible = false; });
+  for (const sh of CAN.shards) { sh.m.visible = false; sh.life = 0; }
+  board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
 }
 function cannonStart(lv) {
-  cannonBuild(); cannonShow(true);
-  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[clamp(lv, 1, 5) - 1], recoil: 0, rest: 0, count: 0 }); CAN.vmph = CAN.mph;
-  LAB.phase = 'cannon'; board.visible = false; board.position.set(LAB_LANE, 0.55, MUZZLE_Z - 0.7); setFace('scared', 3000);
+  cannonBuild(); cannonShow(true); lv = clamp(lv, 1, 5);
+  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0 }); CAN.vmph = CAN.mph;
+  LAB.phase = 'cannon'; board.visible = false; daggie.visible = false; rider.visible = false; // he is inside the barrel until the shot
   labSpeedo(0); labDmg(true, 0, 'WALLS', ' / 15', 0);
 }
 function cannonFire() {
-  CAN.phase = 'fly'; CAN.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false;
-  ragStart(new V3(0, 2.2, -cannonVis(CAN.mph)), 0);
+  CAN.phase = 'fly'; CAN.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false; daggie.visible = true; rider.visible = true;
+  const vis = cannonVis(CAN.mph); ragStart(new V3(0, 2.2, -vis), 0);
   const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0.01; c.g = -2.2; S.hook = cannonHold; S.t = 0;
-  { const pk = I.pel * 3, yc = c.x[pk + 1] + 0.3, zc = c.x[pk + 2], om = -1.2; for (let i = 0; i < c.n; i++) { const k = i * 3, ry = c.x[k + 1] - yc, rz = c.x[k + 2] - zc; c.vel(i, 0, 2.2 - om * rz, -cannonVis(CAN.mph) + om * ry, 1 / 240); } }
-  burst(new V3(LAB_LANE, 1.3, MUZZLE_Z), 140, SPARK, 10); burst(new V3(LAB_LANE, 1.3, MUZZLE_Z - 0.5), 60, CONF, 6); crashSound(1); CAN.recoil = 1;
+  { const pk = I.pel * 3, yc = c.x[pk + 1] + 0.3, zc = c.x[pk + 2], om = rand(-1.6, -0.8), wz = rand(-2.2, 2.2), xc = c.x[pk];
+    for (let i = 0; i < c.n; i++) { const k = i * 3, ry = c.x[k + 1] - yc, rz = c.x[k + 2] - zc, rx = c.x[k] - xc; c.vel(i, -wz * ry, 2.2 - om * rz + wz * rx, -vis + om * ry, 1 / 240); } }
+  const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); crashSound(1); CAN.recoil = 1;
   if (!reduceMotion) { shake = 0.8; const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
   lastPop = 0; pop('BOOM!', 'lilac'); setFace('wow', 4000); slowUntil = performance.now() + 9000; slowK = 0.4;
 }
@@ -3796,23 +3920,30 @@ function cannonHold(core) { // the wall that stopped him: nothing gets through i
   if (CAN.stuck < 0) return; const zp = cannonWallZ(CAN.stuck) + 0.2;
   for (let i = 0; i < core.n; i++) { const k = i * 3; if (core.x[k + 2] < zp) { core.x[k + 2] = zp; core.o[k + 2] = zp; core.o[k] = core.x[k] - (core.x[k] - core.o[k]) * 0.6; } }
 }
-function cannonShards(W, i, n, dirZ) {
-  let made = 0; const z = cannonWallZ(i);
-  for (const sh of CAN.shards) {
-    if (made >= n) break; if (sh.life > 0) continue; made++;
-    const s = rand(0.12, 0.4); sh.m.scale.set(s, s * rand(0.5, 1.4), s * rand(0.3, 0.8)); sh.m.material.color.setHex(W.col); sh.m.material.transparent = W.op < 1; sh.m.material.opacity = Math.max(0.6, W.op);
-    sh.m.position.set(LAB_LANE + rand(-2.6, 2.6), rand(0.4, 3.6), z + rand(-0.2, 0.2)); sh.m.visible = true; sh.m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6));
-    sh.v.set(rand(-3, 3), rand(0.5, 5), dirZ * rand(0.3, 1) + rand(-2, 2)); sh.w.set(rand(-9, 9), rand(-9, 9), rand(-9, 9)); sh.life = sh.max = rand(0.9, 1.5);
+function canShardSpawn(W, i, cx, cy, n, dirZ) {
+  const G = canShardGeo(), z = cannonWallZ(i); let made = 0; const kinds = W.kind === 'glass' ? ['glass', 'glass', 'glass', 'chunk'] : W.kind === 'jelly' || W.kind === 'cake' ? ['blob', 'blob', 'chunk'] : W.kind === 'wood' ? ['splint', 'splint', 'chunk', 'plate'] : W.kind === 'metal' ? ['plate', 'plate', 'chunk'] : W.kind === 'ice' ? ['chunk', 'glass', 'chunk'] : ['chunk', 'chunk', 'chunk', 'plate'];
+  for (let q = 0; q < n; q++) {
+    let sh = CAN.shards.find(s => s.life <= 0); if (!sh) { sh = CAN.shards.reduce((a, b) => (a.life < b.life ? a : b)); }
+    const kd = pick(kinds), arr = G[kd], m = sh.m, big = kd === 'chunk' ? rand(0.1, 0.26) : kd === 'blob' ? rand(0.1, 0.22) : 1;
+    m.geometry = pick(arr); m.material = CAN.mats[i]; m.scale.setScalar(kd === 'chunk' || kd === 'blob' ? big : 1); m.visible = true;
+    const ox = cx + rand(-0.45, 0.45), oy = cy + rand(-0.45, 0.45); m.position.set(LAB_LANE + ox, clamp(oy, 0.1, 3.7), z + rand(-0.15, 0.15)); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6));
+    const out = new V3(ox - cx, oy - cy, 0).normalize(); sh.v.set(out.x * rand(1.5, 5), out.y * rand(1, 5) + rand(0, 3), dirZ * rand(0.35, 1) * cannonVis(CAN.vmph) * 0.5 + rand(-2, 3)); sh.w.set(rand(-12, 12), rand(-12, 12), rand(-12, 12)); sh.life = rand(7, 11); sh.rest = false;
   }
 }
 function cannonShardStep(dt) {
   for (const sh of CAN.shards) {
-    if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; }
-    sh.v.y -= 9.8 * dt; sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; sh.m.rotation.z += sh.w.z * dt;
-    if (sh.m.position.y < 0.05) { sh.m.position.y = 0.05; sh.v.y *= -0.3; sh.v.x *= 0.8; sh.v.z *= 0.8; }
-    const f = sh.life < 0.35 ? sh.life / 0.35 : 1; sh.m.scale.multiplyScalar(f < 1 ? 0.96 : 1);
+    if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } if (sh.rest) continue;
+    sh.v.y -= 9.8 * dt; sh.v.multiplyScalar(1 / (1 + 0.04 * dt * sh.v.length())); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; sh.m.rotation.z += sh.w.z * dt;
+    if (sh.m.position.y < 0.06) { sh.m.position.y = 0.06; if (sh.v.y < -3 && Math.random() < 0.4) burst(sh.m.position, 3, SPARK, 2.5); sh.v.y *= -0.32; sh.v.x *= Math.exp(-4 * dt); sh.v.z *= Math.exp(-3.5 * dt); sh.w.multiplyScalar(Math.exp(-4 * dt)); if (sh.v.length() < 0.5) { sh.rest = true; sh.w.set(0, 0, 0); } }
   }
 }
+function canHole(i, px, py) { // punch a hole: tiles near (px, py) turn into flying pieces
+  const W = CANNON_WALLS[i], tl = CAN.tiles[i], pos = tl.mesh.geometry.attributes.position.array, gone = [];
+  px = clamp(px, -2.3, 2.3); py = clamp(py, 0.7, 3.1);
+  tl.cen.forEach(([cx, cy], t) => { if (!tl.alive[t] || Math.hypot(cx - px, cy - py) > W.R * (0.72 + 0.5 * Math.random())) return; tl.alive[t] = 0; gone.push([cx, cy]); for (let v = 0; v < 24; v++) { const k = (t * 24 + v) * 3; pos[k] = cx; pos[k + 1] = cy; pos[k + 2] = 0; } });
+  tl.mesh.geometry.attributes.position.needsUpdate = true; return { gone, px, py };
+}
+function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-1, 1) * amt / 240; c.o[k + 1] -= rand(-0.4, 1) * amt / 240; } }
 function wallSound(W, i) {
   tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
   if (!AC) return; OUT(); const t = AC.currentTime;
@@ -3824,28 +3955,37 @@ function wallSound(W, i) {
 }
 function cannonWalls() {
   const C = CAN, S = RAGSIM, c = S.core, I = S.I; if (C.stuck >= 0) return;
-  let lead = 1e9; for (const nm of CAN_LEAD) lead = Math.min(lead, c.x[I[nm] * 3 + 2]);
+  let lead = 1e9, sx = 0, sy = 0; for (const nm of CAN_LEAD) { const k = I[nm] * 3; lead = Math.min(lead, c.x[k + 2]); sx += c.x[k]; sy += c.x[k + 1]; } sx /= CAN_LEAD.length; sy /= CAN_LEAD.length;
   while (C.next < 15 && C.stuck < 0 && lead <= cannonWallZ(C.next) + 0.25) {
     const i = C.next, W = CANNON_WALLS[i], v2 = C.vmph * C.vmph - W.c;
-    if (v2 > 0) { // through: he slows down by what the wall took
+    if (v2 > 0) { // through: he slows down by what the wall took, a hole opens, pieces fly
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(C.vmph); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
-      C.broken++; C.next++; CAN.walls[i].visible = false; cannonShards(W, i, 12, -1);
-      const pal = CAN_PAL[W.kind] || SPARK, p = new V3(LAB_LANE + c.x[I.pel * 3], 1.8, cannonWallZ(i)); p.x = c.x[I.pel * 3]; burst(p, 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
+      C.broken++; C.next++; const h = canHole(i, sx, sy); canShardSpawn(W, i, h.px, h.py, Math.min(60, h.gone.length * (W.kind === 'glass' ? 4 : 2)), -1);
+      if (W.kind === 'glass') { CAN.cracks[i].position.set(h.px, h.py, W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.25); CAN.cracks[i].visible = true; }
+      for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; const pw = new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)); canPaper(i, p, 7); burst(pw, 10, [[4, 4, 4]], 3); }
+      const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
+      if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
+      if (W.c >= 100000 && Math.random() < 0.35 && !c.broken.includes('head')) c.breakGroup('head');
+      cannonKick(c, Math.min(2.4, 0.3 + W.c / 70000));
       if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
       lastPop = 0; pop(W.n + '!');
       if (C.next === 15) c.g = -6;
     } else { // stopped inside this wall
-      C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t;
-      for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
-      burst(new V3(c.x[I.pel * 3], 1.6, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
+      C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
+      CAN.cracks[i].position.set(clamp(sx, -2.3, 2.3), clamp(sy, 0.9, 3), W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.1); CAN.cracks[i].visible = true;
+      const h = canHole(i, sx, sy); canShardSpawn(W, i, h.px, h.py, Math.min(14, h.gone.length * 2), -0.3); // a dent: only the front pieces chip off
+      burst(new V3(sx + LAB_LANE, sy, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
+      if (Math.random() < 0.5 && !c.broken.includes('head')) c.breakGroup('head');
       lastPop = 0; pop('STUCK IN ' + W.n + '!', 'lilac'); setFace('hit', 99999);
     }
   }
 }
+function canPaper(i, p, n) { const G = canShardGeo(), z = cannonWallZ(i), pm = p.mesh.material;
+  for (let q = 0; q < n; q++) { let sh = CAN.shards.find(s => s.life <= 0); if (!sh) break; const m = sh.m; m.geometry = pick(G.paper); m.material = pm; m.scale.setScalar(1); m.visible = true; m.position.set(LAB_LANE + p.x + rand(-0.4, 0.4), p.y + rand(-0.5, 0.5), z + 0.1); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6)); sh.v.set(rand(-2, 2), rand(0, 3), -rand(2, 9)); sh.w.set(rand(-6, 6), rand(-6, 6), rand(-6, 6)); sh.life = rand(4, 7); sh.rest = false; } }
 function cannonStep(dt, now) {
   const C = CAN; C.t += dt; cannonShardStep(dt);
-  if (C.recoil > 0) { C.recoil = Math.max(0, C.recoil - dt * 2.2); C.barrel.position.z = MUZZLE_Z + 2.4 + C.recoil * 0.9; }
+  if (C.recoil > 0) { C.recoil = Math.max(0, C.recoil - dt * 2.2); C.barrel.position.z = MUZZLE_Z + CAN_SPEC[clamp(C.lv, 1, 5) - 1].L + C.recoil * 0.9; }
   if (C.phase === 'load') {
     labSpeedo(0); const n = Math.floor(C.t / 0.45); if (n !== C.count && n < 4) { C.count = n; if (n >= 1 && n <= 3) { lastPop = 0; pop(String(4 - n), 'lilac'); tone(700, 700, 0.1, 'square', 0.05); } }
     if (C.t >= 1.8) cannonFire();
