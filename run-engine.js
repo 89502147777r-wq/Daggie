@@ -578,7 +578,7 @@ function makeCartMesh(S, wheelsOut) {
   root.userData.extras = extras; root.userData.g = g;
   return root;
 }
-let CART_ROOT = null;
+var CART_ROOT; // var, not let: buildCart() is called earlier in the file (line ~508) and a let would still be unreachable there
 function buildCart() { CART_ROOT = makeCartMesh(CART_S, wheels); board.add(CART_ROOT); }
 // ---------- more obstacles ----------
 const hazard = (len) => stripeMat(len);
