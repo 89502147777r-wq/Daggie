@@ -580,39 +580,55 @@ function makeCartMesh(S, wheelsOut) {
   root.userData.extras = extras; root.userData.g = g;
   return root;
 }
-const TUB_SPEC = {"prims":[{"t":"box","s":[0.84,0.04,1.36],"p":[0,0.52,0],"g":"floor","m":"enamel","r":0.02},{"t":"box","s":[0.05,0.47,1.21],"p":[-0.395,0.735,0],"g":"sideL","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":1.21,"ax":"z","p":[-0.4,0.955,0],"g":"sideL","m":"enamel"},{"t":"box","s":[0.05,0.47,1.21],"p":[0.395,0.735,0],"g":"sideR","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":1.21,"ax":"z","p":[0.4,0.955,0],"g":"sideR","m":"enamel"},{"t":"box","s":[0.69,0.47,0.05],"p":[0,0.735,-0.655],"g":"front","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":0.69,"ax":"x","p":[0,0.955,-0.66],"g":"front","m":"enamel"},{"t":"box","s":[0.69,0.47,0.05],"p":[0,0.735,0.655],"g":"back","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":0.69,"ax":"x","p":[0,0.955,0.66],"g":"back","m":"enamel"},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[-0.345,0.735,-0.605],"g":"cFL","m":"enamel"},{"t":"sph","r":0.06,"p":[-0.4,0.955,-0.66],"g":"cFL","m":"enamel","sc":[1,1,1]},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[-0.345,0.735,0.605],"g":"cBL","m":"enamel"},{"t":"sph","r":0.06,"p":[-0.4,0.955,0.66],"g":"cBL","m":"enamel","sc":[1,1,1]},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[0.345,0.735,-0.605],"g":"cFR","m":"enamel"},{"t":"sph","r":0.06,"p":[0.4,0.955,-0.66],"g":"cFR","m":"enamel","sc":[1,1,1]},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[0.345,0.735,0.605],"g":"cBR","m":"enamel"},{"t":"sph","r":0.06,"p":[0.4,0.955,0.66],"g":"cBR","m":"enamel","sc":[1,1,1]},{"t":"box","s":[0.006,0.045,1.21],"p":[-0.423,0.8,0],"g":"deco","m":"blue","r":0.002},{"t":"box","s":[0.006,0.045,1.21],"p":[0.423,0.8,0],"g":"deco","m":"blue","r":0.002},{"t":"box","s":[0.69,0.045,0.006],"p":[0,0.8,-0.683],"g":"deco","m":"blue","r":0.002},{"t":"box","s":[0.69,0.045,0.006],"p":[0,0.8,0.683],"g":"deco","m":"blue","r":0.002},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[-0.345,0.8,-0.605],"g":"deco","m":"blue"},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[-0.345,0.8,0.605],"g":"deco","m":"blue"},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[0.345,0.8,-0.605],"g":"deco","m":"blue"},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[0.345,0.8,0.605],"g":"deco","m":"blue"},{"t":"box","s":[0.72,0.006,1.24],"p":[0,0.543,0],"g":"deco","m":"inner","r":0.002},{"t":"tor","R":0.035,"tu":0.007,"arc":6.283185307179586,"rot":[1.5707963267948966,0,0],"p":[0,0.548,-0.4],"g":"deco","m":"chrome"},{"t":"cyl","rt":0.03,"rb":0.03,"h":0.004,"ax":"y","p":[0,0.547,-0.4],"g":"deco","m":"chrome"},{"t":"cyl","rt":0.03,"rb":0.03,"h":0.07,"ax":"y","p":[0,1.035,0.66],"g":"x:faucetBase","m":"chrome"},{"t":"tor","R":0.09,"tu":0.017,"arc":3.141592653589793,"rot":[0,1.5707963267948966,0],"p":[0,1.05,0.57],"g":"x:spout","m":"chrome"},{"t":"cyl","rt":0.02,"rb":0.02,"h":0.04,"ax":"y","p":[0,1.03,0.48],"g":"x:nozzle","m":"chrome"},{"t":"cyl","rt":0.011,"rb":0.011,"h":0.06,"ax":"y","p":[-0.13,1.04,0.655],"g":"x:stemL","m":"chrome"},{"t":"box","s":[0.07,0.012,0.012],"p":[-0.13,1.075,0.655],"g":"x:leverAL","m":"chrome","r":0.004},{"t":"box","s":[0.012,0.012,0.07],"p":[-0.13,1.075,0.655],"g":"x:leverBL","m":"chrome","r":0.004},{"t":"sph","r":0.016,"p":[-0.13,1.075,0.655],"g":"x:hubL","m":"chrome","sc":[1,1,1]},{"t":"cyl","rt":0.011,"rb":0.011,"h":0.06,"ax":"y","p":[0.13,1.04,0.655],"g":"x:stemR","m":"chrome"},{"t":"box","s":[0.07,0.012,0.012],"p":[0.13,1.075,0.655],"g":"x:leverAR","m":"chrome","r":0.004},{"t":"box","s":[0.012,0.012,0.07],"p":[0.13,1.075,0.655],"g":"x:leverBR","m":"chrome","r":0.004},{"t":"sph","r":0.016,"p":[0.13,1.075,0.655],"g":"x:hubR","m":"chrome","sc":[1,1,1]},{"t":"sph","r":0.07,"p":[0,1.06,-0.655],"g":"x:duckBody","m":"yellow","sc":[1.15,0.9,1.0]},{"t":"sph","r":0.042,"p":[0,1.135,-0.615],"g":"x:duckHead","m":"yellow","sc":[1,1,1]},{"t":"cone","r":0.018,"h":0.045,"rot":[1.5707963267948966,0,0],"p":[0,1.125,-0.572],"g":"x:duckBeak","m":"orange"},{"t":"sph","r":0.007,"p":[-0.02,1.15,-0.59],"g":"x:duckEyeL","m":"black","sc":[1,1,1]},{"t":"sph","r":0.007,"p":[0.02,1.15,-0.59],"g":"x:duckEyeR","m":"black","sc":[1,1,1]},{"t":"box","s":[0.05,0.05,1.36],"p":[-0.3,0.455,0],"g":"x:railL","m":"steel","r":0.005},{"t":"box","s":[0.05,0.05,1.36],"p":[0.3,0.455,0],"g":"x:railR","m":"steel","r":0.005},{"t":"box","s":[0.6,0.04,0.05],"p":[0,0.455,-0.5],"g":"x:crossF","m":"steel","r":0.005},{"t":"box","s":[0.6,0.04,0.05],"p":[0,0.455,0.5],"g":"x:crossB","m":"steel","r":0.005},{"t":"box","s":[0.04,0.27,0.04],"p":[-0.34,0.295,-0.52],"g":"x:legFL","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[-0.34,0.135,-0.52],"g":"x:forkFL","m":"chrome","r":0.004},{"t":"box","s":[0.04,0.27,0.04],"p":[-0.34,0.295,0.52],"g":"x:legBL","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[-0.34,0.135,0.52],"g":"x:forkBL","m":"chrome","r":0.004},{"t":"box","s":[0.04,0.27,0.04],"p":[0.34,0.295,-0.52],"g":"x:legFR","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[0.34,0.135,-0.52],"g":"x:forkFR","m":"chrome","r":0.004},{"t":"box","s":[0.04,0.27,0.04],"p":[0.34,0.295,0.52],"g":"x:legBR","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[0.34,0.135,0.52],"g":"x:forkBR","m":"chrome","r":0.004}],"wheels":[[-0.34,0.081,-0.52],[0.34,0.081,-0.52],[-0.34,0.081,0.52],[0.34,0.081,0.52]]};
-const TUB_PIECE_GROUPS = ['floor', 'sideL', 'sideR', 'front', 'back', 'cFL', 'cFR', 'cBL', 'cBR'];
-// a white enamel bathtub on a steel trolley: rolled rim, corner posts, chrome taps, a rubber duck on the front rim. Origin on the floor, front faces -z. Built in metres from TUB_SPEC.
-function makeTubMesh(wheelsOut) {
+const TUB_PLAN = { A: 0.9, B: 0.4, n: 2.35, N: 96, sectors: 8, wallEnd: 14 }; // a double-ended oval, 1.8 m long, 0.8 m wide (A along the vehicle, B across), a superellipse
+const TUB_PROFILE = [[0, 0.215], [0.5, 0.215], [0.58, 0.235], [0.7, 0.285], [0.82, 0.37], [0.92, 0.5], [0.975, 0.63], [0.995, 0.74], [1, 0.795], [0.992, 0.828], [0.965, 0.848], [0.925, 0.85], [0.895, 0.838], [0.884, 0.8], [0.86, 0.7], [0.805, 0.58], [0.715, 0.45], [0.6, 0.345], [0.47, 0.3], [0, 0.298]]; // [how far out (1 = the rim's outer edge), height]: under side, flared outer wall, the rolled rim, the inside, the floor
+const TUB_FEET = [[0.25, 0.275, -0.47], [-0.25, 0.275, -0.47], [0.25, 0.275, 0.47], [-0.25, 0.275, 0.47]];
+function tubShell() { // the whole shell, and the same shell cut into curved pieces (8 round it x wall/floor) for when it breaks
+  const S = CART_S, { A, B, n, N, sectors, wallEnd } = TUB_PLAN, e = 2 / n, K = TUB_PROFILE.length, pos = new Float32Array(K * N * 3), col = new Float32Array(K * N * 3);
+  for (let i = 0; i < K; i++) { const [sc, y] = TUB_PROFILE[i], inner = i >= 10; for (let j = 0; j < N; j++) { const th = j / N * 6.2831853, c = Math.cos(th), sn = Math.sin(th), k = (i * N + j) * 3; pos[k] = sc * B * Math.sign(sn) * Math.pow(Math.abs(sn), e) / S; pos[k + 1] = y / S; pos[k + 2] = sc * A * Math.sign(c) * Math.pow(Math.abs(c), e) / S; col[k] = inner ? 0.86 : 0.97; col[k + 1] = inner ? 0.91 : 0.98; col[k + 2] = inner ? 0.96 : 1; } }
+  const idx = []; for (let i = 0; i < K - 1; i++) for (let j = 0; j < N; j++) { const a = i * N + j, b2 = i * N + (j + 1) % N, c2 = (i + 1) * N + (j + 1) % N, d = (i + 1) * N + j; idx.push(a, b2, c2, a, c2, d); }
+  const full = new THREE.BufferGeometry(); full.setAttribute('position', new THREE.BufferAttribute(pos, 3)); full.setAttribute('color', new THREE.BufferAttribute(col, 3)); full.setIndex(idx); full.computeVertexNormals();
+  const nor = full.attributes.normal.array, pieces = [];
+  for (let sct = 0; sct < sectors; sct++) for (const part of ['wall', 'floor']) {
+    const P = [], Nn = [], C = [], j0 = sct * N / sectors, j1 = (sct + 1) * N / sectors, i0 = part === 'wall' ? 0 : wallEnd, i1 = part === 'wall' ? wallEnd : K - 1;
+    for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++) for (const t of [[0, 0], [0, 1], [1, 1], [0, 0], [1, 1], [1, 0]]) { const v = ((i + t[0]) * N + (j + t[1]) % N) * 3; P.push(pos[v], pos[v + 1], pos[v + 2]); Nn.push(nor[v], nor[v + 1], nor[v + 2]); C.push(col[v], col[v + 1], col[v + 2]); }
+    const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g2.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); g2.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); pieces.push({ name: part + sct, geo: g2 });
+  }
+  return { full, pieces };
+}
+function makeTubMesh(wheelsOut) { // origin on the floor, front faces -z, built in metres and divided by the cart scale so the same scaled group works
   const S = CART_S, root = new THREE.Group(), g = new THREE.Group(); g.scale.setScalar(S); root.add(g);
-  const MAT = { enamel: new THREE.MeshPhysicalMaterial({ color: 0xf6f8fa, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.06 }), inner: new THREE.MeshPhysicalMaterial({ color: 0xe1e8f0, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.1 }), blue: new THREE.MeshPhysicalMaterial({ color: 0x3b82c4, roughness: 0.25, clearcoat: 1 }),
-    chrome: new THREE.MeshStandardMaterial({ color: 0xe6eaef, metalness: 1, roughness: 0.12 }), steel: new THREE.MeshStandardMaterial({ color: 0x3a404b, metalness: 0.7, roughness: 0.45 }), yellow: new THREE.MeshPhysicalMaterial({ color: 0xffd21f, roughness: 0.3, clearcoat: 0.8 }), orange: new THREE.MeshStandardMaterial({ color: 0xff8a1f, roughness: 0.5 }), black: new THREE.MeshStandardMaterial({ color: 0x101114, roughness: 0.4 }) };
-  try { const env = labEnv(); for (const k of ['enamel', 'chrome', 'blue', 'yellow', 'inner']) { MAT[k].envMap = env; MAT[k].envMapIntensity = k === 'chrome' ? 1 : 0.7; } } catch (e) { /* no reflections, still fine */ }
-  const shape = p => { let ge;
-    if (p.t === 'box') ge = new RoundedBoxGeometry(p.s[0], p.s[1], p.s[2], 3, p.r);
-    else if (p.t === 'cyl') { ge = new THREE.CylinderGeometry(p.rt, p.rb, p.h, 24); if (p.ax === 'x') ge.rotateZ(Math.PI / 2); else if (p.ax === 'z') ge.rotateX(Math.PI / 2); }
-    else if (p.t === 'sph') { ge = new THREE.SphereGeometry(p.r, 20, 14); ge.scale(p.sc[0], p.sc[1], p.sc[2]); }
-    else if (p.t === 'tor') { ge = new THREE.TorusGeometry(p.R, p.tu, 10, 32, p.arc); ge.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(p.rot[0], p.rot[1], p.rot[2]))); }
-    else { ge = new THREE.ConeGeometry(p.r, p.h, 14); ge.rotateX(p.rot[0]); }
-    return ge; };
-  const flat = ge => (ge.index ? ge.toNonIndexed() : ge), merge = list => mergeGeometries(list.map(flat));
-  const groups = {}, deco = {}, extras = [];
-  for (const p of TUB_SPEC.prims) {
-    const ge = shape(p);
-    if (p.g.startsWith('x:')) { ge.scale(1 / S, 1 / S, 1 / S); const m = new THREE.Mesh(ge, MAT[p.m]); m.position.set(p.p[0] / S, p.p[1] / S, p.p[2] / S); m.castShadow = true; m.name = p.g; g.add(m); extras.push(m); continue; }
-    ge.translate(p.p[0], p.p[1], p.p[2]); ge.scale(1 / S, 1 / S, 1 / S);
-    if (p.g === 'deco') (deco[p.m] = deco[p.m] || []).push(ge); else (groups[p.g] = groups[p.g] || []).push(ge);
+  const MAT = { enamel: new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, side: THREE.DoubleSide }), chrome: new THREE.MeshStandardMaterial({ color: 0xeef1f5, metalness: 1, roughness: 0.1 }), hose: new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 0.8, roughness: 0.3 }),
+    black: new THREE.MeshStandardMaterial({ color: 0x101114, roughness: 0.45 }), yellow: new THREE.MeshPhysicalMaterial({ color: 0xffd21f, roughness: 0.3, clearcoat: 0.8 }), orange: new THREE.MeshStandardMaterial({ color: 0xff8a1f, roughness: 0.5 }) };
+  try { const env = labEnv(); for (const k of ['enamel', 'chrome', 'yellow', 'hose']) { MAT[k].envMap = env; MAT[k].envMapIntensity = k === 'chrome' ? 1.2 : 0.8; } } catch (e) { /* no reflections, still fine */ }
+  const extras = [], V = (x, y, z) => new V3(x, y, z);
+  const extra = (geo, mat, name) => { geo.scale(1 / S, 1 / S, 1 / S); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z); const m = new THREE.Mesh(geo, mat); m.position.copy(c); m.castShadow = true; m.name = name; g.add(m); extras.push(m); return m; };
+  const tube = (pts, r, seg) => new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => V(p[0], p[1], p[2]))), seg || 24, r, 10, false);
+  const shell = tubShell(), body = new THREE.Mesh(shell.full, MAT.enamel); body.castShadow = true; body.receiveShadow = true; body.name = 'tub_shell'; g.add(body);
+  const pieces = shell.pieces;
+  // chrome feet with casters
+  for (const [fx, fy, fz] of TUB_FEET) {
+    const sx = fx > 0 ? 1 : -1, leg = tube([[fx, fy - 0.015, fz], [fx + sx * 0.01, fy - 0.065, fz], [fx + sx * 0.035, fy - 0.115, fz], [fx + sx * 0.055, fy - 0.16, fz]], 0.024, 12);
+    const ball = new THREE.SphereGeometry(0.04, 14, 10); ball.translate(fx + sx * 0.055, fy - 0.17, fz); const brk = new THREE.BoxGeometry(0.1, 0.014, 0.07); brk.translate(fx + sx * 0.055, fy - 0.19, fz);
+    extra(mergeGeometries([leg, ball, brk].map(x => (x.index ? x.toNonIndexed() : x))), MAT.chrome, 'x:foot');
+    const w = new THREE.Group(); w.position.set((fx + sx * 0.055) / S, 0.042 / S, fz / S); const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.042 / S, 0.042 / S, 0.04 / S, 18), MAT.black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.018 / S, 0.018 / S, 0.044 / S, 12), MAT.chrome); hub.rotation.z = Math.PI / 2; w.add(hub); g.add(w); extras.push(w); if (wheelsOut) wheelsOut.push(w);
   }
-  const pieces = [];
-  for (const name of TUB_PIECE_GROUPS) { const geo = merge(groups[name]), m = new THREE.Mesh(geo, MAT.enamel); m.castShadow = true; m.receiveShadow = true; m.name = 'tub_' + name; g.add(m); pieces.push({ name, geo: geo.clone() }); }
-  for (const k of Object.keys(deco)) { const m = new THREE.Mesh(merge(deco[k]), MAT[k]); m.name = 'tub_deco_' + k; g.add(m); }
-  for (const [x, y, z] of TUB_SPEC.wheels) { // casters, built like the cart's
-    const w = new THREE.Group(); w.position.set(x / S, 0.06, z / S);
-    const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 18), MAT.black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm);
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.04, 12), MAT.chrome); hub.rotation.z = Math.PI / 2; w.add(hub);
-    g.add(w); extras.push(w); if (wheelsOut) wheelsOut.push(w);
+  // taps on the rim at the back: two pillars with cross-head handles, a bridge, a swan-neck spout, a shower handset on a hose
+  const zt = 0.8, yr = 0.85;
+  for (const sx of [-1, 1]) {
+    const pil = new THREE.CylinderGeometry(0.013, 0.013, 0.15, 14); pil.translate(sx * 0.075, yr + 0.075, zt); const hub2 = new THREE.SphereGeometry(0.02, 12, 8); hub2.translate(sx * 0.075, yr + 0.165, zt);
+    const bar1 = new THREE.BoxGeometry(0.075, 0.009, 0.009); bar1.translate(sx * 0.075, yr + 0.19, zt); const bar2 = new THREE.BoxGeometry(0.009, 0.009, 0.075); bar2.translate(sx * 0.075, yr + 0.19, zt);
+    extra(mergeGeometries([pil, hub2, bar1, bar2].map(x => (x.index ? x.toNonIndexed() : x))), MAT.chrome, 'x:tap');
   }
-  root.userData.pieces = pieces; root.userData.extras = extras; root.userData.g = g; root.userData.pieceMat = MAT.enamel;
+  extra(tube([[-0.075, yr + 0.1, zt], [-0.03, yr + 0.11, zt], [0.03, yr + 0.11, zt], [0.075, yr + 0.1, zt]], 0.011, 16), MAT.chrome, 'x:bridge');
+  extra(tube([[0, yr + 0.11, zt], [0, yr + 0.22, zt - 0.03], [0, yr + 0.24, zt - 0.12], [0, yr + 0.15, zt - 0.19]], 0.014, 20), MAT.chrome, 'x:spout');
+  { const hs = new THREE.CylinderGeometry(0.016, 0.016, 0.17, 12); hs.translate(-0.2, yr + 0.24, zt + 0.02); const hd = new THREE.SphereGeometry(0.042, 14, 8); hd.scale(1, 0.3, 1); hd.translate(-0.2, yr + 0.335, zt + 0.02); extra(mergeGeometries([hs, hd].map(x => (x.index ? x.toNonIndexed() : x))), MAT.chrome, 'x:handset'); }
+  extra(tube([[0.075, yr + 0.06, zt], [0.02, yr - 0.07, zt + 0.1], [-0.12, yr - 0.1, zt + 0.12], [-0.2, yr + 0.14, zt + 0.04]], 0.007, 24), MAT.hose, 'x:hose');
+  { const dr = new THREE.SphereGeometry(0.035, 14, 8); dr.scale(1, 0.15, 1); dr.translate(0, 0.31, 0.45); extra(dr, MAT.chrome, 'x:drain'); }
+  // the rubber duck on the front rim
+  { const db = new THREE.SphereGeometry(0.06, 14, 10); db.scale(1.1, 0.9, 1); db.translate(0.09, 0.9, -0.74); const dh = new THREE.SphereGeometry(0.036, 12, 8); dh.translate(0.09, 0.97, -0.7); extra(mergeGeometries([db, dh].map(x => (x.index ? x.toNonIndexed() : x))), MAT.yellow, 'x:duck'); const bk = new THREE.ConeGeometry(0.016, 0.04, 10); bk.rotateX(Math.PI / 2); bk.translate(0.09, 0.965, -0.66); extra(bk, MAT.orange, 'x:beak'); }
+  root.userData.pieces = pieces; root.userData.extras = extras; root.userData.g = g; root.userData.pieceMat = MAT.enamel; root.userData.bigPieces = true;
   return root;
 }
 var CART_ROOT; // var, not let: buildCart() is called earlier in the file (line ~508) and a let would still be unreachable there
@@ -3049,7 +3065,7 @@ function cartDebrisBuild() {
   for (const p of CART_ROOT.userData.pieces) {
     const geo = p.geo.clone(); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z);
     const m = new THREE.Mesh(geo, chromeM); m.castShadow = true; m.visible = false; scene.add(m);
-    CDEB.list.push({ m, c, q: new THREE.Quaternion(), r: 0.12, v: new V3(), w: new V3(), rest: true, cd: 0 });
+    const sz = new V3(); geo.boundingBox.getSize(sz); CDEB.list.push({ m, c, q: new THREE.Quaternion(), r: CART_ROOT.userData.bigPieces ? clamp(Math.min(sz.x, sz.y, sz.z) * 0.5 * CART_S, 0.05, 0.25) : 0.12, v: new V3(), w: new V3(), rest: true, cd: 0 });
   }
   for (const o of CART_ROOT.userData.extras) {
     const m = o.clone(); m.visible = false; m.position.set(0, 0, 0); scene.add(m);
@@ -3089,7 +3105,7 @@ function cartDebrisReset() { for (const d of CDEB.list) { d.m.visible = false; d
 
 // ---------- the vehicle in the crash hall: the shopping cart or a bathtub on a trolley ----------
 let LAB_VEH = 'cart', TUB_ROOT = null, CART_ROOT0 = null, CART_WHEELS0 = null, TUB_WHEELS = [], CART_SPEC0 = null;
-const TUB_BOX = { hw: 0.38, y0: 0.54, y1: 1.0, zf: -0.62, zb: 0.62, zfOut: -0.67, zbOut: 0.70, H: 1.0 };
+const TUB_BOX = { hw: 0.34, y0: 0.3, y1: 0.84, zf: -0.7, zb: 0.7, zfOut: -0.9, zbOut: 0.9, H: 0.85 };
 function labVehicle(kind) {
   if (kind === 'tub' && VEH !== 'cart') return; // the lab hall is a cart level: both vehicles live on the same board
   if (!CART_ROOT0) { CART_ROOT0 = CART_ROOT; CART_WHEELS0 = wheels.slice(); CART_SPEC0 = { hw: CART.box.hw, y0: CART.box.y0, y1: CART.box.y1, zf: CART.box.zf, zb: CART.box.zb, zfOut: CART.zfOut, zbOut: CART.zbOut, H: CART.H }; }
@@ -3099,7 +3115,8 @@ function labVehicle(kind) {
   CART_ROOT0.visible = !tub; if (TUB_ROOT) TUB_ROOT.visible = tub; CART_ROOT = tub ? TUB_ROOT : CART_ROOT0;
   wheels.length = 0; wheels.push(...(tub ? TUB_WHEELS : CART_WHEELS0));
   CART.setSpec(tub ? TUB_BOX : CART_SPEC0);
-  CART_SEAT.set(0, tub ? 0.14 : 0.17, tub ? 0.26 : 0.32); CART_RIM_Y = tub ? 0.45 : (1.02 - 0.4) * CART_S; CART_RIM_X = tub ? 0.40 : (0.32 + 0.03) * CART_S;
+  CART_SEAT.set(0, tub ? 0.14 : 0.17, tub ? 0.22 : 0.32); CART_RIM_Y = tub ? 0.54 : (1.02 - 0.4) * CART_S; CART_RIM_X = tub ? 0.36 : (0.32 + 0.03) * CART_S;
+  daggie.position.y = (tub ? 0.3 : 0.4 * CART_S) + 0.012; // he sits on the floor of whichever vehicle it is
   for (const d of CDEB.list) scene.remove(d.m); CDEB.list.length = 0; CDEB.built = false; CDEB.on = false; // pieces are rebuilt from the new vehicle
 }
 const labBol = () => LAB.machine === 'bollard' || LAB.machine === 'tub'; // both crash-hall machines
@@ -3742,6 +3759,7 @@ function buildLabUI() {
 function labSave() { try { localStorage.setItem('daggie-lab', JSON.stringify({ m: LAB.machine, l: LAB.level })); } catch (e) {} }
 function labUI() {
   if (!labBuilt) return;
+  if (!labBol() && daggie.position.y !== BOARD_TOP) daggie.position.y = BOARD_TOP;
   PRESS.visible = LAB.machine === 'press'; if (PRESS.visible && PRESS.mode === 'idle') { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
   cannonShow(LAB.machine === 'cannon');
   if (labBol()) { const was = LAB_VEH; labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); if (was !== LAB_VEH) { board.visible = true; labCartReset(); } }
@@ -3758,7 +3776,7 @@ function labReset() {
   if (!labBuilt) buildLab();
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
   drone.visible = false; BB.free = false; RAGSIM = null;
-  if (labBol()) { labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); }
+  if (labBol()) { labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); daggie.position.y = BOARD_TOP; }
   state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dist = 0; labDmg(false);
   if (LEG) { LEG.visible = false; }
   PRESS.mode = 'idle'; PRESS.visible = LAB.machine === 'press'; if (PRESS.visible) { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
@@ -3811,7 +3829,7 @@ const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes
 const CAN_PAL = { window: [[1.5, 3, 4], [3.2, 2, 0.8], [2.5, 3.5, 4.5]], glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
 const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
 const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7, CAN_NX = 16, CAN_NY = 10, CAN_W = 6, CAN_H = 3.8;
-const CAN = { built: false, group: null, walls: [], wallMats: [], mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
+const CAN = { built: false, group: null, walls: [], wallMats: [], lamps: [], mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
 const cannonWallZ = i => WALL_Z0 - i * WALL_DZ;
 const cannonVis = mph => 16 + 44 * Math.sqrt(Math.max(0, mph) / 1000); // how fast he moves on screen (m/s); the mph shown is the model's
 const CAN_SPEC = [
@@ -4143,6 +4161,13 @@ function cannonBuild() {
       for (let j = 0; j < N; j++) { const a = j * 2; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); } tg.setIndex(idx); const tm = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ map, color: 0x9a9a9a, roughness: 0.9, side: THREE.DoubleSide })); tm.visible = false; tm.frustumCulled = false; grp.add(tm); grp.userData.tube = tm; }
     for (const sx of [-3.1, 3.1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, W.T + 0.2), frameM); p.position.set(sx, 2.0, 0); grp.add(p); }
     const top = new THREE.Mesh(new THREE.BoxGeometry(6.45, 0.25, W.T + 0.2), frameM); top.position.y = 4.0; grp.add(top);
+    { // five bulbs on the top bar, one shared material per wall so they all change together
+      const bulbM = new THREE.MeshStandardMaterial({ color: 0x2c2f36, roughness: 0.15, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 }), haloM = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }), sockM = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.5, metalness: 0.6 });
+      for (let k = -2; k <= 2; k++) { const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.1, 14), sockM); sock.position.set(k * 1.05, 4.18, 0); grp.add(sock);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.115, 18, 14), bulbM); bulb.position.set(k * 1.05, 4.32, 0); grp.add(bulb);
+        const halo = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 10), haloM); halo.position.copy(bulb.position); grp.add(halo); }
+      CAN.lamps.push({ bulbM, haloM, state: 0, flash: 0 });
+    }
     const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), sign((i + 1) + '  ' + W.n, '#16141c', '#' + W.col.toString(16).padStart(6, '0'), 640, 160)); tag.position.set(0, 4.65, W.T / 2 + 0.1); grp.add(tag);
     const cr = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: crackTex, transparent: true, depthWrite: false, opacity: 0.95 })); cr.position.z = W.T / 2 + 0.013; cr.visible = false; grp.add(cr);
     CAN.walls.push(grp); CAN.mats.push(smat); CAN.wallMats.push(mat); CAN.cracks.push(cr);
@@ -4162,6 +4187,11 @@ function cannonBuild() {
   CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' || K === 'window' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; if (W.kind === 'window') main.mesh.material = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.55, side: THREE.DoubleSide }); CAN.sets.push({ main, aux }); });
   for (let p = 0; p < 24; p++) { const mesh = new THREE.Mesh(G.paper[0], new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); mesh.visible = false; scene.add(mesh); CAN.paper.push({ m: mesh, v: new V3(), w: new V3(), life: 0 }); }
 }
+function canLamp(i, state) { // 0 off, 1 green (broken through), 2 red (hit, did not break)
+  const L = CAN.lamps[i]; if (!L) return; L.state = state; L.flash = state ? 1 : 0;
+  const col = state === 1 ? 0x2bff63 : state === 2 ? 0xff2a2a : 0x000000;
+  L.bulbM.color.setHex(state ? col : 0x2c2f36); L.bulbM.emissive.setHex(col); L.bulbM.emissiveIntensity = state ? 4 : 0; L.haloM.color.setHex(col); L.haloM.opacity = state ? 0.55 : 0;
+}
 function cannonShow(on) {
   if (BOLLARD) BOLLARD.visible = !on;
   if (!on) { daggie.visible = true; rider.visible = true; }
@@ -4170,6 +4200,7 @@ function cannonShow(on) {
   CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0;
   const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L;
   const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
+  CAN.lamps.forEach((l, i) => canLamp(i, 0));
   CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; for (const c of CAN.wallMats[i].userData.U.uCrk.value) c.set(0, 0, 0, 0); if (CANNON_WALLS[i].draw === 'window') { CAN.wallMats[i].map = CAN.mats[i].map; CAN.wallMats[i].needsUpdate = true; } w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
   CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.touch = new Array(15).fill(false);
   board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
@@ -4282,6 +4313,7 @@ function cannonSpin(c, I, wz, wx) { // wind him up: roll about the flight line (
 }
 function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-0.7, 0.7) * amt / 240; c.o[k + 1] -= rand(-0.7, 0.7) * amt / 240; } }
 function cannonShardStep(dt) {
+  for (const L of CAN.lamps) if (L.flash > 0) { L.flash = Math.max(0, L.flash - dt * 1.6); L.bulbM.emissiveIntensity = 2.6 + 3.2 * L.flash; L.haloM.opacity = 0.35 + 0.35 * L.flash; }
   CAN.glass.step(dt); for (const st of CAN.sets) { st.main.step(dt); if (st.aux) st.aux.step(dt); }
   for (const sh of CAN.paper) { if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } sh.v.y -= 2.5 * dt; sh.v.multiplyScalar(1 / (1 + 1.5 * dt)); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; if (sh.m.position.y < 0.03) { sh.m.position.y = 0.03; sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); } }
 }
@@ -4340,7 +4372,7 @@ function cannonWalls() {
     if (v2 > 0) { // through: he slows down by what the wall took, a hole opens, pieces fly
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(vEff); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
-      C.broken++; C.next++; const h = canHole(i, sx, sy); canDebris(W, i, h, false);
+      C.broken++; C.next++; canLamp(i, 1); const h = canHole(i, sx, sy); canDebris(W, i, h, false);
       for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; canPaper(i, p, 9); burst(new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)), 10, [[4, 4, 4]], 3); }
       const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
@@ -4350,7 +4382,7 @@ function cannonWalls() {
       if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
       lastPop = 0; pop(W.n + '!');
     } else { // stopped inside this wall
-      C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
+      C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; canLamp(i, 2); for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
       canCracks(i, sx, sy, 8, 1.1 + W.R * 0.5, true);
       const h = canHole(i, sx, sy, true); canDebris(W, i, h, true); // a dent: only the front pieces chip off
       burst(new V3(sx + LAB_LANE, sy, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
