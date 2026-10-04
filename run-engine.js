@@ -2738,8 +2738,9 @@ class RagCore {
     for (let i = 0; i < n; i++) {
       const k = i * 3; if (!this.inv[i]) continue;
       const fr = this.damp ?? 0.999; // per-step velocity loss (0.1%): fine for the cart, far too much for a 60 m/s flight, so the cannon sets it to 1
-      let vx = (x[k] - o[k]) * fr, vy = (x[k + 1] - o[k + 1]) * fr, vz = (x[k + 2] - o[k + 2]) * fr;
-      if (this.drag) { const q = 1 / (1 + this.drag * Math.hypot(vx, vy, vz) / dt * dt); vx *= q; vy *= q; vz *= q; } // air drag: the faster, the more it slows
+      const fy = this.airXZ ? 1 : fr; // airXZ: the air only slows him sideways (a fall is not a parachute drop)
+      let vx = (x[k] - o[k]) * fr, vy = (x[k + 1] - o[k + 1]) * fy, vz = (x[k + 2] - o[k + 2]) * fr;
+      if (this.drag) { const q = 1 / (1 + this.drag * (this.airXZ ? Math.hypot(vx, vz) : Math.hypot(vx, vy, vz)) / dt * dt); vx *= q; vz *= q; if (!this.airXZ) vy *= q; } // air drag: the faster, the more it slows
       o[k] = x[k]; o[k + 1] = x[k + 1]; o[k + 2] = x[k + 2];
       x[k] += vx; x[k + 1] += vy + g; x[k + 2] += vz;
     }
@@ -3812,26 +3813,23 @@ Object.assign(CAN_DRAW, {
   winFrame(g, w, h, broken) { // a white painted wooden casement window with two sashes, putty, hinges and a lever handle (as in the references: stiles, rails, a wider bottom rail, muntins, sill)
     g.clearRect(0, 0, w, h); const FR = 22, SILL = 38, cx = w / 2, ST = 19, TR = 17, BR = 30, MU = 7, y0 = FR, y1 = h - SILL - 6;
     canPaintedWood(g, 0, 0, w, FR, false); canPaintedWood(g, 0, 0, FR, h - SILL, true); canPaintedWood(g, w - FR, 0, FR, h - SILL, true); // outer frame: head, left and right jambs, each with its own grain
-    g.fillStyle = 'rgba(25,22,18,0.75)'; g.fillRect(FR - 2, y0 - 2, w - 2 * FR + 4, y1 - y0 + 4); // the gap between frame and sashes
     const glassX = [], lites = [];
     for (let s = 0; s < 2; s++) {
       const x0 = s ? cx + 1 : FR, x1 = s ? w - FR : cx - 1;
       canPaintedWood(g, x0, y0, ST, y1 - y0, true); canPaintedWood(g, x1 - ST, y0, ST, y1 - y0, true); canPaintedWood(g, x0 + ST, y0, x1 - x0 - 2 * ST, TR, false); canPaintedWood(g, x0 + ST, y1 - BR, x1 - x0 - 2 * ST, BR, false);
       const gx0 = x0 + ST, gx1 = x1 - ST, gy0 = y0 + TR, gy1 = y1 - BR, cols = 2, rows = 3, lw = (gx1 - gx0 - MU * (cols - 1)) / cols, lh = (gy1 - gy0 - MU * (rows - 1)) / rows;
-      g.fillStyle = 'rgba(40,36,30,0.55)'; g.fillRect(gx0, gy0, gx1 - gx0, gy1 - gy0);
+      g.strokeStyle = 'rgba(25,22,18,0.8)'; g.lineWidth = 2; g.strokeRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2); // the thin gap between the sash and the frame (the glass behind stays clear)
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) lites.push([gx0 + c * (lw + MU), gy0 + r * (lh + MU), lw, lh]);
       for (let c = 1; c < cols; c++) canPaintedWood(g, gx0 + c * lw + (c - 1) * MU, gy0, MU, gy1 - gy0, true);
       for (let r = 1; r < rows; r++) canPaintedWood(g, gx0, gy0 + r * lh + (r - 1) * MU, gx1 - gx0, MU, false);
     }
     for (const [x, y, lw, lh] of lites) { // each pane of glass: reflections that run across the whole window
       g.save(); g.beginPath(); g.rect(x, y, lw, lh); g.clip();
-      if (!broken) {
-        const sky = g.createLinearGradient(0, y, 0, y + lh); sky.addColorStop(0, 'rgba(205,228,245,0.40)'); sky.addColorStop(0.6, 'rgba(165,200,222,0.24)'); sky.addColorStop(1, 'rgba(120,150,150,0.28)'); g.fillStyle = sky; g.fillRect(x, y, lw, lh);
-        g.fillStyle = 'rgba(25,45,70,0.07)'; for (let k = 0; k < 4; k++) { const bx = x + ((k * 53 + x * 0.7) % lw), bh = 10 + ((k * 37 + y) % 40); g.fillRect(bx, y + lh - bh, 18 + (k * 11) % 22, bh); } // a faint city in the glass
-        const sx = (w * 0.18), sk = g.createLinearGradient(sx, 0, sx + 150, 120); sk.addColorStop(0.0, 'rgba(255,255,255,0)'); sk.addColorStop(0.35, 'rgba(255,255,255,0.5)'); sk.addColorStop(0.5, 'rgba(255,255,255,0.12)'); sk.addColorStop(0.62, 'rgba(255,255,255,0.4)'); sk.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sk; g.fillRect(x, y, lw, lh);
-        const sk2 = g.createLinearGradient(w * 0.62, 0, w * 0.62 + 90, 80); sk2.addColorStop(0, 'rgba(255,255,255,0)'); sk2.addColorStop(0.5, 'rgba(255,255,255,0.28)'); sk2.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sk2; g.fillRect(x, y, lw, lh);
-        const dr = g.createRadialGradient(x + lw / 2, y + lh + 10, 2, x + lw / 2, y + lh, lw); dr.addColorStop(0, 'rgba(60,70,50,0.16)'); dr.addColorStop(1, 'rgba(60,70,50,0)'); g.fillStyle = dr; g.fillRect(x, y, lw, lh); // grime at the bottom
-        g.strokeStyle = 'rgba(255,255,255,0.1)'; for (let k = 0; k < 4; k++) { const xx = x + rand(4, lw - 4); g.lineWidth = 1; g.beginPath(); g.moveTo(xx, y + 2); g.lineTo(xx + rand(-2, 2), y + lh * rand(0.4, 1)); g.stroke(); } // rain streaks
+      if (!broken) { // clear glass: almost no tint, only a faint sky reflection, two soft glints and a few water drops, so you see straight through it
+        const sky = g.createLinearGradient(0, y, 0, y + lh); sky.addColorStop(0, 'rgba(225,240,250,0.10)'); sky.addColorStop(1, 'rgba(190,215,225,0.05)'); g.fillStyle = sky; g.fillRect(x, y, lw, lh);
+        const sx = (w * 0.18), sk = g.createLinearGradient(sx, 0, sx + 150, 120); sk.addColorStop(0.0, 'rgba(255,255,255,0)'); sk.addColorStop(0.35, 'rgba(255,255,255,0.34)'); sk.addColorStop(0.5, 'rgba(255,255,255,0.06)'); sk.addColorStop(0.62, 'rgba(255,255,255,0.26)'); sk.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sk; g.fillRect(x, y, lw, lh);
+        const sk2 = g.createLinearGradient(w * 0.62, 0, w * 0.62 + 90, 80); sk2.addColorStop(0, 'rgba(255,255,255,0)'); sk2.addColorStop(0.5, 'rgba(255,255,255,0.16)'); sk2.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sk2; g.fillRect(x, y, lw, lh);
+        for (let k = 0; k < 5; k++) { const dx = x + rand(4, lw - 4), dy = y + rand(4, lh - 4), r = rand(0.8, 2.2); g.fillStyle = 'rgba(255,255,255,0.28)'; g.beginPath(); g.arc(dx, dy, r, 0, 7); g.fill(); g.strokeStyle = 'rgba(40,60,80,0.18)'; g.lineWidth = 0.7; g.beginPath(); g.arc(dx, dy, r, 0.4, 3.4); g.stroke(); } // water drops
       } else { g.clearRect(x, y, lw, lh); g.fillStyle = 'rgba(205,238,250,0.85)'; for (let k = 0; k < 9; k++) { const e = k % 4, t = rand(0.08, 0.92), sz = rand(6, 20); g.beginPath(); if (e === 0) { g.moveTo(x + lw * t, y); g.lineTo(x + lw * t + sz * 0.5, y + sz); g.lineTo(x + lw * t - sz * 0.4, y + sz * 0.5); } else if (e === 1) { g.moveTo(x + lw * t, y + lh); g.lineTo(x + lw * t + sz * 0.5, y + lh - sz); g.lineTo(x + lw * t - sz * 0.4, y + lh - sz * 0.5); } else if (e === 2) { g.moveTo(x, y + lh * t); g.lineTo(x + sz, y + lh * t + sz * 0.4); g.lineTo(x + sz * 0.5, y + lh * t - sz * 0.5); } else { g.moveTo(x + lw, y + lh * t); g.lineTo(x + lw - sz, y + lh * t + sz * 0.4); g.lineTo(x + lw - sz * 0.5, y + lh * t - sz * 0.5); } g.closePath(); g.fill(); } }
       g.restore();
       g.strokeStyle = 'rgba(60,55,45,0.7)'; g.lineWidth = 1.4; g.strokeRect(x, y, lw, lh); // putty bevel around the glass: dark where it meets the glass, light on the slope
@@ -4125,7 +4123,7 @@ function cannonStart(lv) {
 function cannonFire() {
   CAN.phase = 'fly'; CAN.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false; daggie.visible = true; rider.visible = true;
   const vis = cannonVis(CAN.mph); ragStart(new V3(0, 2.2, -vis), 0);
-  const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0; c.damp = 1; c.g = -2.2; S.hook = cannonHold; S.t = 0; // no drag and no per-step damping: at 60 m/s they took off about half of his speed in a second, so he stopped around wall 6-7
+  const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0; c.damp = 1; c.airXZ = false; c.g = -2.2; S.hook = cannonHold; S.t = 0; // no drag and no per-step damping: at 60 m/s they took off about half of his speed in a second, so he stopped around wall 6-7
   canDive(S); for (let i = 0; i < c.n; i++) c.vel(i, 0, 2.2, -vis, 1 / 240); // head first, no spin yet: the first wall starts it
   const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); crashSound(1); CAN.recoil = 1;
   if (!reduceMotion) { shake = 0.8; const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
@@ -4304,7 +4302,7 @@ function cannonWalls() {
 }
 function canPaper(i, p, n) { const G = canShardGeo(), z = cannonWallZ(i), pm = p.mesh.material;
   for (let q = 0; q < n; q++) { const sh = CAN.paper.find(s => s.life <= 0); if (!sh) break; const m = sh.m; m.geometry = pick(G.paper); m.material.map = pm.map; m.material.needsUpdate = true; m.scale.setScalar(1); m.visible = true; m.position.set(LAB_LANE + p.x + rand(-0.4, 0.4), p.y + rand(-0.5, 0.5), z + 0.1); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6)); sh.v.set(rand(-2, 2), rand(0, 3), -rand(2, 9)); sh.w.set(rand(-6, 6), rand(-6, 6), rand(-6, 6)); sh.life = rand(4, 7); } }
-function cannonLanding(c) { c.g = -9.8; c.damp = 0.985; c.drag = 0.04; } // what is left of the shot is spent: air and ground stop him within a few metres
+function cannonLanding(c) { c.g = -9.8; c.damp = 0.985; c.drag = 0.04; c.airXZ = true; slowUntil = performance.now() + 3500; slowK = 0.85; } // what is left of the shot is spent: the air stops him sideways within a few metres, and he drops like a body (this used to slow his fall too, so he floated down)
 function cannonStep(dt, now) {
   const C = CAN; C.t += dt; cannonShardStep(dt);
   if (C.recoil > 0) { C.recoil = Math.max(0, C.recoil - dt * 2.2); C.barrel.position.z = MUZZLE_Z + CAN_SPEC[clamp(C.lv, 1, 5) - 1].L + C.recoil * 0.9; }
