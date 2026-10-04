@@ -2737,8 +2737,8 @@ class RagCore {
     for (const c of (this.cuts || [])) if (!c.done && this.dist(c.a, c.b) > c.len * c.ratio) this.breakGroup(c.name);
     for (let i = 0; i < n; i++) {
       const k = i * 3; if (!this.inv[i]) continue;
-      const fr = 0.999;
-      let vx = (x[k] - o[k]) * fr, vy = (x[k + 1] - o[k + 1]) * 0.999, vz = (x[k + 2] - o[k + 2]) * fr;
+      const fr = this.damp ?? 0.999; // per-step velocity loss (0.1%): fine for the cart, far too much for a 60 m/s flight, so the cannon sets it to 1
+      let vx = (x[k] - o[k]) * fr, vy = (x[k + 1] - o[k + 1]) * fr, vz = (x[k + 2] - o[k + 2]) * fr;
       if (this.drag) { const q = 1 / (1 + this.drag * Math.hypot(vx, vy, vz) / dt * dt); vx *= q; vy *= q; vz *= q; } // air drag: the faster, the more it slows
       o[k] = x[k]; o[k + 1] = x[k + 1]; o[k + 2] = x[k + 2];
       x[k] += vx; x[k + 1] += vy + g; x[k + 2] += vz;
@@ -3738,19 +3738,19 @@ function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(k
 // ---------- wall cannon: 15 walls from thin glass to a vault door; the cannon's power decides how many he breaks ----------
 const CANNON_MPH = [100, 200, 350, 600, 1000];
 const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes. Checked offline: 100/200/350/600/1000 mph break 3/6/9/12/15 walls. T: thickness, R: size of the hole he punches (m)
-  { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, kind: 'glass', T: 0.1, R: 1.5, draw: 'glass' }, { n: 'JELLY', c: 2500, col: 0x5cff9a, kind: 'jelly', T: 0.45, R: 1.2, draw: 'jelly' },
-  { n: 'CAKE', c: 4000, col: 0xffb6d9, kind: 'cake', T: 0.5, R: 1.3, draw: 'cake' }, { n: 'ICE', c: 4000, col: 0xbfe8ff, kind: 'ice', T: 0.3, R: 1.4, draw: 'ice' },
-  { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, kind: 'wood', T: 0.12, R: 1.3, draw: 'ply' }, { n: 'OAK', c: 13000, col: 0x7a4a22, kind: 'wood', T: 0.22, R: 1.25, draw: 'oak' },
-  { n: 'BRICK', c: 14000, col: 0xb5452f, kind: 'brick', T: 0.35, R: 1.3, draw: 'brick' }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, kind: 'glass', T: 0.2, R: 1.4, draw: 'glass2' },
-  { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone' }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete' },
-  { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, kind: 'glass', T: 0.3, R: 1.2, draw: 'armor' }, { n: 'STEEL', c: 100000, col: 0x8e99a8, kind: 'metal', T: 0.15, R: 0.95, draw: 'steel' },
-  { n: 'GOLD', c: 120000, col: 0xffc928, kind: 'metal', T: 0.2, R: 1.0, draw: 'gold' }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, kind: 'ice', T: 0.3, R: 1.1, draw: 'diamond' },
-  { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault' },
+  { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, kind: 'glass', T: 0.1, R: 1.5, draw: 'glass', jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff }, { n: 'HAY BALES', c: 2500, col: 0xd8b04a, kind: 'wood', T: 0.5, R: 1.3, draw: 'hay', jag: [0.26, 13, 0.25, 0.07], edge: 0xe6c36a },
+  { n: 'TIRES', c: 4000, col: 0x3a3a42, kind: 'stone', T: 0.5, R: 1.2, draw: 'tires', jag: [0.07, 5, 0.3, 0.05], edge: 0x2a2a2e }, { n: 'ICE', c: 4000, col: 0xbfe8ff, kind: 'ice', T: 0.3, R: 1.4, draw: 'ice', jag: [0.24, 7, 0.0, 0.05], edge: 0xffffff },
+  { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, kind: 'wood', T: 0.12, R: 1.3, draw: 'ply', jag: [0.3, 19, 0.15, 0.06], edge: 0xecd9b0 }, { n: 'OAK', c: 13000, col: 0x7a4a22, kind: 'wood', T: 0.22, R: 1.25, draw: 'oak', jag: [0.26, 15, 0.18, 0.06], edge: 0xd8b27a },
+  { n: 'BRICK', c: 14000, col: 0xb5452f, kind: 'brick', T: 0.35, R: 1.3, draw: 'brick', jag: [0.22, 9, 0.4, 0.06], edge: 0xc9826a }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, kind: 'glass', T: 0.2, R: 1.4, draw: 'glass2', jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff },
+  { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone', jag: [0.2, 8, 0.4, 0.06], edge: 0xbdbdb6 }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete', jag: [0.25, 10, 0.4, 0.06], edge: 0xcfcfc8 },
+  { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, kind: 'glass', T: 0.3, R: 1.2, draw: 'armor', jag: [0.3, 9, 0.2, 0.05], edge: 0xbfe8f0 }, { n: 'STEEL', c: 100000, col: 0x8e99a8, kind: 'metal', T: 0.15, R: 0.95, draw: 'steel', jag: [0.1, 7, 0.5, 0.05], edge: 0xdde4ee },
+  { n: 'GOLD', c: 120000, col: 0xffc928, kind: 'metal', T: 0.2, R: 1.0, draw: 'gold', jag: [0.1, 6, 0.3, 0.05], edge: 0xfff0a0 }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, kind: 'ice', T: 0.3, R: 1.1, draw: 'diamond', jag: [0.25, 8, 0.0, 0.05], edge: 0xffffff },
+  { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault', jag: [0.08, 6, 0.5, 0.05], edge: 0xaab3c0 },
 ];
 const CAN_PAL = { glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
 const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
 const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7, CAN_NX = 16, CAN_NY = 10, CAN_W = 6, CAN_H = 3.8;
-const CAN = { built: false, group: null, walls: [], tiles: [], mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
+const CAN = { built: false, group: null, walls: [], wallMats: [], mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
 const cannonWallZ = i => WALL_Z0 - i * WALL_DZ;
 const cannonVis = mph => 16 + 44 * Math.sqrt(Math.max(0, mph) / 1000); // how fast he moves on screen (m/s); the mph shown is the model's
 const CAN_SPEC = [
@@ -3775,6 +3775,15 @@ const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
   jelly(g, w, h) { const gr = g.createRadialGradient(w * 0.4, h * 0.35, 10, w / 2, h / 2, w * 0.7); gr.addColorStop(0, 'rgba(170,255,190,0.92)'); gr.addColorStop(1, 'rgba(40,200,110,0.85)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
     for (let i = 0; i < 46; i++) { const x = rand(0, w), y = rand(0, h), r = rand(3, 14); g.fillStyle = 'rgba(255,255,255,0.18)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.3, r * 0.28, 0, 7); g.fill(); }
     g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 3; for (let k = 0; k < 5; k++) { g.beginPath(); for (let x = 0; x <= w; x += 16) g.lineTo(x, 40 + k * 60 + Math.sin(x * 0.03 + k) * 10); g.stroke(); } g.strokeStyle = 'rgba(20,120,60,0.8)'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10); },
+  hay(g, w, h) { g.fillStyle = '#c9a247'; g.fillRect(0, 0, w, h); const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,230,150,0.25)'); gr.addColorStop(1, 'rgba(90,55,10,0.3)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2800; i++) { g.strokeStyle = pick(['#e8c566', '#b88a2e', '#d9b45a', '#a97b25', '#f0d98a', '#8f6a1f']); g.lineWidth = rand(0.8, 2); const x = rand(-20, w), y = rand(0, h), an = rand(-0.5, 0.5), l = rand(18, 70); g.globalAlpha = rand(0.5, 1); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an) * l, y + Math.sin(an) * l); g.stroke(); } g.globalAlpha = 1;
+    for (const y of [h * 0.28, h * 0.72]) { g.strokeStyle = '#3a2a14'; g.lineWidth = 7; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); g.strokeStyle = 'rgba(255,220,150,0.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, y - 2); g.lineTo(w, y - 2); g.stroke(); }
+    g.fillStyle = 'rgba(60,35,5,0.35)'; for (const x of [w / 4, w / 2, 3 * w / 4]) g.fillRect(x - 2, 0, 4, h); },
+  tires(g, w, h) { g.fillStyle = '#0a0a0d'; g.fillRect(0, 0, w, h); const d = 64; for (let r = 0, y = d / 2; y < h + d; r++, y += d * 0.9) for (let x = (r % 2) * d / 2; x < w + d; x += d) {
+      g.fillStyle = '#18181d'; g.beginPath(); g.arc(x, y, d / 2 - 1, 0, 7); g.fill(); g.strokeStyle = '#2a2a31'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, d / 2 - 4, 0, 7); g.stroke();
+      for (let k = 0; k < 18; k++) { const an = k / 18 * 6.283; g.strokeStyle = k % 2 ? '#0a0a0d' : '#25252c'; g.lineWidth = 3; g.beginPath(); g.moveTo(x + Math.cos(an) * (d / 2 - 2), y + Math.sin(an) * (d / 2 - 2)); g.lineTo(x + Math.cos(an) * (d / 2 - 8), y + Math.sin(an) * (d / 2 - 8)); g.stroke(); }
+      g.fillStyle = '#2e2e35'; g.beginPath(); g.arc(x, y, d * 0.27, 0, 7); g.fill(); g.fillStyle = '#050507'; g.beginPath(); g.arc(x, y, d * 0.17, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, d / 2 - 6, 3.4, 4.5); g.stroke(); }
+    this.speck(g, w, h, 900, ['#3a3a40', '#5a5a60', '#222'], 2, 0.4); },
   cake(g, w, h) { const layers = [['#c68a4b', 70], ['#fff2e0', 30], ['#d3344d', 26], ['#c68a4b', 70], ['#fff2e0', 30], ['#e8b6c8', 94]]; let y = h; for (const [c, t] of layers) { y -= t; g.fillStyle = c; g.fillRect(0, y, w, t); }
     this.speck(g, w, h, 900, ['#8a5a2a', '#e0a860', '#6b3f1d'], 3, 0.6); for (let i = 0; i < 160; i++) { g.fillStyle = pick(['#ff4d6d', '#4dd2ff', '#ffe14d', '#7dff6a', '#b06bff']); g.save(); g.translate(rand(0, w), rand(0, 90)); g.rotate(rand(0, 3)); g.fillRect(0, 0, 9, 3.5); g.restore(); }
     g.fillStyle = '#fff6ee'; g.beginPath(); g.moveTo(0, 96); for (let x = 0; x <= w; x += 24) g.quadraticCurveTo(x + 6, 96 + rand(18, 34), x + 12, 96); g.lineTo(w, 0); g.lineTo(0, 0); g.fill(); g.fillStyle = '#d01f3c'; for (const x of [70, 190, 310, 430]) { g.beginPath(); g.arc(x, 30, 17, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(x - 5, 24, 4, 0, 7); g.fill(); g.fillStyle = '#d01f3c'; } },
@@ -3805,16 +3814,31 @@ const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
   cracks(g, w, h) { g.clearRect(0, 0, w, h); const cx = w / 2, cy = h / 2; g.lineCap = 'round'; for (let pass = 0; pass < 2; pass++) { g.strokeStyle = pass ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,15,0.55)'; for (let a = 0; a < 18; a++) { let an = a / 18 * 6.283 + rand(-0.15, 0.15), x = cx, y = cy, r = 0; g.lineWidth = pass ? 1.6 : 3.2; g.beginPath(); g.moveTo(x, y); while (r < w * rand(0.28, 0.5)) { r += rand(10, 24); an += rand(-0.25, 0.25); x = cx + Math.cos(an) * r + (pass ? 0 : 1.5); y = cy + Math.sin(an) * r + (pass ? 0 : 1.5); g.lineTo(x, y); if (Math.random() < 0.18) { g.stroke(); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an + 0.9) * rand(10, 30), y + Math.sin(an + 0.9) * rand(10, 30)); g.stroke(); g.beginPath(); g.moveTo(x, y); } } g.stroke(); }
     for (const rr of [26, 54, 86, 120]) { g.lineWidth = pass ? 1.2 : 2.4; g.beginPath(); for (let a = 0; a <= 12; a++) { const an = a / 12 * 6.283, r = rr * rand(0.85, 1.12); g.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r); } g.stroke(); } } },
 };
-function canTileGeo(T) { // a wall made of 8 x 5 loose tiles, so a hole can be punched through it
-  const tw = CAN_W / CAN_NX, th = CAN_H / CAN_NY, pos = [], uv = [], idx = [], cen = []; let v0 = 0;
-  for (let iy = 0; iy < CAN_NY; iy++) for (let ix = 0; ix < CAN_NX; ix++) {
-    const x0 = -CAN_W / 2 + ix * tw, x1 = x0 + tw, y0 = iy * th, y1 = y0 + th, z0 = -T / 2, z1 = T / 2, u0 = ix / CAN_NX, u1 = (ix + 1) / CAN_NX, w0 = iy / CAN_NY, w1 = (iy + 1) / CAN_NY, um = (u0 + u1) / 2, wm = (w0 + w1) / 2;
-    const F = [[[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [u0, w0], [u1, w0], [u1, w1], [u0, w1]], [[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [u1, w0], [u0, w0], [u0, w1], [u1, w1]],
-      [[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], [[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]]];
-    for (const f of F) { for (let k = 0; k < 4; k++) { pos.push(...f[k]); if (f.length > 4) uv.push(...f[4 + k]); else uv.push(um + (k % 2 ? 0.004 : -0.004), wm + (k > 1 ? 0.004 : -0.004)); } idx.push(v0, v0 + 1, v0 + 2, v0, v0 + 2, v0 + 3); v0 += 4; }
-    cen.push([(x0 + x1) / 2, (y0 + y1) / 2]);
-  }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); g.userData.cen = cen; return g;
+function canHoleR(h, th) { // radius of the hole in direction th: uneven all the way round, with spikes. The fragment shader uses the same formula.
+  const n = 0.5 + 0.22 * Math.sin(2 * th + h.ph[0]) + 0.17 * Math.sin(4 * th + h.ph[1]) + 0.12 * Math.sin(7 * th + h.ph[2]) + 0.09 * Math.sin(11 * th + h.ph[3]);
+  const x = (th + h.ph[0]) * h.F / 6.2831853, saw = (x - Math.floor(x)) * 2 - 1;
+  return h.R * (0.5 + 0.35 * n) * (1 + h.A * saw);
+}
+function canWallMat(map, W) { // the wall's own material: a smooth, pixel-exact hole is cut by the fragment shader
+  const clear = W.kind === 'glass' || W.kind === 'ice', U = { uHole: { value: new THREE.Vector4(0, 0, 1, 0) }, uPh: { value: new THREE.Vector4() }, uJag: { value: new THREE.Vector4(W.jag[0], W.jag[1], W.jag[2], W.jag[3]) }, uEdge: { value: new THREE.Color(W.edge) } };
+  const mat = new THREE.MeshStandardMaterial({ map, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : W.kind === 'metal' ? 0.35 : 0.75, metalness: W.kind === 'metal' ? 0.85 : 0.05, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear });
+  mat.userData.U = U;
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLP = position;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vLP; uniform vec4 uHole, uPh, uJag; uniform vec3 uEdge;
+float holeR(float th) { float n = 0.5 + 0.22 * sin(2.0 * th + uPh.x) + 0.17 * sin(4.0 * th + uPh.y) + 0.12 * sin(7.0 * th + uPh.z) + 0.09 * sin(11.0 * th + uPh.w); float x = (th + uPh.x) * uJag.y / 6.2831853; float saw = fract(x) * 2.0 - 1.0; return uHole.z * (0.5 + 0.35 * n) * (1.0 + uJag.x * saw); }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+if (uHole.w > 0.5) { vec2 d = vLP.xy - uHole.xy; float dist = length(d), r = holeR(atan(d.y, d.x)); if (dist < r) discard; float rim = 1.0 - smoothstep(0.0, uJag.w, dist - r); diffuseColor.rgb = mix(diffuseColor.rgb, uEdge, rim * 0.9); float dk = 1.0 - smoothstep(0.0, 0.4, dist - r); diffuseColor.rgb *= 1.0 - uJag.z * dk; }`);
+  };
+  return mat;
+}
+function canTube(i, h) { // the inside of the hole: a ring of wall between the front and the back face, following the same uneven edge
+  const tb = CAN.walls[i].userData.tube, W = CANNON_WALLS[i], N = 72, p = tb.geometry.attributes.position.array, uv = tb.geometry.attributes.uv.array, z = W.T / 2;
+  for (let j = 0; j <= N; j++) { const th = j / N * 6.2831853, r = h.rad(th), x = clamp(h.px + Math.cos(th) * r, -3, 3), y = clamp(h.py + Math.sin(th) * r, 0, 3.8), a = j * 6;
+    p[a] = x; p[a + 1] = y; p[a + 2] = z; p[a + 3] = x; p[a + 4] = y; p[a + 5] = -z; uv[j * 4] = (x + 3) / 6; uv[j * 4 + 1] = y / 3.8; uv[j * 4 + 2] = (x + 3) / 6; uv[j * 4 + 3] = y / 3.8; }
+  tb.geometry.attributes.position.needsUpdate = true; tb.geometry.attributes.uv.needsUpdate = true; tb.geometry.computeVertexNormals(); tb.geometry.computeBoundingSphere(); tb.visible = true;
 }
 function canShardGeo() {
   if (CAN.geo) return CAN.geo; const G = CAN.geo = { glass: [], chunk: [], blob: [], splint: [], plate: [], paper: [] };
@@ -3877,15 +3901,17 @@ function cannonBuild() {
   CANNON_WALLS.forEach((W, i) => {
     const grp = new THREE.Group(); grp.position.set(LAB_LANE, 0, cannonWallZ(i)); grp.visible = false; scene.add(grp);
     const map = tex(512, 320, (c, w, h) => CAN_DRAW[W.draw](c, w, h)), clear = W.kind === 'glass' || W.kind === 'jelly' || W.kind === 'ice';
-    const mat = new THREE.MeshStandardMaterial({ map, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : W.kind === 'metal' ? 0.35 : 0.75, metalness: W.kind === 'metal' ? 0.85 : 0.05, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear, envMapIntensity: 1 });
-    try { mat.envMap = labEnv(); mat.envMapIntensity = W.kind === 'metal' ? 1.0 : W.kind === 'glass' || W.kind === 'ice' ? 0.9 : 0.12; } catch (e) { /* no reflections, still fine */ }
-    if (W.draw === 'diamond') { mat.emissive = new THREE.Color(0x9fd8ff); mat.emissiveMap = map; mat.emissiveIntensity = 0.35; }
-    const geo = canTileGeo(W.T), mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh);
+    const mat = canWallMat(map, W), smat = new THREE.MeshStandardMaterial({ map, roughness: mat.roughness, metalness: mat.metalness, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear });
+    try { for (const m of [mat, smat]) { m.envMap = labEnv(); m.envMapIntensity = W.kind === 'metal' ? 1.0 : W.kind === 'glass' || W.kind === 'ice' ? 0.9 : 0.12; } } catch (e) { /* no reflections, still fine */ }
+    if (W.draw === 'diamond') for (const m of [mat, smat]) { m.emissive = new THREE.Color(0x9fd8ff); m.emissiveMap = map; m.emissiveIntensity = 0.35; }
+    const geo = new THREE.BoxGeometry(CAN_W, CAN_H, W.T); geo.translate(0, CAN_H / 2, 0); const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh); grp.userData.panel = mesh;
+    { const N = 72, tg = new THREE.BufferGeometry(), idx = []; tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array((N + 1) * 6), 3)); tg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((N + 1) * 4), 2));
+      for (let j = 0; j < N; j++) { const a = j * 2; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); } tg.setIndex(idx); const tm = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ map, color: 0x9a9a9a, roughness: 0.9, side: THREE.DoubleSide })); tm.visible = false; tm.frustumCulled = false; grp.add(tm); grp.userData.tube = tm; }
     for (const sx of [-3.1, 3.1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, W.T + 0.2), frameM); p.position.set(sx, 2.0, 0); grp.add(p); }
     const top = new THREE.Mesh(new THREE.BoxGeometry(6.45, 0.25, W.T + 0.2), frameM); top.position.y = 4.0; grp.add(top);
     const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), sign((i + 1) + '  ' + W.n, '#16141c', '#' + W.col.toString(16).padStart(6, '0'), 640, 160)); tag.position.set(0, 4.65, W.T / 2 + 0.1); grp.add(tag);
     const cr = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: crackTex, transparent: true, depthWrite: false, opacity: 0.95 })); cr.position.z = W.T / 2 + 0.013; cr.visible = false; grp.add(cr);
-    CAN.walls.push(grp); CAN.mats.push(mat); CAN.cracks.push(cr); CAN.tiles.push({ mesh, alive: new Uint8Array(CAN_NX * CAN_NY).fill(1), cen: geo.userData.cen, pos0: geo.attributes.position.array.slice() });
+    CAN.walls.push(grp); CAN.mats.push(smat); CAN.wallMats.push(mat); CAN.cracks.push(cr);
   });
   // posters on a few of the walls: poster-N.jpg from the repo, a printed fallback until (or if) they load
   const FALL = [['WANTED', 'MY HEAD · REWARD $5', '#5a3a1a', '#f3e6c8'], ['TEST #001', 'HE SURVIVED* *NOT', '#0f1c3a', '#ffffff'], ['CRASH MART', 'SALE -50%', '#e0322b', '#ffffff'], ['EMPLOYEE OF', 'THE MONTH x47', '#16141c', '#ffc21a'], ["DON'T", 'BLINK', '#161222', '#3dff9a']];
@@ -3910,20 +3936,20 @@ function cannonShow(on) {
   CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0;
   const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L;
   const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
-  CAN.tiles.forEach((tl, i) => { tl.alive.fill(1); tl.mesh.geometry.attributes.position.array.set(tl.pos0); tl.mesh.geometry.attributes.position.needsUpdate = true; CAN.cracks[i].visible = false; });
+  CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
   CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.touch = new Array(15).fill(false);
   board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
 }
 function cannonStart(lv) {
   cannonBuild(); cannonShow(true); lv = clamp(lv, 1, 5);
-  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0, sd: 0 }); CAN.vmph = CAN.mph;
+  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0, sd: 0, lastZ: undefined }); CAN.vmph = CAN.mph;
   LAB.phase = 'cannon'; board.visible = false; daggie.visible = false; rider.visible = false; // he is inside the barrel until the shot
   labSpeedo(0); labDmg(true, 0, 'WALLS', ' / 15', 0);
 }
 function cannonFire() {
   CAN.phase = 'fly'; CAN.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false; daggie.visible = true; rider.visible = true;
   const vis = cannonVis(CAN.mph); ragStart(new V3(0, 2.2, -vis), 0);
-  const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0.01; c.g = -2.2; S.hook = cannonHold; S.t = 0;
+  const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0; c.damp = 1; c.g = -2.2; S.hook = cannonHold; S.t = 0; // no drag and no per-step damping: at 60 m/s they took off about half of his speed in a second, so he stopped around wall 6-7
   canDive(S); for (let i = 0; i < c.n; i++) c.vel(i, 0, 2.2, -vis, 1 / 240); // head first, no spin yet: the first wall starts it
   const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); crashSound(1); CAN.recoil = 1;
   if (!reduceMotion) { shake = 0.8; const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
@@ -3960,13 +3986,18 @@ class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pi
 }
 const _cdA = new V3(), _cdQ = new THREE.Quaternion(), _cdZ = new THREE.Matrix4().makeScale(0, 0, 0);
 const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 0.7;
-function canHole(i, px, py, small) { // punch a hole with an uneven edge: the radius changes all the way round
-  const W = CANNON_WALLS[i], tl = CAN.tiles[i], pos = tl.mesh.geometry.attributes.position.array, gone = [], full = (W.draw === 'glass' || W.draw === 'glass2') && !small;
-  px = clamp(px, -2.3, 2.3); py = clamp(py, 0.7, 3.1); const ph = [rand(0, 6.3), rand(0, 6.3), rand(0, 6.3), rand(0, 6.3)], R = W.R * (small ? 0.45 : 1);
-  const rad = th => R * (0.5 + 0.95 * (0.5 + 0.22 * Math.sin(2 * th + ph[0]) + 0.17 * Math.sin(4 * th + ph[1]) + 0.12 * Math.sin(7 * th + ph[2]) + 0.09 * Math.sin(11 * th + ph[3])));
-  tl.cen.forEach(([cx, cy], t) => { if (!tl.alive[t]) return; const dx = cx - px, dy = cy - py, ok = full || Math.hypot(dx, dy) < rad(Math.atan2(dy, dx)) * (0.88 + 0.24 * Math.random()); if (!ok) return;
-    tl.alive[t] = 0; gone.push([cx, cy]); for (let v = 0; v < 24; v++) { const k = (t * 24 + v) * 3; pos[k] = cx; pos[k + 1] = cy; pos[k + 2] = 0; } });
-  tl.mesh.geometry.attributes.position.needsUpdate = true; return { gone, px, py, rad };
+function canHole(i, px, py, small) { // a hole with an uneven edge, cut in the shader (no pixel steps) and lined with a tube so the wall has thickness
+  const W = CANNON_WALLS[i], full = (W.draw === 'glass' || W.draw === 'glass2') && !small;
+  px = clamp(px, -2.3, 2.3); py = clamp(py, 0.7, 3.1);
+  const h = { px, py, R: W.R * (small ? 0.45 : 1), ph: [rand(0, 6.3), rand(0, 6.3), rand(0, 6.3), rand(0, 6.3)], A: W.jag[0], F: W.jag[1] + (Math.random() < 0.5 ? 0 : 1), full }; h.rad = th => canHoleR(h, th);
+  const gone = [], cnt = full ? 160 : clamp(Math.round(Math.PI * h.R * h.R * 6), 8, 70);
+  for (let q = 0; q < cnt; q++) { const th = rand(-3.1416, 3.1416), r = Math.sqrt(Math.random()) * (full ? 3 : h.rad(th)); gone.push(full ? [rand(-3, 3), rand(0.1, 3.8)] : [px + Math.cos(th) * r, py + Math.sin(th) * r]); }
+  const w = CAN.walls[i], U = CAN.wallMats[i] && CAN.wallMats[i].userData.U;
+  if (w && U) {
+    if (full) { w.userData.panel.visible = false; } // the whole pane bursts
+    else if (!small) { U.uHole.value.set(px, py, h.R, 1); U.uPh.value.set(h.ph[0], h.ph[1], h.ph[2], h.ph[3]); U.uJag.value.x = h.A; U.uJag.value.y = h.F; canTube(i, h); w.userData.panel.castShadow = false; }
+  }
+  return { gone, px, py, rad: h.rad };
 }
 function canDebris(W, i, h, stuck) { // what a broken wall turns into
   const z = cannonWallZ(i), vis = cannonVis(CAN.vmph), set = CAN.sets[i], gl = CAN.glass, ix = h.px, iy = h.py, n = h.gone.length;
@@ -3975,6 +4006,7 @@ function canDebris(W, i, h, stuck) { // what a broken wall turns into
     const total = W.draw === 'glass' ? 420 : 340;
     for (let q = 0; q < total; q++) { const near = Math.random() < 0.6, px = near ? clamp(ix + gauss() * 0.8, -3, 3) : rand(-3, 3), py = near ? clamp(iy + gauss() * 0.8, 0.1, 3.85) : rand(0.1, 3.85), [ux, uy, d] = out(px, py), sp = (4.5 / (0.6 + d)) * rand(0.4, 1.2);
       gl.spawn(LAB_LANE + px, py, z + rand(-0.05, 0.05), ux * sp, uy * sp + rand(0, 2.5), -vis * rand(0.12, 0.55) + rand(-1, 2), rand(0.04, 0.26), rand(0.04, 0.26), 1, rand(8, 11), W.draw === 'glass' ? 0xd8f4ff : 0xa8e8dc); }
+    for (let q = 0; q < 44; q++) { const side = q % 4, x = side < 2 ? rand(-2.95, 2.95) : (side === 2 ? -2.95 : 2.95), y = side === 0 ? 0.12 : side === 1 ? 3.7 : rand(0.2, 3.7), a = Math.atan2(1.9 - y, -x) + rand(-0.5, 0.5), g = CAN.glass, sz = rand(0.1, 0.38); g.spawn(LAB_LANE + x, y, z, 0, 0, 0, sz * rand(0.5, 1), sz, 1, 999, 0xd8f4ff, true); const k = (g.next - 1 + g.N) % g.N; g.q[k].setFromEuler(new THREE.Euler(0, 0, a - 1.2)); g.put(k); } // jagged teeth left in the frame
     return;
   }
   if (W.kind === 'glass') { for (const [cx, cy] of h.gone) for (let q = 0; q < (stuck ? 2 : 4); q++) { const [ux, uy] = out(cx, cy), sp = rand(1.5, 6); gl.spawn(LAB_LANE + cx + rand(-0.15, 0.15), cy + rand(-0.15, 0.15), z + rand(-0.05, 0.05), ux * sp, uy * sp + rand(0, 2), -vis * rand(0.12, 0.5), rand(0.04, 0.2), rand(0.04, 0.2), 1, rand(8, 11), 0x5fb0c2); } return; }
@@ -4003,7 +4035,7 @@ function cannonSpin(c, I, wz, wx) { // wind him up: roll about the flight line (
   const pk = I.pel * 3, cx = c.x[pk], cy = c.x[pk + 1], cz = c.x[pk + 2];
   for (let q = 0; q < c.n; q++) { const k = q * 3, rx = c.x[k] - cx, ry = c.x[k + 1] - cy, rz = c.x[k + 2] - cz; c.o[k] -= (-wz * ry) / 240; c.o[k + 1] -= (wz * rx - wx * rz) / 240; c.o[k + 2] -= (wx * ry) / 240; }
 }
-function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-1, 1) * amt / 240; c.o[k + 1] -= rand(-0.4, 1) * amt / 240; } }
+function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-1, 1) * amt / 240; c.o[k + 1] -= rand(-0.7, 0.7) * amt / 240; } }
 function cannonShardStep(dt) {
   CAN.glass.step(dt); for (const st of CAN.sets) { st.main.step(dt); if (st.aux) st.aux.step(dt); }
   for (const sh of CAN.paper) { if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } sh.v.y -= 2.5 * dt; sh.v.multiplyScalar(1 / (1 + 1.5 * dt)); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; if (sh.m.position.y < 0.03) { sh.m.position.y = 0.03; sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); } }
@@ -4011,7 +4043,9 @@ function cannonShardStep(dt) {
 function wallSound(W, i) {
   tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
   if (!AC) return; OUT(); const t = AC.currentTime;
-  if (W.kind === 'glass' || W.kind === 'ice') { noise(t, 0.4, 0.3, 'highpass', 5500, 2500, 0.7); noise(t, 0.08, 0.25, 'bandpass', 3800, 3000, 2); sweep(t, 2400 + i * 60, 1300, 0.25, 0.04, 'sine'); }
+  if (W.draw === 'hay') { noise(t, 0.35, 0.22, 'bandpass', 1400, 500, 0.8); noise(t, 0.2, 0.15, 'highpass', 4500, 2500, 0.7); sweep(t, 140, 55, 0.22, 0.25, 'sine'); }
+  else if (W.draw === 'tires') { sweep(t, 150, 48, 0.3, 0.45, 'sine'); sweep(t, 190, 340, 0.18, 0.1, 'triangle'); noise(t, 0.25, 0.2, 'lowpass', 700, 150, 0.7); }
+  else if (W.kind === 'glass' || W.kind === 'ice') { noise(t, 0.4, 0.3, 'highpass', 5500, 2500, 0.7); noise(t, 0.08, 0.25, 'bandpass', 3800, 3000, 2); sweep(t, 2400 + i * 60, 1300, 0.25, 0.04, 'sine'); }
   else if (W.kind === 'jelly') { sweep(t, 320, 80, 0.3, 0.3, 'sine'); noise(t, 0.2, 0.18, 'lowpass', 700, 200, 0.7); }
   else if (W.kind === 'cake') { sweep(t, 260, 110, 0.25, 0.3, 'sine'); noise(t, 0.25, 0.14, 'bandpass', 1600, 700, 1.2); }
   else if (W.kind === 'wood') { noiseDist(t, 0.14, 0.3, 2000, 280, 1.2); sweep(t, 190, 60, 0.2, 0.3, 'sine'); }
@@ -4028,6 +4062,16 @@ function canRoll(c, I) { // how fast he is rolling about the flight line now (ra
 function cannonFlail(c, I, amp) { // hands, feet and head whip about: more and more with every wall
   for (const nm of ['haL', 'haR', 'toL', 'toR', 'top', 'knL', 'knR']) { const k = I[nm] * 3; c.o[k] -= rand(-3, 3) * amp / 240; c.o[k + 1] -= rand(-3, 3) * amp / 240; c.o[k + 2] -= rand(-1.2, 1.2) * amp / 240; }
 }
+const CAN_KD = 0.012; // air resistance: his speed falls by about 1.2 % for every metre he flies (so he really slows down between walls)
+function cannonDrive(c, I, dt) { // keeps his body at the model speed: the speed falls with the distance flown, and every wall takes its share; a soft pull keeps him at wall height
+  const C = CAN; if (C.stuck >= 0 || C.next >= 15) return;
+  const z = (c.x[I.pel * 3 + 2] + c.x[I.chest * 3 + 2] + c.x[I.waist * 3 + 2]) / 3; if (C.lastZ === undefined) C.lastZ = z; const dz = Math.max(0, C.lastZ - z); C.lastZ = z;
+  C.vmph *= Math.exp(-CAN_KD * dz);
+  let cur = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; cur += -(c.x[k + 2] - c.o[k + 2]) * 240; } cur /= 3;
+  const d = cannonVis(C.vmph) - cur; for (let q = 0; q < c.n; q++) c.o[q * 3 + 2] += d / 240;
+  let y = 0, vy = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; y += c.x[k + 1]; vy += (c.x[k + 1] - c.o[k + 1]) * 240; } y /= 3; vy /= 3; // height keeping: the kicks and the spin used to lift him up over the top of the walls
+  const dv = (9 * (2.1 - y) - 6 * vy) * dt; for (let q = 0; q < c.n; q++) c.o[q * 3 + 1] -= dv / 240;
+}
 const CAN_LIMB = { haL: 'armL', wrL: 'armL', haR: 'armR', wrR: 'armR', toL: 'legL', anL: 'legL', knL: 'legL', toR: 'legR', anR: 'legR', knR: 'legR' };
 function cannonWalls() {
   const C = CAN, S = RAGSIM, c = S.core, I = S.I; if (C.stuck >= 0) return;
@@ -4042,12 +4086,12 @@ function cannonWalls() {
     }
     if ((hard ? leadTorso : leadAll) > wz) break;
     let sx = 0, sy = 0, cn = 0; for (const nm of ['top', 'chest', 'pel']) { if (!att(nm)) continue; sx += c.x[I[nm] * 3]; sy += c.x[I[nm] * 3 + 1]; cn++; } sx /= cn; sy /= cn; // the hole is centred on his body, not on a fingertip
-    const vEff = Math.min(C.vmph, canMph(canBodySpeed(c, I)) * 1.12 + 8), v2 = vEff * vEff - W.c; // what he really has left decides, not the number on the counter
+    const vEff = C.vmph, v2 = vEff * vEff - W.c * Math.exp(-2 * CAN_KD * (MUZZLE_Z - cannonWallZ(i))); // the wall's cost is scaled by the air resistance already spent, so the levels keep their 3/6/9/12/15 walls
     if (v2 > 0) { // through: he slows down by what the wall took, a hole opens, pieces fly
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(vEff); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
       C.broken++; C.next++; const h = canHole(i, sx, sy); canDebris(W, i, h, false);
-      if (W.draw === 'armor') { CAN.cracks[i].position.set(h.px, h.py, W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.5); CAN.cracks[i].visible = true; }
+      if (W.draw === 'armor' || W.draw === 'brick' || W.draw === 'stone' || W.draw === 'concrete' || W.draw === 'ice' || W.draw === 'ply') { CAN.cracks[i].position.set(h.px, h.py, W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(W.draw === 'armor' ? 1.5 : 1.15 + Math.random() * 0.3); CAN.cracks[i].rotation.z = rand(0, 6.28); CAN.cracks[i].visible = true; } // cracks spread from the hole
       for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; canPaper(i, p, 9); burst(new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)), 10, [[4, 4, 4]], 3); }
       const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
@@ -4056,7 +4100,7 @@ function cannonWalls() {
       { const n = C.broken, target = Math.min(22, 6 + 1.9 * n); if (!C.sd) C.sd = Math.random() < 0.5 ? -1 : 1; const add = Math.max(2.5, target - Math.abs(canRoll(c, I))); C.spun = target; cannonSpin(c, I, C.sd * add, rand(-1, 1) * (1 + 0.5 * n)); cannonFlail(c, I, 1 + 0.5 * n); } // every wall winds him up more: faster roll and wilder flailing
       if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
       lastPop = 0; pop(W.n + '!');
-      if (C.next === 15) c.g = -6;
+      if (C.next === 15) { c.g = -6; c.damp = 0.9996; c.drag = 0.008; } // past the last wall the real air resistance slows him down and he lands
     } else { // stopped inside this wall
       C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
       CAN.cracks[i].position.set(clamp(sx, -2.3, 2.3), clamp(sy, 0.9, 3), W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.1); CAN.cracks[i].visible = true;
@@ -4076,7 +4120,7 @@ function cannonStep(dt, now) {
     labSpeedo(0); const n = Math.floor(C.t / 0.45); if (n !== C.count && n < 4) { C.count = n; if (n >= 1 && n <= 3) { lastPop = 0; pop(String(4 - n), 'lilac'); tone(700, 700, 0.1, 'square', 0.05); } }
     if (C.t >= 1.8) cannonFire();
   } else if (C.phase === 'fly' && RAGSIM) {
-    const S = RAGSIM; ragSimStep(dt); cannonWalls();
+    const S = RAGSIM; ragSimStep(dt); cannonDrive(S.core, S.I, dt); cannonWalls();
     labSpeedo(CAN.vmph); labDmg(true, CAN.broken, 'WALLS', ' / 15', 0);
     const k = S.I.pel * 3, sp = Math.hypot(S.core.x[k] - S.core.o[k], S.core.x[k + 1] - S.core.o[k + 1], S.core.x[k + 2] - S.core.o[k + 2]) * 240;
     C.rest = sp < 0.6 ? C.rest + dt : 0; LAB.dist = Math.max(0, (BOLLARD_Z - S.core.x[k + 2])) * 3.28084;
