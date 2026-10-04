@@ -557,25 +557,29 @@ function makeCartMesh(S, wheelsOut) {
   const chrome = new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 1, roughness: 0.2 });
   const red = new THREE.MeshPhysicalMaterial({ color: 0xe0322b, roughness: 0.35, clearcoat: 1 });
   const black = new THREE.MeshStandardMaterial({ color: 0x1b1a20, roughness: 0.7 });
-  const W = 0.64, y0 = 0.4, y1 = 1.02, zf0 = -0.45, zb0 = 0.45, zf1 = -0.47, zb1 = 0.58, geos = [];
-  const bar = (x0, yy0, z0, x1, yy1, z1, r = 0.011) => { const a = new V3(x0, yy0, z0), b = new V3(x1, yy1, z1), len = a.distanceTo(b); if (len < 1e-4) return; const gg = new THREE.CylinderGeometry(r, r, len, 6, Math.max(1, Math.round(len / 0.045))); gg.translate(0, len / 2, 0); gg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), b.clone().sub(a).normalize())); gg.translate(a.x, a.y, a.z); geos.push(gg); };
-  for (let i = 0; i <= 11; i++) { const t = i / 11; for (const sd of [-1, 1]) bar(sd * W / 2, y0, lerp(zf0, zb0, t), sd * (W / 2 + 0.03), y1, lerp(zf1, zb1, t)); }
-  for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x * 1.09, y1, zf1); bar(x, y0, zb0, x * 1.09, y1, zb1); }
-  for (const t of [0, 0.34, 0.67, 1]) { const y = lerp(y0, y1, t), zf = lerp(zf0, zf1, t), zb = lerp(zb0, zb1, t), hw = lerp(W / 2, W / 2 + 0.03, t); bar(-hw, y, zf, hw, y, zf, 0.013); bar(-hw, y, zb, hw, y, zb, 0.013); bar(-hw, y, zf, -hw, y, zb, 0.013); bar(hw, y, zf, hw, y, zb, 0.013); }
-  for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x, y0, zb0, 0.009); }
+  const W = 0.64, y0 = 0.4, y1 = 1.02, zf0 = -0.45, zb0 = 0.45, zf1 = -0.47, zb1 = 0.58, geos = [], extras = [];
+  const G = { sideL: [], sideR: [], front: [], back: [], bottom: [], frameL: [], frameR: [] }; let cur = null; // wire groups, so the basket can break into pieces
+  const bar = (x0, yy0, z0, x1, yy1, z1, r = 0.011) => { const a = new V3(x0, yy0, z0), b = new V3(x1, yy1, z1), len = a.distanceTo(b); if (len < 1e-4) return; const gg = new THREE.CylinderGeometry(r, r, len, 6, Math.max(1, Math.round(len / 0.045))); gg.translate(0, len / 2, 0); gg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), b.clone().sub(a).normalize())); gg.translate(a.x, a.y, a.z); geos.push(gg); if (cur) cur.push(gg); };
+  for (let i = 0; i <= 11; i++) { const t = i / 11; for (const sd of [-1, 1]) { cur = sd < 0 ? G.sideL : G.sideR; bar(sd * W / 2, y0, lerp(zf0, zb0, t), sd * (W / 2 + 0.03), y1, lerp(zf1, zb1, t)); } }
+  for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); cur = G.front; bar(x, y0, zf0, x * 1.09, y1, zf1); cur = G.back; bar(x, y0, zb0, x * 1.09, y1, zb1); }
+  for (const t of [0, 0.34, 0.67, 1]) { const y = lerp(y0, y1, t), zf = lerp(zf0, zf1, t), zb = lerp(zb0, zb1, t), hw = lerp(W / 2, W / 2 + 0.03, t); cur = G.front; bar(-hw, y, zf, hw, y, zf, 0.013); cur = G.back; bar(-hw, y, zb, hw, y, zb, 0.013); cur = G.sideL; bar(-hw, y, zf, -hw, y, zb, 0.013); cur = G.sideR; bar(hw, y, zf, hw, y, zb, 0.013); }
+  cur = G.bottom; for (let i = 0; i <= 8; i++) { const x = lerp(-W / 2, W / 2, i / 8); bar(x, y0, zf0, x, y0, zb0, 0.009); }
   for (let i = 0; i <= 10; i++) { const z = lerp(zf0, zb0, i / 10); bar(-W / 2, y0, z, W / 2, y0, z, 0.009); }
-  for (const sd of [-1, 1]) { bar(sd * 0.27, 0.15, -0.44, sd * 0.27, 0.15, 0.52, 0.018); bar(sd * 0.27, 0.15, 0.52, sd * 0.3, y0, zb0, 0.016); bar(sd * 0.27, 0.15, -0.44, sd * 0.28, y0, zf0 + 0.04, 0.016); bar(sd * (W / 2 + 0.03), y1, zb1, sd * (W / 2 + 0.02), y1 + 0.1, zb1 + 0.14, 0.014); }
+  for (const sd of [-1, 1]) { cur = sd < 0 ? G.frameL : G.frameR; bar(sd * 0.27, 0.15, -0.44, sd * 0.27, 0.15, 0.52, 0.018); bar(sd * 0.27, 0.15, 0.52, sd * 0.3, y0, zb0, 0.016); bar(sd * 0.27, 0.15, -0.44, sd * 0.28, y0, zf0 + 0.04, 0.016); bar(sd * (W / 2 + 0.03), y1, zb1, sd * (W / 2 + 0.02), y1 + 0.1, zb1 + 0.14, 0.014); }
+  cur = null; root.userData.pieces = Object.entries(G).filter(([, a]) => a.length).map(([name, a]) => ({ name, geo: mergeGeometries(a.map(x => x.clone())) }));
   const cage = new THREE.Mesh(mergeGeometries(geos), chrome); cage.castShadow = true; cage.name = 'cage'; cage.geometry.userData.orig = cage.geometry.attributes.position.array.slice(); g.add(cage);
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, W + 0.12, 14), red); handle.rotation.z = Math.PI / 2; handle.position.set(0, y1 + 0.1, zb1 + 0.14); handle.castShadow = true; g.add(handle);
-  const flap = new THREE.Mesh(new THREE.BoxGeometry(W * 0.92, 0.02, 0.24), red); flap.position.set(0, y1 - 0.05, zb1 - 0.13); flap.rotation.x = -0.45; g.add(flap);
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; plate.name = 'plate'; plate.userData.home = plate.position.clone(); g.add(plate);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, W + 0.12, 14), red); handle.rotation.z = Math.PI / 2; handle.position.set(0, y1 + 0.1, zb1 + 0.14); handle.castShadow = true; g.add(handle); extras.push(handle);
+  const flap = new THREE.Mesh(new THREE.BoxGeometry(W * 0.92, 0.02, 0.24), red); flap.position.set(0, y1 - 0.05, zb1 - 0.13); flap.rotation.x = -0.45; g.add(flap); extras.push(flap);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.12), sign('CRASH MART', '#e0322b', '#ffffff', 384, 128)); plate.position.set(0, y1 - 0.13, zf1 - 0.01); plate.rotation.y = Math.PI; plate.name = 'plate'; plate.userData.home = plate.position.clone(); g.add(plate); extras.push(plate);
   for (const [x, z] of [[-0.27, -0.44], [0.27, -0.44], [-0.27, 0.52], [0.27, 0.52]]) {
-    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), chrome); fork.position.set(x, 0.11, z); g.add(fork);
-    const w = new THREE.Group(); w.position.set(x, 0.06, z); const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 16), black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); g.add(w); if (wheelsOut) wheelsOut.push(w);
+    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), chrome); fork.position.set(x, 0.11, z); g.add(fork); extras.push(fork);
+    const w = new THREE.Group(); w.position.set(x, 0.06, z); const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 16), black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); g.add(w); extras.push(w); if (wheelsOut) wheelsOut.push(w);
   }
+  root.userData.extras = extras; root.userData.g = g;
   return root;
 }
-function buildCart() { board.add(makeCartMesh(CART_S, wheels)); }
+let CART_ROOT = null;
+function buildCart() { CART_ROOT = makeCartMesh(CART_S, wheels); board.add(CART_ROOT); }
 // ---------- more obstacles ----------
 const hazard = (len) => stripeMat(len);
 const OBS = { balls: [], presses: [], barrels: [], hurdles: [], sweepers: [], walls: [], oils: [], tramps: [], spikes: [], fans: [], cones: [] };
@@ -2966,7 +2970,54 @@ function labDent(v) { // crumple the front of the basket: deeper, wider and high
   if (v > 20) for (const w of wheels.slice(0, 2)) { w.visible = false; burst(w.getWorldPosition(new V3()), 20, SPARK, 6); }
   return depth;
 }
+
+// ---------- the cart falls apart on a hard hit (100 mph and up): basket panels, handle, forks and wheels fly off as separate pieces ----------
+const CDEB = { list: [], on: false, timer: 0, built: false, cool: 0 };
+function cartDebrisBuild() {
+  if (CDEB.built || !CART_ROOT) return; CDEB.built = true;
+  const g = CART_ROOT.userData.g, chromeM = new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 1, roughness: 0.2 });
+  for (const p of CART_ROOT.userData.pieces) {
+    const geo = p.geo.clone(); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z);
+    const m = new THREE.Mesh(geo, chromeM); m.castShadow = true; m.visible = false; scene.add(m);
+    CDEB.list.push({ m, c, q: new THREE.Quaternion(), r: 0.12, v: new V3(), w: new V3(), rest: true, cd: 0 });
+  }
+  for (const o of CART_ROOT.userData.extras) {
+    const m = o.clone(); m.visible = false; m.position.set(0, 0, 0); scene.add(m);
+    CDEB.list.push({ m, c: o.position.clone(), q: o.quaternion.clone(), r: o.isGroup ? 0.08 : 0.06, v: new V3(), w: new V3(), rest: true, cd: 0, orig: o });
+  }
+}
+function cartBreak() {
+  cartDebrisBuild(); if (!CDEB.list.length) return; CDEB.on = true; CART_ROOT.visible = false; CART.box.on = false;
+  const v = LABCART.v, ip = new V3(LAB_LANE, 0.8, BOLLARD_Z), bq = new THREE.Quaternion(); board.getWorldQuaternion(bq); board.updateMatrixWorld(true);
+  const base = new V3(0, 0, CART.vz), p = new V3(), dir = new V3(), qq = new THREE.Quaternion();
+  for (const d of CDEB.list) {
+    const lp = d.c.clone().multiplyScalar(CART_S); p.copy(lp); board.localToWorld(p); d.m.position.copy(p);
+    qq.copy(bq).multiply(d.q); d.m.quaternion.copy(qq); d.m.scale.setScalar(CART_S); d.m.visible = true;
+    dir.subVectors(p, ip); if (dir.lengthSq() < 1e-4) dir.set(rand(-1, 1), 0.5, rand(-1, 1)); dir.normalize();
+    d.v.copy(base).multiplyScalar(0.3 * rand(0.8, 1.2)).addScaledVector(dir, (3 + 0.06 * v) * rand(0.6, 1.4)); d.v.y += rand(1.5, 5);
+    d.w.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize().multiplyScalar(rand(6, 18)); d.rest = false; d.cd = 0;
+  }
+  burst(new V3(LAB_LANE, 0.9, BOLLARD_Z), 90, SPARK, 9); ripSound();
+}
+const _dq = new THREE.Quaternion(), _da = new V3();
+function cartDebrisStep(dt) {
+  if (CART.knocked && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
+  if (!CDEB.on) return; CDEB.cool -= dt;
+  for (const d of CDEB.list) {
+    if (d.rest) continue; d.cd -= dt;
+    d.v.y -= 9.8 * dt; d.v.multiplyScalar(1 / (1 + 0.02 * d.v.length() * dt)); d.m.position.addScaledVector(d.v, dt); // air drag: the faster the more it slows
+    const wl = d.w.length(); if (wl > 1e-4) { _da.copy(d.w).multiplyScalar(1 / wl); _dq.setFromAxisAngle(_da, wl * dt); d.m.quaternion.premultiply(_dq); }
+    if (d.m.position.y < d.r) {
+      d.m.position.y = d.r;
+      if (d.v.y < -6 && d.cd <= 0 && CDEB.cool <= 0) { burst(d.m.position, 5, SPARK, 3); clank(8); d.cd = 0.25; CDEB.cool = 0.05; }
+      if (d.v.y < 0) d.v.y = -d.v.y * 0.32; d.v.x *= Math.exp(-5 * dt); d.v.z *= Math.exp(-5 * dt); d.w.multiplyScalar(Math.exp(-6 * dt));
+      if (d.v.length() < 0.6 && d.w.length() < 1.2) { d.rest = true; d.v.set(0, 0, 0); d.w.set(0, 0, 0); }
+    }
+  }
+}
+function cartDebrisReset() { for (const d of CDEB.list) { d.m.visible = false; d.rest = true; } CDEB.on = false; CDEB.timer = 0; if (CART_ROOT) CART_ROOT.visible = true; CART.box.on = true; }
 function labCartReset() {
+  cartDebrisBuild(); cartDebrisReset();
   const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
   for (const w of wheels) w.visible = true; { const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
   CART.box.zf = -0.45 * CART_S; LABCART.hit = false; CART.place(BOLLARD_Z + BOLLARD_R + 14); CART.vz = 0; labCartPlace();
@@ -3256,7 +3307,7 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // MODE: LAB — crash tests, level 1 to 100. Daggie on a test stand vs a machine with a power slider.
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
-const LAB_SPEEDS = [15, 50, 80, 130, 200]; // mph for levels 1..5. The post holds on 1-2 and snaps on 3-5; Daggie doesn't grip the cart
+const LAB_SPEEDS = [15, 50, 100, 150, 200]; // mph for levels 1..5. The post holds on 1-2 and snaps on 3-5; Daggie doesn't grip the cart
 const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : LAB.machine === 'press' ? 5 : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
@@ -3507,9 +3558,10 @@ function labHall() {
 const LREC = { frames: [], t: 0, impT: null };
 function labRec(dt) {
   LREC.t += dt; if (LABCART.hit && LREC.impT === null) LREC.impT = LREC.t;
-  const f = new Float32Array(8 + parts.length * 7), q = new THREE.Quaternion(), v = new V3();
+  const f = new Float32Array(9 + parts.length * 7 + CDEB.list.length * 7), q = new THREE.Quaternion(), v = new V3();
   f[0] = LREC.t; board.getWorldPosition(v); board.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 1);
   parts.forEach((p, i) => { p.getWorldPosition(v); p.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 8 + i * 7); });
+  { const base = 8 + parts.length * 7; f[base] = CDEB.on ? 1 : 0; CDEB.list.forEach((d, i) => { d.m.getWorldPosition(v); d.m.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], base + 1 + i * 7); }); }
   LREC.frames.push(f); if (LREC.frames.length > 700) LREC.frames.shift();
 }
 function labBars(on) {
@@ -3530,6 +3582,7 @@ function labReplayFrame(t) {
   const a = F[i], b = F[i + 1] || a, k = b[0] > a[0] ? clamp((t - a[0]) / (b[0] - a[0]), 0, 1) : 0, qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
   const put = (obj, o) => { obj.position.set(lerp(a[o], b[o], k), lerp(a[o + 1], b[o + 1], k), lerp(a[o + 2], b[o + 2], k)); qa.set(a[o + 3], a[o + 4], a[o + 5], a[o + 6]); qb.set(b[o + 3], b[o + 4], b[o + 5], b[o + 6]); obj.quaternion.copy(qa).slerp(qb, k); };
   put(board, 1); parts.forEach((p, j) => put(p, 8 + j * 7));
+  { const base = 8 + parts.length * 7, act = a[base] > 0.5; if (CART_ROOT) CART_ROOT.visible = !act; CDEB.list.forEach((d, i) => { d.m.visible = act; if (act) { put(d.m, base + 1 + i * 7); d.m.scale.setScalar(CART_S); } }); }
 }
 function labReplayStep(dt, now) {
   const R2 = LAB.replay; if (!R2) return;
@@ -3658,7 +3711,7 @@ function labStep(dt, now) {
     if (LAB_STREAKS) LAB_STREAKS.visible = P === 'roll' && state === 'ride' && LABCART.v >= 22.3; // 50 mph and up
     if (P === 'replay') { labDmg(true, LAB.dist || 0, 'DISTANCE', ' FT', 0); labReplayStep(dt, now); return; }
     if (P === 'roll' && state === 'ride') { if (CART.pw[1] - BOLLARD_Z < 7 && faceMode !== 'scared') setFace('scared', 5000); if (CART.step(dt)) labImpact(); labCartPlace(); for (const w of wheels) w.rotation.x -= LABCART.v / WHEEL_R * dt; if (LABCART.hit) { LAB.phase = 'crash'; LAB.t = 0; } }
-    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); labDmg(true, LAB.dist = labDist(), 'DISTANCE', ' FT', 0); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
+    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); cartDebrisStep(dt); labDmg(true, LAB.dist = labDist(), 'DISTANCE', ' FT', 0); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
     else if (P === 'done' && RAGSIM) ragSimStep(dt);
     return;
   }
