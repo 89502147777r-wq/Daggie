@@ -3741,8 +3741,8 @@ const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes
   { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, kind: 'glass', T: 0.1, R: 1.5, draw: 'glass', crk: [0, 0, 0, 0], jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff }, { n: 'HAY BALES', c: 2500, col: 0xd8b04a, kind: 'wood', T: 0.5, R: 1.3, draw: 'hay', crk: [0, 0, 0, 0], jag: [0.26, 13, 0.25, 0.07], edge: 0xe6c36a },
   { n: 'WINDOW', c: 4000, col: 0xeaf2f4, kind: 'window', T: 0.14, R: 1.35, draw: 'window', crk: [0, 0, 0, 0], jag: [0.2, 11, 0.05, 0.05], edge: 0xf3f0e8 }, { n: 'ICE', c: 4000, col: 0xbfe8ff, kind: 'ice', T: 0.3, R: 1.4, draw: 'ice', crk: [1, 1, 1, 0.9], jag: [0.24, 7, 0.0, 0.05], edge: 0xffffff },
   { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, kind: 'wood', T: 0.12, R: 1.3, draw: 'ply', crk: [0.12, 0.07, 0.03, 0.9], jag: [0.3, 19, 0.15, 0.06], edge: 0xecd9b0 }, { n: 'OAK', c: 13000, col: 0x7a4a22, kind: 'wood', T: 0.22, R: 1.25, draw: 'oak', crk: [0.08, 0.05, 0.02, 0.9], jag: [0.26, 15, 0.18, 0.06], edge: 0xd8b27a },
-  { n: 'BRICK', c: 14000, col: 0xb5452f, kind: 'brick', T: 0.35, R: 1.3, draw: 'brick', crk: [0.05, 0.04, 0.04, 0.95], jag: [0.22, 9, 0.4, 0.06], edge: 0xc9826a }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, kind: 'glass', T: 0.2, R: 1.4, draw: 'glass2', crk: [0, 0, 0, 0], jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff },
-  { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone', crk: [0.04, 0.04, 0.05, 0.95], jag: [0.2, 8, 0.4, 0.06], edge: 0xbdbdb6 }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete', crk: [0.1, 0.1, 0.1, 0.9], jag: [0.25, 10, 0.4, 0.06], edge: 0xcfcfc8 },
+  { n: 'BRICK', c: 14000, col: 0xb5452f, kind: 'brick', T: 0.35, R: 1.3, draw: 'brick', crk: [0.05, 0.04, 0.04, 0.95], jag: [0.14, 6, 0.4, 0.06], edge: 0xc9826a }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, kind: 'glass', T: 0.2, R: 1.4, draw: 'glass2', crk: [0, 0, 0, 0], jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff },
+  { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone', crk: [0.04, 0.04, 0.05, 0.95], jag: [0.12, 5, 0.4, 0.06], edge: 0xbdbdb6 }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete', crk: [0.1, 0.1, 0.1, 0.9], jag: [0.16, 7, 0.4, 0.06], edge: 0xcfcfc8 },
   { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, kind: 'glass', T: 0.3, R: 1.2, draw: 'armor', crk: [0.9, 1.0, 1.0, 0.85], jag: [0.3, 9, 0.2, 0.05], edge: 0xbfe8f0 }, { n: 'STEEL', c: 100000, col: 0x8e99a8, kind: 'metal', T: 0.15, R: 0.95, draw: 'steel', crk: [0, 0, 0, 0], jag: [0.1, 7, 0.5, 0.05], edge: 0xdde4ee },
   { n: 'GOLD', c: 120000, col: 0xffc928, kind: 'metal', T: 0.2, R: 1.0, draw: 'gold', crk: [0, 0, 0, 0], jag: [0.1, 6, 0.3, 0.05], edge: 0xfff0a0 }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, kind: 'ice', T: 0.3, R: 1.1, draw: 'diamond', crk: [1, 1, 1, 0.8], jag: [0.25, 8, 0.0, 0.05], edge: 0xffffff },
   { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault', crk: [0, 0, 0, 0], jag: [0.08, 6, 0.5, 0.05], edge: 0xaab3c0 },
@@ -3767,8 +3767,6 @@ const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
     for (const [x0, wd, a] of [[0.1, 0.08, 0.32], [0.28, 0.025, 0.5], [0.6, 0.12, 0.2], [0.8, 0.03, 0.4]]) { const sk = g.createLinearGradient(w * x0, 0, w * (x0 + wd), 0); sk.addColorStop(0, 'rgba(255,255,255,0)'); sk.addColorStop(0.5, 'rgba(255,255,255,' + a + ')'); sk.addColorStop(1, 'rgba(255,255,255,0)'); g.save(); g.transform(1, 0, -0.5, 1, h * 0.5, 0); g.fillStyle = sk; g.fillRect(w * x0 - h * 0.25, 0, w * wd + 4, h); g.restore(); }
     g.strokeStyle = edge; g.lineWidth = 12; g.strokeRect(6, 6, w - 12, h - 12); g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 2; g.strokeRect(14, 14, w - 28, h - 28);
   },
-  glass(g, w, h) { this.glassBase(g, w, h, [190, 235, 255], 0.28, 0.14, 'rgba(120,190,220,0.8)'); this.streaks(g, w, h, 14, 'rgba(255,255,255,0.7)', 0.4, 60); },
-  glass2(g, w, h) { this.glassBase(g, w, h, [110, 200, 190], 0.5, 0.32, 'rgba(40,120,110,0.95)'); g.fillStyle = 'rgba(20,90,80,0.25)'; g.fillRect(0, 0, w, 26); g.fillRect(0, h - 26, w, 26); this.streaks(g, w, h, 10, 'rgba(255,255,255,0.8)', 0.35, 80); },
   armor(g, w, h) { this.glassBase(g, w, h, [40, 110, 130], 0.7, 0.5, 'rgba(25,30,36,1)'); g.strokeStyle = 'rgba(10,20,25,0.7)'; g.lineWidth = 3; for (let x = 0; x <= w; x += w / 4) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } for (let y = 0; y <= h; y += h / 3) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
     g.fillStyle = 'rgba(150,160,170,1)'; for (let x = 0; x <= w; x += w / 4) for (let y = 0; y <= h; y += h / 3) { g.beginPath(); g.arc(Math.min(w - 14, Math.max(14, x)), Math.min(h - 14, Math.max(14, y)), 7, 0, 7); g.fill(); }
     for (let k = 0; k < 5; k++) { const cx = rand(60, w - 60), cy = rand(50, h - 50); g.strokeStyle = 'rgba(220,240,250,0.55)'; g.lineWidth = 1.2; for (let a = 0; a < 9; a++) { const an = a * 0.7 + rand(0, 0.3); g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(an) * rand(8, 22), cy + Math.sin(an) * rand(8, 22)); g.stroke(); } } },
@@ -3779,27 +3777,6 @@ const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
     for (let i = 0; i < 2800; i++) { g.strokeStyle = pick(['#e8c566', '#b88a2e', '#d9b45a', '#a97b25', '#f0d98a', '#8f6a1f']); g.lineWidth = rand(0.8, 2); const x = rand(-20, w), y = rand(0, h), an = rand(-0.5, 0.5), l = rand(18, 70); g.globalAlpha = rand(0.5, 1); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an) * l, y + Math.sin(an) * l); g.stroke(); } g.globalAlpha = 1;
     for (const y of [h * 0.28, h * 0.72]) { g.strokeStyle = '#3a2a14'; g.lineWidth = 7; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); g.strokeStyle = 'rgba(255,220,150,0.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, y - 2); g.lineTo(w, y - 2); g.stroke(); }
     g.fillStyle = 'rgba(60,35,5,0.35)'; for (const x of [w / 4, w / 2, 3 * w / 4]) g.fillRect(x - 2, 0, 4, h); },
-  winFrame(g, w, h, broken) { // a painted wooden double casement: two sashes, small panes, a centre stile with a handle
-    g.clearRect(0, 0, w, h); const F = 24, cx = w / 2, st = 26, rows = 3, cols = 2, mu = 8;
-    const paint = (x, y, ww, hh) => { const gr = g.createLinearGradient(x, y, x + ww, y + hh); gr.addColorStop(0, '#f6f4ee'); gr.addColorStop(0.5, '#ece9e0'); gr.addColorStop(1, '#dcd8cc'); g.fillStyle = gr; g.fillRect(x, y, ww, hh); g.strokeStyle = 'rgba(150,140,120,0.28)'; g.lineWidth = 1; for (let i = 0; i < 14; i++) { const yy = y + rand(0, hh); g.beginPath(); g.moveTo(x, yy); g.lineTo(x + ww, yy + rand(-2, 2)); g.stroke(); } };
-    const bevel = (x, y, ww, hh) => { g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 2; g.strokeRect(x + 1, y + 1, ww - 2, hh - 2); g.strokeStyle = 'rgba(90,80,60,0.55)'; g.lineWidth = 2; g.strokeRect(x + 3, y + 3, ww - 6, hh - 6); };
-    paint(0, 0, w, h); bevel(0, 0, w, h);
-    const px = [F, cx - st / 2 - 4, cx + st / 2 + 4, w - F], panes = [];
-    for (let s = 0; s < 2; s++) { const x0 = s ? px[2] : px[0], x1 = s ? px[3] : px[1], sw = x1 - x0, pw = (sw - mu * (cols - 1)) / cols, ph = (h - F - 36 - mu * (rows - 1)) / rows; for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) panes.push([x0 + c * (pw + mu), F + r * (ph + mu), pw, ph]); }
-    for (const [x, y, ww, hh] of panes) {
-      if (!broken) { const gr = g.createLinearGradient(x, y, x + ww, y + hh); gr.addColorStop(0, 'rgba(205,232,245,0.32)'); gr.addColorStop(0.5, 'rgba(160,205,225,0.18)'); gr.addColorStop(1, 'rgba(215,238,248,0.34)'); g.fillStyle = gr; g.fillRect(x, y, ww, hh); const sk = g.createLinearGradient(x, y, x + ww * 0.7, y + hh); sk.addColorStop(0.15, 'rgba(255,255,255,0)'); sk.addColorStop(0.3, 'rgba(255,255,255,0.55)'); sk.addColorStop(0.38, 'rgba(255,255,255,0)'); g.fillStyle = sk; g.fillRect(x, y, ww, hh); }
-      else { g.fillStyle = 'rgba(200,235,250,0.8)'; for (let k = 0; k < 7; k++) { const e = Math.floor(rand(0, 4)), t = rand(0.1, 0.9), sz = rand(7, 20); g.beginPath(); if (e === 0) { g.moveTo(x + ww * t, y); g.lineTo(x + ww * t + sz * 0.5, y + sz); g.lineTo(x + ww * t - sz * 0.4, y + sz * 0.6); } else if (e === 1) { g.moveTo(x + ww * t, y + hh); g.lineTo(x + ww * t + sz * 0.5, y + hh - sz); g.lineTo(x + ww * t - sz * 0.4, y + hh - sz * 0.6); } else if (e === 2) { g.moveTo(x, y + hh * t); g.lineTo(x + sz, y + hh * t + sz * 0.4); g.lineTo(x + sz * 0.6, y + hh * t - sz * 0.5); } else { g.moveTo(x + ww, y + hh * t); g.lineTo(x + ww - sz, y + hh * t + sz * 0.4); g.lineTo(x + ww - sz * 0.6, y + hh * t - sz * 0.5); } g.closePath(); g.fill(); } }
-      g.strokeStyle = 'rgba(80,70,55,0.6)'; g.lineWidth = 2; g.strokeRect(x, y, ww, hh); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 1; g.strokeRect(x - 1, y - 1, ww + 2, hh + 2);
-    }
-    paint(cx - st / 2, F, st, h - F - 36); bevel(cx - st / 2, F, st, h - F - 36); paint(0, h - 40, w, 40); bevel(0, h - 40, w, 40);
-    for (const y of [h * 0.17, h * 0.5, h * 0.83]) for (const x of [F + 2, w - F - 2]) { g.fillStyle = '#6d7480'; g.fillRect(x - 5, y - 18, 10, 36); g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(x - 4, y - 17, 3, 34); for (const dy of [-12, 12]) { g.fillStyle = '#2d3138'; g.beginPath(); g.arc(x, y + dy, 2, 0, 7); g.fill(); } }
-    const hx = cx, hy = h * 0.5; g.fillStyle = '#9aa2ae'; g.fillRect(hx - 9, hy - 38, 18, 76); g.fillStyle = 'rgba(255,255,255,0.65)'; g.fillRect(hx - 8, hy - 37, 4, 74); g.strokeStyle = '#4a505a'; g.lineWidth = 1.5; g.strokeRect(hx - 9, hy - 38, 18, 76);
-    const hg = g.createRadialGradient(hx - 3, hy - 3, 1, hx, hy, 15); hg.addColorStop(0, '#f2f4f7'); hg.addColorStop(1, '#707884'); g.fillStyle = hg; g.beginPath(); g.arc(hx, hy, 14, 0, 7); g.fill(); g.strokeStyle = '#3d424b'; g.lineWidth = 1.5; g.stroke();
-    g.save(); g.translate(hx, hy); g.rotate(0.12); const lg = g.createLinearGradient(0, -7, 0, 7); lg.addColorStop(0, '#f4f6f9'); lg.addColorStop(0.5, '#a8b0bc'); lg.addColorStop(1, '#5e6571'); g.fillStyle = lg; g.beginPath(); if (g.roundRect) g.roundRect(-4, -7, 11, 64, 5); else g.rect(-4, -7, 11, 64); g.fill(); g.strokeStyle = '#3d424b'; g.stroke(); g.restore();
-    for (const [x, y] of [[hx, hy - 30], [hx, hy + 30]]) { g.fillStyle = '#2d3138'; g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); }
-  },
-  window(g, w, h) { this.winFrame(g, w, h, false); },
-  windowBroken(g, w, h) { this.winFrame(g, w, h, true); },
   tires(g, w, h) { g.fillStyle = '#0a0a0d'; g.fillRect(0, 0, w, h); const d = 64; for (let r = 0, y = d / 2; y < h + d; r++, y += d * 0.9) for (let x = (r % 2) * d / 2; x < w + d; x += d) {
       g.fillStyle = '#18181d'; g.beginPath(); g.arc(x, y, d / 2 - 1, 0, 7); g.fill(); g.strokeStyle = '#2a2a31'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, d / 2 - 4, 0, 7); g.stroke();
       for (let k = 0; k < 18; k++) { const an = k / 18 * 6.283; g.strokeStyle = k % 2 ? '#0a0a0d' : '#25252c'; g.lineWidth = 3; g.beginPath(); g.moveTo(x + Math.cos(an) * (d / 2 - 2), y + Math.sin(an) * (d / 2 - 2)); g.lineTo(x + Math.cos(an) * (d / 2 - 8), y + Math.sin(an) * (d / 2 - 8)); g.stroke(); }
@@ -3808,13 +3785,6 @@ const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
   cake(g, w, h) { const layers = [['#c68a4b', 70], ['#fff2e0', 30], ['#d3344d', 26], ['#c68a4b', 70], ['#fff2e0', 30], ['#e8b6c8', 94]]; let y = h; for (const [c, t] of layers) { y -= t; g.fillStyle = c; g.fillRect(0, y, w, t); }
     this.speck(g, w, h, 900, ['#8a5a2a', '#e0a860', '#6b3f1d'], 3, 0.6); for (let i = 0; i < 160; i++) { g.fillStyle = pick(['#ff4d6d', '#4dd2ff', '#ffe14d', '#7dff6a', '#b06bff']); g.save(); g.translate(rand(0, w), rand(0, 90)); g.rotate(rand(0, 3)); g.fillRect(0, 0, 9, 3.5); g.restore(); }
     g.fillStyle = '#fff6ee'; g.beginPath(); g.moveTo(0, 96); for (let x = 0; x <= w; x += 24) g.quadraticCurveTo(x + 6, 96 + rand(18, 34), x + 12, 96); g.lineTo(w, 0); g.lineTo(0, 0); g.fill(); g.fillStyle = '#d01f3c'; for (const x of [70, 190, 310, 430]) { g.beginPath(); g.arc(x, 30, 17, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(x - 5, 24, 4, 0, 7); g.fill(); g.fillStyle = '#d01f3c'; } },
-  ice(g, w, h) { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, 'rgba(190,230,255,0.9)'); gr.addColorStop(0.5, 'rgba(235,248,255,0.85)'); gr.addColorStop(1, 'rgba(150,205,240,0.9)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    this.speck(g, w, h, 500, ['#ffffff', '#cfeaff'], 3, 0.6); for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.arc(rand(0, w), rand(0, h), rand(2, 9), 0, 7); g.fill(); }
-    g.strokeStyle = 'rgba(255,255,255,0.85)'; for (let k = 0; k < 9; k++) { g.lineWidth = rand(0.8, 2.2); g.beginPath(); let x = rand(0, w), y = rand(0, h); g.moveTo(x, y); for (let q = 0; q < 6; q++) { x += rand(-40, 40); y += rand(-30, 30); g.lineTo(x, y); } g.stroke(); } g.strokeStyle = 'rgba(120,180,230,0.8)'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10); },
-  ply(g, w, h) { g.fillStyle = '#d9b27a'; g.fillRect(0, 0, w, h); this.streaks(g, w, h, 260, '#a8793f', 0.5, 220); this.streaks(g, w, h, 90, '#f0cf9a', 0.5, 160);
-    for (let k = 0; k < 6; k++) { const x = rand(30, w - 30), y = rand(20, h - 20); g.strokeStyle = 'rgba(120,75,30,0.7)'; for (let r = 4; r < 20; r += 4) { g.lineWidth = 1.5; g.beginPath(); g.ellipse(x, y, r * 1.8, r, 0, 0, 7); g.stroke(); } }
-    g.strokeStyle = 'rgba(90,55,20,0.8)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke(); g.fillStyle = 'rgba(70,70,70,0.9)'; for (let x = 20; x < w; x += 40) { g.fillRect(x, 10, 3, 3); g.fillRect(x, h - 14, 3, 3); } },
-  oak(g, w, h) { const n = 6, pw = w / n; for (let i = 0; i < n; i++) { g.fillStyle = pick(['#6a3f1c', '#74461f', '#5f3818', '#7b4d24']); g.fillRect(i * pw, 0, pw, h); g.save(); g.beginPath(); g.rect(i * pw, 0, pw, h); g.clip(); g.strokeStyle = 'rgba(30,15,5,0.55)'; for (let k = 0; k < 40; k++) { g.lineWidth = rand(0.6, 2); const x = i * pw + rand(0, pw); g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + rand(-8, 8), h * 0.3, x + rand(-8, 8), h * 0.7, x + rand(-6, 6), h); g.stroke(); } g.restore(); g.fillStyle = 'rgba(15,8,3,0.95)'; g.fillRect(i * pw - 1.5, 0, 3, h); g.fillStyle = 'rgba(160,160,160,0.9)'; for (const y of [18, h - 18]) { g.beginPath(); g.arc(i * pw + pw / 2, y, 3.5, 0, 7); g.fill(); } } },
   brick(g, w, h) { g.fillStyle = '#c9c2b0'; g.fillRect(0, 0, w, h); const bw = 42, bh = 17, gap = 3; for (let r = 0, y = 0; y < h; r++, y += bh + gap) for (let x = (r % 2) * -bw / 2; x < w; x += bw + gap) { g.fillStyle = pick(['#a63f2b', '#b5452f', '#9a3626', '#bf5236', '#8f3223']); g.fillRect(x, y, bw, bh); g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x, y + bh - 3, bw, 3); g.fillStyle = 'rgba(255,200,170,0.15)'; g.fillRect(x, y, bw, 2); }
     this.speck(g, w, h, 1400, ['#5a2a1f', '#d9a08a', '#7a3a2c', '#e8d9c0'], 2.2, 0.5); },
   stone(g, w, h) { g.fillStyle = '#4a4c52'; g.fillRect(0, 0, w, h); let y = 0; while (y < h) { const bh = rand(46, 78); let x = -rand(0, 60); while (x < w) { const bw = rand(70, 150); const v = rand(100, 150) | 0; g.fillStyle = 'rgb(' + v + ',' + (v + 2) + ',' + (v + 8) + ')'; g.fillRect(x + 2, y + 2, bw - 4, bh - 4); const gr = g.createLinearGradient(x, y, x, y + bh); gr.addColorStop(0, 'rgba(255,255,255,0.18)'); gr.addColorStop(1, 'rgba(0,0,0,0.25)'); g.fillStyle = gr; g.fillRect(x + 2, y + 2, bw - 4, bh - 4); x += bw; } y += bh; }
@@ -3827,14 +3797,181 @@ const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
   gold(g, w, h) { const bw = 120, bh = 56; g.fillStyle = '#6b4a00'; g.fillRect(0, 0, w, h); for (let r = 0, y = 4; y < h; r++, y += bh + 6) for (let x = (r % 2) * -bw / 2 + 4; x < w; x += bw + 6) { const gr = g.createLinearGradient(x, y, x + bw, y + bh); gr.addColorStop(0, '#fff0a8'); gr.addColorStop(0.35, '#ffc928'); gr.addColorStop(0.7, '#e0a010'); gr.addColorStop(1, '#fff0a0'); g.fillStyle = gr; g.beginPath(); g.moveTo(x + 8, y); g.lineTo(x + bw - 8, y); g.lineTo(x + bw, y + bh); g.lineTo(x, y + bh); g.closePath(); g.fill(); g.fillStyle = 'rgba(120,70,0,0.7)'; g.font = '700 14px ' + FONT; g.textAlign = 'center'; g.fillText('999.9', x + bw / 2, y + bh / 2 + 5); g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(x + 12, y + 3, bw - 30, 3); } },
   diamond(g, w, h) { g.fillStyle = '#bfefff'; g.fillRect(0, 0, w, h); for (let i = 0; i < 70; i++) { const cx = rand(0, w), cy = rand(0, h), n = 3 + (Math.random() * 3 | 0); g.beginPath(); for (let k = 0; k < n; k++) { const an = k / n * 6.283 + rand(0, 0.5), r = rand(24, 70); g.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r); } g.closePath(); g.fillStyle = 'rgba(' + pick(['255,255,255', '170,225,255', '210,240,255', '150,210,250', '230,250,255']) + ',' + rand(0.25, 0.7).toFixed(2) + ')'; g.fill(); g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.2; g.stroke(); }
     for (let i = 0; i < 26; i++) { const x = rand(10, w - 10), y = rand(10, h - 10), r = rand(6, 16); g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke(); } g.strokeStyle = 'rgba(90,170,220,0.9)'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10); },
-  vault(g, w, h) { g.fillStyle = '#31353e'; g.fillRect(0, 0, w, h); this.streaks(g, w, h, 300, 'rgba(255,255,255,0.18)', 0.4, 250); const cx = w / 2, cy = h / 2;
-    g.fillStyle = '#e8b800'; for (const y of [0, h - 26]) { g.fillRect(0, y, w, 26); g.fillStyle = '#16141c'; for (let x = -20; x < w + 20; x += 40) { g.beginPath(); g.moveTo(x, y + 26); g.lineTo(x + 20, y); g.lineTo(x + 40, y); g.lineTo(x + 20, y + 26); g.fill(); } g.fillStyle = '#e8b800'; }
-    for (let k = 0; k < 16; k++) { const an = k / 16 * 6.283; g.fillStyle = '#9aa3b0'; g.beginPath(); g.arc(cx + Math.cos(an) * 128, cy + Math.sin(an) * 128, 7, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(cx + Math.cos(an) * 128 - 2, cy + Math.sin(an) * 128 - 2, 2.4, 0, 7); g.fill(); }
-    g.strokeStyle = '#aeb6c2'; g.lineWidth = 14; g.beginPath(); g.arc(cx, cy, 98, 0, 7); g.stroke(); g.lineWidth = 9; for (let k = 0; k < 6; k++) { const an = k / 6 * 6.283; g.beginPath(); g.moveTo(cx + Math.cos(an) * 20, cy + Math.sin(an) * 20); g.lineTo(cx + Math.cos(an) * 98, cy + Math.sin(an) * 98); g.stroke(); g.fillStyle = '#c8301f'; g.beginPath(); g.arc(cx + Math.cos(an) * 112, cy + Math.sin(an) * 112, 11, 0, 7); g.fill(); }
-    g.fillStyle = '#16141c'; g.beginPath(); g.arc(cx, cy, 30, 0, 7); g.fill(); g.strokeStyle = '#e8b800'; g.lineWidth = 3; for (let k = 0; k < 24; k++) { const an = k / 24 * 6.283; g.beginPath(); g.moveTo(cx + Math.cos(an) * 24, cy + Math.sin(an) * 24); g.lineTo(cx + Math.cos(an) * 29, cy + Math.sin(an) * 29); g.stroke(); } },
   cracks(g, w, h) { g.clearRect(0, 0, w, h); const cx = w / 2, cy = h / 2; g.lineCap = 'round'; for (let pass = 0; pass < 2; pass++) { g.strokeStyle = pass ? 'rgba(255,255,255,0.95)' : 'rgba(10,10,15,0.55)'; for (let a = 0; a < 18; a++) { let an = a / 18 * 6.283 + rand(-0.15, 0.15), x = cx, y = cy, r = 0; g.lineWidth = pass ? 1.6 : 3.2; g.beginPath(); g.moveTo(x, y); while (r < w * rand(0.28, 0.5)) { r += rand(10, 24); an += rand(-0.25, 0.25); x = cx + Math.cos(an) * r + (pass ? 0 : 1.5); y = cy + Math.sin(an) * r + (pass ? 0 : 1.5); g.lineTo(x, y); if (Math.random() < 0.18) { g.stroke(); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an + 0.9) * rand(10, 30), y + Math.sin(an + 0.9) * rand(10, 30)); g.stroke(); g.beginPath(); g.moveTo(x, y); } } g.stroke(); }
     for (const rr of [26, 54, 86, 120]) { g.lineWidth = pass ? 1.2 : 2.4; g.beginPath(); for (let a = 0; a <= 12; a++) { const an = a / 12 * 6.283, r = rr * rand(0.85, 1.12); g.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r); } g.stroke(); } } },
 };
+// ---- realistic redraws: window, vault door, thin glass, thick glass, ice ----
+const canRect = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+const canScrew = (g, x, y, r) => { const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.3, 0.5, x, y, r); gr.addColorStop(0, '#f2f4f6'); gr.addColorStop(1, '#6c727c'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.strokeStyle = 'rgba(30,32,38,0.9)'; g.lineWidth = 0.8; g.stroke(); g.strokeStyle = 'rgba(30,32,38,0.85)'; g.lineWidth = Math.max(0.8, r * 0.28); g.beginPath(); const a = rand(0, 3.14); g.moveTo(x - Math.cos(a) * r * 0.7, y - Math.sin(a) * r * 0.7); g.lineTo(x + Math.cos(a) * r * 0.7, y + Math.sin(a) * r * 0.7); g.stroke(); };
+const canPaintedWood = (g, x, y, w, h, vertical) => { // off-white gloss paint over wood: soft shading, grain showing through, a thin light edge and a dark edge
+  const gr = vertical ? g.createLinearGradient(x, y, x + w, y) : g.createLinearGradient(x, y, x, y + h); gr.addColorStop(0, '#f7f5ef'); gr.addColorStop(0.45, '#efece3'); gr.addColorStop(1, '#ddd9ce'); g.fillStyle = gr; g.fillRect(x, y, w, h);
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.strokeStyle = 'rgba(160,145,115,0.22)'; for (let i = 0; i < Math.max(6, (vertical ? w : h) * 0.9); i++) { g.lineWidth = rand(0.4, 1.1); g.beginPath(); if (vertical) { const xx = x + rand(0, w); g.moveTo(xx, y); g.bezierCurveTo(xx + rand(-1.5, 1.5), y + h * 0.3, xx + rand(-1.5, 1.5), y + h * 0.7, xx + rand(-1, 1), y + h); } else { const yy = y + rand(0, h); g.moveTo(x, yy); g.bezierCurveTo(x + w * 0.3, yy + rand(-1.5, 1.5), x + w * 0.7, yy + rand(-1.5, 1.5), x + w, yy + rand(-1, 1)); } g.stroke(); } g.restore();
+  g.fillStyle = 'rgba(255,255,255,0.9)'; g.fillRect(x, y, w, 1.2); g.fillRect(x, y, 1.2, h); g.fillStyle = 'rgba(70,60,45,0.4)'; g.fillRect(x, y + h - 1.4, w, 1.4); g.fillRect(x + w - 1.4, y, 1.4, h);
+};
+Object.assign(CAN_DRAW, {
+  winFrame(g, w, h, broken) { // a white painted wooden casement window with two sashes, putty, hinges and a lever handle (as in the references: stiles, rails, a wider bottom rail, muntins, sill)
+    g.clearRect(0, 0, w, h); const FR = 22, SILL = 38, cx = w / 2, ST = 19, TR = 17, BR = 30, MU = 7, y0 = FR, y1 = h - SILL - 6;
+    canPaintedWood(g, 0, 0, w, FR, false); canPaintedWood(g, 0, 0, FR, h - SILL, true); canPaintedWood(g, w - FR, 0, FR, h - SILL, true); // outer frame: head, left and right jambs, each with its own grain
+    g.fillStyle = 'rgba(25,22,18,0.75)'; g.fillRect(FR - 2, y0 - 2, w - 2 * FR + 4, y1 - y0 + 4); // the gap between frame and sashes
+    const glassX = [], lites = [];
+    for (let s = 0; s < 2; s++) {
+      const x0 = s ? cx + 1 : FR, x1 = s ? w - FR : cx - 1;
+      canPaintedWood(g, x0, y0, ST, y1 - y0, true); canPaintedWood(g, x1 - ST, y0, ST, y1 - y0, true); canPaintedWood(g, x0 + ST, y0, x1 - x0 - 2 * ST, TR, false); canPaintedWood(g, x0 + ST, y1 - BR, x1 - x0 - 2 * ST, BR, false);
+      const gx0 = x0 + ST, gx1 = x1 - ST, gy0 = y0 + TR, gy1 = y1 - BR, cols = 2, rows = 3, lw = (gx1 - gx0 - MU * (cols - 1)) / cols, lh = (gy1 - gy0 - MU * (rows - 1)) / rows;
+      g.fillStyle = 'rgba(40,36,30,0.55)'; g.fillRect(gx0, gy0, gx1 - gx0, gy1 - gy0);
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) lites.push([gx0 + c * (lw + MU), gy0 + r * (lh + MU), lw, lh]);
+      for (let c = 1; c < cols; c++) canPaintedWood(g, gx0 + c * lw + (c - 1) * MU, gy0, MU, gy1 - gy0, true);
+      for (let r = 1; r < rows; r++) canPaintedWood(g, gx0, gy0 + r * lh + (r - 1) * MU, gx1 - gx0, MU, false);
+    }
+    for (const [x, y, lw, lh] of lites) { // each pane of glass: reflections that run across the whole window
+      g.save(); g.beginPath(); g.rect(x, y, lw, lh); g.clip();
+      if (!broken) {
+        const sky = g.createLinearGradient(0, y, 0, y + lh); sky.addColorStop(0, 'rgba(205,228,245,0.40)'); sky.addColorStop(0.6, 'rgba(165,200,222,0.24)'); sky.addColorStop(1, 'rgba(120,150,150,0.28)'); g.fillStyle = sky; g.fillRect(x, y, lw, lh);
+        g.fillStyle = 'rgba(25,45,70,0.07)'; for (let k = 0; k < 4; k++) { const bx = x + ((k * 53 + x * 0.7) % lw), bh = 10 + ((k * 37 + y) % 40); g.fillRect(bx, y + lh - bh, 18 + (k * 11) % 22, bh); } // a faint city in the glass
+        const sx = (w * 0.18), sk = g.createLinearGradient(sx, 0, sx + 150, 120); sk.addColorStop(0.0, 'rgba(255,255,255,0)'); sk.addColorStop(0.35, 'rgba(255,255,255,0.5)'); sk.addColorStop(0.5, 'rgba(255,255,255,0.12)'); sk.addColorStop(0.62, 'rgba(255,255,255,0.4)'); sk.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sk; g.fillRect(x, y, lw, lh);
+        const sk2 = g.createLinearGradient(w * 0.62, 0, w * 0.62 + 90, 80); sk2.addColorStop(0, 'rgba(255,255,255,0)'); sk2.addColorStop(0.5, 'rgba(255,255,255,0.28)'); sk2.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sk2; g.fillRect(x, y, lw, lh);
+        const dr = g.createRadialGradient(x + lw / 2, y + lh + 10, 2, x + lw / 2, y + lh, lw); dr.addColorStop(0, 'rgba(60,70,50,0.16)'); dr.addColorStop(1, 'rgba(60,70,50,0)'); g.fillStyle = dr; g.fillRect(x, y, lw, lh); // grime at the bottom
+        g.strokeStyle = 'rgba(255,255,255,0.1)'; for (let k = 0; k < 4; k++) { const xx = x + rand(4, lw - 4); g.lineWidth = 1; g.beginPath(); g.moveTo(xx, y + 2); g.lineTo(xx + rand(-2, 2), y + lh * rand(0.4, 1)); g.stroke(); } // rain streaks
+      } else { g.clearRect(x, y, lw, lh); g.fillStyle = 'rgba(205,238,250,0.85)'; for (let k = 0; k < 9; k++) { const e = k % 4, t = rand(0.08, 0.92), sz = rand(6, 20); g.beginPath(); if (e === 0) { g.moveTo(x + lw * t, y); g.lineTo(x + lw * t + sz * 0.5, y + sz); g.lineTo(x + lw * t - sz * 0.4, y + sz * 0.5); } else if (e === 1) { g.moveTo(x + lw * t, y + lh); g.lineTo(x + lw * t + sz * 0.5, y + lh - sz); g.lineTo(x + lw * t - sz * 0.4, y + lh - sz * 0.5); } else if (e === 2) { g.moveTo(x, y + lh * t); g.lineTo(x + sz, y + lh * t + sz * 0.4); g.lineTo(x + sz * 0.5, y + lh * t - sz * 0.5); } else { g.moveTo(x + lw, y + lh * t); g.lineTo(x + lw - sz, y + lh * t + sz * 0.4); g.lineTo(x + lw - sz * 0.5, y + lh * t - sz * 0.5); } g.closePath(); g.fill(); } }
+      g.restore();
+      g.strokeStyle = 'rgba(60,55,45,0.7)'; g.lineWidth = 1.4; g.strokeRect(x, y, lw, lh); // putty bevel around the glass: dark where it meets the glass, light on the slope
+      g.fillStyle = 'rgba(70,62,48,0.3)'; g.fillRect(x, y, lw, 3); g.fillRect(x, y, 3, lh); g.fillStyle = 'rgba(255,255,255,0.75)'; g.fillRect(x, y + lh - 2, lw, 2); g.fillRect(x + lw - 2, y, 2, lh);
+    }
+    // the sill: it sticks out, lighter on top, a drip groove and a shadow on the front edge
+    const sg = g.createLinearGradient(0, h - SILL, 0, h); sg.addColorStop(0, '#fbfaf6'); sg.addColorStop(0.38, '#e9e6dc'); sg.addColorStop(0.4, '#cbc7ba'); sg.addColorStop(0.72, '#d6d2c6'); sg.addColorStop(1, '#a9a597'); g.fillStyle = sg; g.fillRect(0, h - SILL, w, SILL);
+    g.fillStyle = 'rgba(40,35,25,0.55)'; g.fillRect(0, h - SILL + 13, w, 1.5); g.fillStyle = 'rgba(30,26,20,0.5)'; g.fillRect(0, h - 11, w, 2); g.fillStyle = 'rgba(255,255,255,0.8)'; g.fillRect(0, h - SILL, w, 1.5);
+    g.fillStyle = 'rgba(30,26,20,0.55)'; g.fillRect(FR - 1, y1, w - 2 * FR + 2, 3); // caulk line under the bottom rail
+    // hinges on the outer stiles (butt hinges, screws), steel
+    for (const yy of [y0 + 26, (y0 + y1) / 2, y1 - 30]) for (const [xx, dir] of [[FR + 1, 1], [w - FR - 1, -1]]) {
+      g.fillStyle = 'rgba(20,18,14,0.5)'; g.fillRect(xx - (dir > 0 ? 1 : 12), yy - 21, 13, 44);
+      const hg = g.createLinearGradient(xx, 0, xx + dir * 11, 0); hg.addColorStop(0, '#d9dde3'); hg.addColorStop(0.5, '#8d949f'); hg.addColorStop(1, '#5d636d'); g.fillStyle = hg; g.fillRect(dir > 0 ? xx : xx - 11, yy - 20, 11, 40);
+      g.strokeStyle = 'rgba(25,28,34,0.8)'; g.lineWidth = 1; g.strokeRect(dir > 0 ? xx : xx - 11, yy - 20, 11, 40);
+      for (let k = 0; k < 3; k++) { g.fillStyle = k % 2 ? '#aab1bb' : '#c9ced6'; g.fillRect(xx + (dir > 0 ? 8 : -13), yy - 20 + k * 13.5, 5, 13); g.strokeStyle = 'rgba(25,28,34,0.7)'; g.strokeRect(xx + (dir > 0 ? 8 : -13), yy - 20 + k * 13.5, 5, 13); }
+      canScrew(g, xx + dir * 5.5, yy - 13, 2.3); canScrew(g, xx + dir * 5.5, yy + 13, 2.3);
+    }
+    // the lever handle on the meeting stile, with its back plate and the keep on the other sash
+    const hx = cx - 9, hy = (y0 + y1) / 2 + 30;
+    g.fillStyle = 'rgba(15,12,8,0.38)'; g.beginPath(); if (g.roundRect) g.roundRect(hx - 8, hy - 44, 20, 96, 6); else g.rect(hx - 8, hy - 44, 20, 96); g.fill(); // shadow
+    const pg = g.createLinearGradient(hx - 9, 0, hx + 9, 0); pg.addColorStop(0, '#f4f6f8'); pg.addColorStop(0.5, '#b4bbc6'); pg.addColorStop(1, '#6b727d'); g.fillStyle = pg; g.beginPath(); if (g.roundRect) g.roundRect(hx - 10, hy - 46, 20, 92, 6); else g.rect(hx - 10, hy - 46, 20, 92); g.fill(); g.strokeStyle = 'rgba(30,34,40,0.85)'; g.lineWidth = 1.2; g.stroke();
+    canScrew(g, hx, hy - 38, 2.6); canScrew(g, hx, hy + 38, 2.6);
+    const rg = g.createRadialGradient(hx - 3, hy - 14, 1, hx, hy - 10, 13); rg.addColorStop(0, '#fbfcfd'); rg.addColorStop(0.55, '#a9b0bb'); rg.addColorStop(1, '#5f6670'); g.fillStyle = rg; g.beginPath(); g.arc(hx, hy - 10, 11, 0, 7); g.fill(); g.strokeStyle = 'rgba(30,34,40,0.9)'; g.stroke();
+    g.fillStyle = 'rgba(15,12,8,0.35)'; g.beginPath(); if (g.roundRect) g.roundRect(hx - 3, hy - 14, 14, 62, 6); else g.rect(hx - 3, hy - 14, 14, 62); g.fill();
+    const lg = g.createLinearGradient(hx - 6, 0, hx + 6, 0); lg.addColorStop(0, '#fdfdfe'); lg.addColorStop(0.5, '#aeb5c0'); lg.addColorStop(1, '#555c66'); g.fillStyle = lg; g.beginPath(); if (g.roundRect) g.roundRect(hx - 5, hy - 12, 11, 58, 5.5); else g.rect(hx - 5, hy - 12, 11, 58); g.fill(); g.strokeStyle = 'rgba(30,34,40,0.9)'; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.7)'; g.fillRect(hx - 3, hy - 4, 2, 44);
+    canRect(g, cx + 6, hy - 9, 7, 18, '#9aa1ac'); g.strokeStyle = 'rgba(30,34,40,0.8)'; g.strokeRect(cx + 6, hy - 9, 7, 18); canScrew(g, cx + 9.5, hy - 4, 1.6); canScrew(g, cx + 9.5, hy + 4, 1.6);
+    // wear: dirt along the bottom, chipped paint on the corners, a scuff round the handle
+    const dg = g.createLinearGradient(0, h - SILL - 40, 0, h - SILL); dg.addColorStop(0, 'rgba(90,80,60,0)'); dg.addColorStop(1, 'rgba(90,80,60,0.28)'); g.fillStyle = dg; g.fillRect(0, h - SILL - 40, w, 40);
+    g.fillStyle = 'rgba(176,138,92,0.85)'; for (let k = 0; k < 10; k++) { const e = k % 4, px = e < 2 ? rand(FR, w - FR) : (e === 2 ? FR + rand(0, 6) : w - FR - rand(0, 6)), py = e === 0 ? y0 + rand(0, 6) : e === 1 ? y1 - rand(0, 6) : rand(y0, y1); g.beginPath(); g.ellipse(px, py, rand(1, 3), rand(0.8, 2), rand(0, 3), 0, 7); g.fill(); }
+  },
+  window(g, w, h) { this.winFrame(g, w, h, false); },
+  windowBroken(g, w, h) { this.winFrame(g, w, h, true); },
+});
+
+Object.assign(CAN_DRAW, {
+  vault(g, w, h) { // a round bank vault door in a steel frame: ring of locking bolts, hinge block, five-spoke ship wheel with a combination dial in the hub, name plate (as in the references)
+    const cx = w / 2 + 6, cy = h / 2, R = 136;
+    const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#454c57'); bg.addColorStop(0.5, '#363c46'); bg.addColorStop(1, '#2a2f37'); g.fillStyle = bg; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 380; i++) { g.strokeStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.12)'; g.lineWidth = rand(0.5, 1.3); const yy = rand(0, h), xx = rand(-30, w); g.beginPath(); g.moveTo(xx, yy); g.lineTo(xx + rand(40, 260), yy); g.stroke(); } // brushed steel
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 2; g.strokeRect(3, 3, w - 6, h - 6); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 2; g.strokeRect(7, 7, w - 14, h - 14);
+    for (const [x, y] of [[20, 20], [w - 20, 20], [20, h - 20], [w - 20, h - 20]]) canScrew(g, x, y, 7);
+    // soft shadow of the door on the frame
+    const sh = g.createRadialGradient(cx + 5, cy + 8, R - 4, cx + 5, cy + 8, R + 26); sh.addColorStop(0, 'rgba(0,0,0,0.55)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sh; g.fillRect(0, 0, w, h);
+    // jamb ring with the bolt cavities
+    const jg = g.createRadialGradient(cx, cy, R, cx, cy, R + 16); jg.addColorStop(0, '#1b1e24'); jg.addColorStop(1, '#4b525d'); g.fillStyle = jg; g.beginPath(); g.arc(cx, cy, R + 14, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,0.28)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, R + 14, 0, 7); g.stroke();
+    // door rim: a thick bevelled ring of steel with the 24 polished locking bolts
+    const rg = g.createRadialGradient(cx - 40, cy - 50, 20, cx, cy, R); rg.addColorStop(0, '#9aa2ae'); rg.addColorStop(0.55, '#6c7480'); rg.addColorStop(1, '#3e444e'); g.fillStyle = rg; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
+    for (let k = 0; k < 24; k++) { const an = k / 24 * 6.2832 + 0.13, bx = cx + Math.cos(an) * (R - 9), by = cy + Math.sin(an) * (R - 9);
+      g.fillStyle = 'rgba(0,0,0,0.5)'; g.beginPath(); g.arc(bx + 1.5, by + 2, 6.5, 0, 7); g.fill();
+      const bgd = g.createRadialGradient(bx - 2, by - 2, 0.5, bx, by, 6.5); bgd.addColorStop(0, '#ffffff'); bgd.addColorStop(0.45, '#c3c9d2'); bgd.addColorStop(1, '#5a616c'); g.fillStyle = bgd; g.beginPath(); g.arc(bx, by, 6, 0, 7); g.fill(); g.strokeStyle = 'rgba(20,22,28,0.8)'; g.lineWidth = 0.8; g.stroke(); }
+    // door face: turned steel (fine concentric lines), a raised inner panel and a light crescent
+    const fg = g.createRadialGradient(cx - 35, cy - 45, 10, cx, cy, R - 22); fg.addColorStop(0, '#8d95a1'); fg.addColorStop(0.6, '#5f6772'); fg.addColorStop(1, '#3a4049'); g.fillStyle = fg; g.beginPath(); g.arc(cx, cy, R - 22, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.07)'; for (let r = 4; r < R - 22; r += 2.6) { g.lineWidth = rand(0.4, 0.9); g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, R - 23, 3.45, 4.75); g.stroke(); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, R - 23, 0.3, 1.6); g.stroke();
+    g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, 98, 0, 7); g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.4)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, 100.5, 0, 7); g.stroke();
+    for (let k = 0; k < 12; k++) { const an = k / 12 * 6.2832; canScrew(g, cx + Math.cos(an) * 91, cy + Math.sin(an) * 91, 4); }
+    // five-spoke ship wheel (brass): a rim, spokes tapering to the hub, ball ends
+    const brass = (x, y, r) => { const b = g.createRadialGradient(x - r * 0.35, y - r * 0.35, 1, x, y, r); b.addColorStop(0, '#fff3b0'); b.addColorStop(0.4, '#e0b23a'); b.addColorStop(1, '#7d5510'); return b; };
+    g.fillStyle = 'rgba(0,0,0,0.38)'; g.beginPath(); g.ellipse(cx + 7, cy + 10, 74, 74, 0, 0, 7); g.fill();
+    for (let k = 0; k < 5; k++) { const an = -1.5708 + k / 5 * 6.2832; g.save(); g.translate(cx, cy); g.rotate(an); g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.moveTo(0, -5 + 6); g.lineTo(74, -3 + 6); g.lineTo(74, 4 + 6); g.lineTo(0, 7 + 6); g.fill();
+      const sg = g.createLinearGradient(0, -6, 0, 6); sg.addColorStop(0, '#fff0a8'); sg.addColorStop(0.5, '#d9a52e'); sg.addColorStop(1, '#6b4709'); g.fillStyle = sg; g.beginPath(); g.moveTo(0, -7); g.lineTo(74, -3.5); g.lineTo(74, 3.5); g.lineTo(0, 7); g.closePath(); g.fill(); g.strokeStyle = 'rgba(60,40,5,0.8)'; g.lineWidth = 0.9; g.stroke(); g.restore(); }
+    g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 9; g.beginPath(); g.arc(cx + 3, cy + 5, 70, 0, 7); g.stroke();
+    const rimG = g.createLinearGradient(cx - 70, cy - 70, cx + 70, cy + 70); rimG.addColorStop(0, '#fff0a8'); rimG.addColorStop(0.5, '#d9a52e'); rimG.addColorStop(1, '#6b4709'); g.strokeStyle = rimG; g.lineWidth = 8; g.beginPath(); g.arc(cx, cy, 70, 0, 7); g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, 72.5, 3.6, 5.2); g.stroke();
+    for (let k = 0; k < 5; k++) { const an = -1.5708 + k / 5 * 6.2832, bx = cx + Math.cos(an) * 86, by = cy + Math.sin(an) * 86; g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.arc(bx + 3, by + 4, 12, 0, 7); g.fill(); g.fillStyle = brass(bx, by, 12); g.beginPath(); g.arc(bx, by, 12, 0, 7); g.fill(); g.strokeStyle = 'rgba(60,40,5,0.8)'; g.lineWidth = 1; g.stroke(); }
+    // hub with the combination dial
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.beginPath(); g.arc(cx + 3, cy + 5, 31, 0, 7); g.fill(); g.fillStyle = brass(cx, cy, 31); g.beginPath(); g.arc(cx, cy, 30, 0, 7); g.fill(); g.strokeStyle = 'rgba(60,40,5,0.85)'; g.lineWidth = 1.2; g.stroke();
+    const dg = g.createRadialGradient(cx - 6, cy - 6, 1, cx, cy, 23); dg.addColorStop(0, '#2c313a'); dg.addColorStop(1, '#0b0d11'); g.fillStyle = dg; g.beginPath(); g.arc(cx, cy, 22.5, 0, 7); g.fill(); g.strokeStyle = '#c9ced6'; g.lineWidth = 2; g.stroke();
+    for (let k = 0; k < 50; k++) { const an = k / 50 * 6.2832 - 1.5708, big = k % 5 === 0; g.strokeStyle = big ? '#ffffff' : 'rgba(230,235,245,0.7)'; g.lineWidth = big ? 1.4 : 0.8; g.beginPath(); g.moveTo(cx + Math.cos(an) * (big ? 14.5 : 17), cy + Math.sin(an) * (big ? 14.5 : 17)); g.lineTo(cx + Math.cos(an) * 21, cy + Math.sin(an) * 21); g.stroke(); }
+    g.fillStyle = '#ffffff'; g.font = '700 5.5px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; for (let k = 0; k < 10; k++) { const an = k / 10 * 6.2832 - 1.5708; g.fillText(String(k * 10), cx + Math.cos(an) * 10.5, cy + Math.sin(an) * 10.5); }
+    g.fillStyle = '#e8322b'; g.beginPath(); g.moveTo(cx, cy - 24); g.lineTo(cx - 3.5, cy - 31); g.lineTo(cx + 3.5, cy - 31); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(cx - 6, cy - 9, 9, 4, -0.5, 0, 7); g.fill();
+    // name plate and small lock covers
+    const pg = g.createLinearGradient(0, cy + 96, 0, cy + 118); pg.addColorStop(0, '#f6dc86'); pg.addColorStop(0.5, '#cf9d2c'); pg.addColorStop(1, '#8a6212'); g.fillStyle = pg; g.fillRect(cx - 50, cy + 100, 100, 18); g.strokeStyle = 'rgba(60,40,5,0.85)'; g.lineWidth = 1.2; g.strokeRect(cx - 50, cy + 100, 100, 18); g.fillStyle = '#3d2a05'; g.font = '700 11px ' + FONT; g.fillText('SAFE DEPOSIT', cx, cy + 109.5); canScrew(g, cx - 45, cy + 109, 2); canScrew(g, cx + 45, cy + 109, 2);
+    // the hinge block on the left: three massive knuckles on a pin, bolted to the frame
+    const hx = cx - R - 56;
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(hx - 6, cy - 120, 34, 240);
+    const pn = g.createLinearGradient(hx - 4, 0, hx + 22, 0); pn.addColorStop(0, '#d3d8df'); pn.addColorStop(0.4, '#7e8692'); pn.addColorStop(1, '#3e444e'); g.fillStyle = pn; g.fillRect(hx, cy - 125, 20, 250);
+    for (const yy of [cy - 90, cy, cy + 90]) { const kg = g.createLinearGradient(hx - 8, 0, hx + 30, 0); kg.addColorStop(0, '#eef1f4'); kg.addColorStop(0.35, '#98a0ab'); kg.addColorStop(1, '#3b414a'); g.fillStyle = kg; g.beginPath(); if (g.roundRect) g.roundRect(hx - 8, yy - 30, 40, 60, 6); else g.rect(hx - 8, yy - 30, 40, 60); g.fill(); g.strokeStyle = 'rgba(15,17,22,0.9)'; g.lineWidth = 1.4; g.stroke(); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(hx - 8, yy - 3, 40, 6); canScrew(g, hx + 2, yy - 20, 3.5); canScrew(g, hx + 2, yy + 20, 3.5); canScrew(g, hx + 22, yy - 20, 3.5); canScrew(g, hx + 22, yy + 20, 3.5);
+      g.fillStyle = '#6c737e'; g.fillRect(hx + 30, yy - 12, cx - R - 14 - (hx + 30), 24); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(hx + 30, yy - 12, cx - R - 14 - (hx + 30), 3); } // the arms from the door to the hinge
+    // relocker cover on the right
+    const rx = cx + R + 40; g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(rx - 2, cy - 36, 38, 74); const cg = g.createLinearGradient(rx, 0, rx + 34, 0); cg.addColorStop(0, '#8b929d'); cg.addColorStop(1, '#4a515b'); g.fillStyle = cg; g.fillRect(rx, cy - 38, 34, 74); g.strokeStyle = 'rgba(15,17,22,0.9)'; g.strokeRect(rx, cy - 38, 34, 74); for (const [x, y] of [[rx + 6, cy - 31], [rx + 28, cy - 31], [rx + 6, cy + 29], [rx + 28, cy + 29]]) canScrew(g, x, y, 3);
+    g.fillStyle = '#2b2f36'; g.fillRect(rx + 8, cy - 12, 18, 24); g.fillStyle = '#d9a52e'; g.font = '700 7px ' + FONT; g.fillText('RELOCK', rx + 17, cy);
+    // scratches, fingerprints and dirt
+    g.strokeStyle = 'rgba(255,255,255,0.22)'; for (let k = 0; k < 26; k++) { const an = rand(0, 6.28), r = rand(30, R - 25), x = cx + Math.cos(an) * r, y = cy + Math.sin(an) * r; g.lineWidth = rand(0.4, 1); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-14, 14), y + rand(-6, 6)); g.stroke(); }
+    const dirt = g.createLinearGradient(0, h - 60, 0, h); dirt.addColorStop(0, 'rgba(10,8,5,0)'); dirt.addColorStop(1, 'rgba(10,8,5,0.35)'); g.fillStyle = dirt; g.fillRect(0, h - 60, w, 60);
+    const vg = g.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, w * 0.62); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.38)'); g.fillStyle = vg; g.fillRect(0, 0, w, h);
+  },
+});
+
+Object.assign(CAN_DRAW, {
+  glassPane(g, w, h, tint, edgeCol, thick, a1) { // a pane of glass in a slim metal clip frame: sky reflection, bright streaks, a polished green edge, corner fittings
+    g.clearRect(0, 0, w, h); const E = thick ? 20 : 9;
+    const sky = g.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, rgba(tint, a1 * 1.25)); sky.addColorStop(0.55, rgba(tint, a1 * 0.6)); sky.addColorStop(1, rgba([90, 120, 110], a1 * 0.9)); g.fillStyle = sky; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(30,50,75,0.10)'; for (let k = 0; k < 14; k++) { const bx = k * 38 + rand(0, 14), bh = rand(20, 90); g.fillRect(bx, h - E - bh, rand(20, 40), bh); } // a faint city mirrored in the glass
+    for (const [x0, wd, a] of [[0.06, 0.07, 0.38], [0.2, 0.02, 0.6], [0.52, 0.12, 0.2], [0.74, 0.03, 0.45], [0.86, 0.06, 0.18]]) { const sk = g.createLinearGradient(w * x0, 0, w * (x0 + wd), 0); sk.addColorStop(0, 'rgba(255,255,255,0)'); sk.addColorStop(0.5, 'rgba(255,255,255,' + a + ')'); sk.addColorStop(1, 'rgba(255,255,255,0)'); g.save(); g.transform(1, 0, -0.55, 1, h * 0.55, 0); g.fillStyle = sk; g.fillRect(w * x0 - h * 0.3, 0, w * wd + 4, h); g.restore(); }
+    for (let k = 0; k < 5; k++) { const x = rand(20, w - 20); g.strokeStyle = 'rgba(255,255,255,0.1)'; g.lineWidth = rand(1, 2.5); g.beginPath(); g.moveTo(x, E); g.lineTo(x + rand(-4, 4), h * rand(0.4, 0.95)); g.stroke(); } // water streaks
+    const dg = g.createLinearGradient(0, h - 50, 0, h); dg.addColorStop(0, 'rgba(70,80,60,0)'); dg.addColorStop(1, 'rgba(70,80,60,0.22)'); g.fillStyle = dg; g.fillRect(0, h - 50, w, 50);
+    // polished edge: you see the glass from the side, green and thick
+    const eg = g.createLinearGradient(0, 0, 0, E); eg.addColorStop(0, rgba(edgeCol, 0.95)); eg.addColorStop(1, rgba(edgeCol, 0.55)); g.fillStyle = eg; g.fillRect(0, 0, w, E); const eg2 = g.createLinearGradient(0, h - E, 0, h); eg2.addColorStop(0, rgba(edgeCol, 0.55)); eg2.addColorStop(1, rgba(edgeCol, 0.95)); g.fillStyle = eg2; g.fillRect(0, h - E, w, E);
+    const eg3 = g.createLinearGradient(0, 0, E, 0); eg3.addColorStop(0, rgba(edgeCol, 0.95)); eg3.addColorStop(1, rgba(edgeCol, 0.5)); g.fillStyle = eg3; g.fillRect(0, 0, E, h); const eg4 = g.createLinearGradient(w - E, 0, w, 0); eg4.addColorStop(0, rgba(edgeCol, 0.5)); eg4.addColorStop(1, rgba(edgeCol, 0.95)); g.fillStyle = eg4; g.fillRect(w - E, 0, E, h);
+    g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1.6; g.strokeRect(E, E, w - 2 * E, h - 2 * E); g.strokeStyle = 'rgba(10,40,35,0.55)'; g.lineWidth = 1.2; g.strokeRect(1, 1, w - 2, h - 2);
+    for (const [x, y] of [[E + 18, E + 18], [w - E - 18, E + 18], [E + 18, h - E - 18], [w - E - 18, h - E - 18]]) { const sg = g.createRadialGradient(x - 3, y - 3, 1, x, y, 13); sg.addColorStop(0, '#f6f8fa'); sg.addColorStop(1, '#5d646e'); g.fillStyle = sg; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); g.strokeStyle = 'rgba(20,24,30,0.9)'; g.lineWidth = 1.2; g.stroke(); canScrew(g, x, y, 4.2); } // corner fittings
+  },
+  glass(g, w, h) { this.glassPane(g, w, h, [205, 232, 248], [150, 215, 190], false, 0.22); },
+  glass2(g, w, h) { this.glassPane(g, w, h, [160, 215, 205], [60, 150, 125], true, 0.34); },
+  ice(g, w, h) { // a block of ice: clear blue-white, trapped bubbles, deep blurred cracks and frost at the edges
+    const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, 'rgba(160,215,245,0.92)'); gr.addColorStop(0.45, 'rgba(225,244,255,0.88)'); gr.addColorStop(1, 'rgba(120,190,235,0.94)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let k = 0; k < 7; k++) { const x = rand(0, w), gg = g.createRadialGradient(x, rand(0, h), 4, x, rand(0, h), rand(60, 140)); gg.addColorStop(0, 'rgba(255,255,255,0.35)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.fillRect(0, 0, w, h); }
+    g.save(); g.shadowColor = 'rgba(60,140,210,0.9)'; g.shadowBlur = 7; for (let k = 0; k < 14; k++) { g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = rand(1, 2.6); g.beginPath(); let x = rand(0, w), y = rand(0, h); g.moveTo(x, y); for (let q = 0; q < 7; q++) { x += rand(-45, 45); y += rand(-30, 38); g.lineTo(x, y); } g.stroke(); } g.restore();
+    for (let k = 0; k < 90; k++) { const x = rand(0, w), y = rand(0, h), r = rand(1.5, 7); g.fillStyle = 'rgba(255,255,255,0.28)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 0.9; g.beginPath(); g.arc(x, y, r, 3.6, 5.3); g.stroke(); g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.3, r * 0.22, 0, 7); g.fill(); }
+    const fr = g.createLinearGradient(0, 0, 0, 38); fr.addColorStop(0, 'rgba(255,255,255,0.9)'); fr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = fr; g.fillRect(0, 0, w, 38); const fr2 = g.createLinearGradient(0, h, 0, h - 38); fr2.addColorStop(0, 'rgba(255,255,255,0.9)'); fr2.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = fr2; g.fillRect(0, h - 38, w, 38);
+    g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); g.strokeStyle = 'rgba(70,140,205,0.8)'; g.lineWidth = 2; g.strokeRect(7, 7, w - 14, h - 14);
+  },
+});
+
+Object.assign(CAN_DRAW, {
+  grainLines(g, x, y, w, h, n, col, a, vertical) { // wavy, cathedral-style wood grain
+    g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.strokeStyle = col;
+    for (let k = 0; k < n; k++) { const off = (k / n) * (vertical ? w : h), amp = rand(1, 6), fr = rand(0.012, 0.035), ph = rand(0, 6.3); g.lineWidth = rand(0.5, 1.6); g.globalAlpha = a * rand(0.4, 1); g.beginPath();
+      for (let t = 0; t <= (vertical ? h : w); t += 4) { const o = off + amp * Math.sin(t * fr + ph) + 3 * Math.sin(t * fr * 0.37 + ph * 2); if (vertical) g.lineTo(x + o, y + t); else g.lineTo(x + t, y + o); } g.stroke(); }
+    g.restore(); g.globalAlpha = 1;
+  },
+  knot(g, x, y, r) { const gr = g.createRadialGradient(x, y, 1, x, y, r * 1.9); gr.addColorStop(0, 'rgba(60,32,12,0.95)'); gr.addColorStop(0.5, 'rgba(95,55,22,0.8)'); gr.addColorStop(1, 'rgba(95,55,22,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r * 1.9, r * 1.1, 0.1, 0, 7); g.fill(); g.strokeStyle = 'rgba(70,40,15,0.55)'; for (let k = 1; k < 4; k++) { g.lineWidth = 1; g.beginPath(); g.ellipse(x, y, r * (1 + k * 0.5), r * (0.55 + k * 0.28), 0.1, 0, 7); g.stroke(); } },
+  ply(g, w, h) { // plywood sheets: veneer with cathedral grain, a glue seam, screws, a few knots
+    const hh = h / 2; for (let i = 0; i < 2; i++) { const y = i * hh, gr = g.createLinearGradient(0, y, w, y + hh); const tone = i ? ['#d5a96b', '#c99a5a'] : ['#dcb277', '#d0a363']; gr.addColorStop(0, tone[0]); gr.addColorStop(1, tone[1]); g.fillStyle = gr; g.fillRect(0, y, w, hh);
+      this.grainLines(g, 0, y, w, hh, 46, '#9a6a35', 0.5, false); this.grainLines(g, 0, y, w, hh, 30, '#f0cd98', 0.35, false); for (let k = 0; k < 2; k++) this.knot(g, rand(40, w - 40), y + rand(25, hh - 25), rand(5, 10)); }
+    g.fillStyle = 'rgba(70,40,15,0.85)'; g.fillRect(0, hh - 1.5, w, 3); g.fillStyle = 'rgba(255,235,200,0.45)'; g.fillRect(0, hh + 1.5, w, 1.2);
+    g.strokeStyle = 'rgba(80,50,20,0.9)'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, w - 3, h - 3);
+    for (let x = 22; x < w; x += 58) for (const y of [14, hh - 14, hh + 14, h - 14]) { const sg = g.createRadialGradient(x - 1, y - 1, 0.5, x, y, 4); sg.addColorStop(0, '#e8eaee'); sg.addColorStop(1, '#6b717b'); g.fillStyle = sg; g.beginPath(); g.arc(x, y, 3.6, 0, 7); g.fill(); g.strokeStyle = 'rgba(30,30,35,0.8)'; g.lineWidth = 0.8; g.stroke(); g.fillStyle = 'rgba(60,35,12,0.4)'; g.beginPath(); g.ellipse(x + 1.5, y + 2.5, 5, 3, 0, 0, 7); g.fill(); }
+  },
+  oak(g, w, h) { // dark oak boards: gaps, long grain, a few knots, square-head screws
+    const n = 6, pw = w / n; for (let i = 0; i < n; i++) { const gr = g.createLinearGradient(i * pw, 0, (i + 1) * pw, 0); const c = pick([['#6e411d', '#5a3416'], ['#7a4b22', '#63391a'], ['#684018', '#553115'], ['#80502a', '#6a4020']]); gr.addColorStop(0, c[0]); gr.addColorStop(1, c[1]); g.fillStyle = gr; g.fillRect(i * pw, 0, pw, h);
+      this.grainLines(g, i * pw, 0, pw, h, 26, 'rgba(25,12,4,1)', 0.55, true); this.grainLines(g, i * pw, 0, pw, h, 12, 'rgba(210,150,90,1)', 0.18, true); if (Math.random() < 0.7) this.knot(g, i * pw + rand(10, pw - 10), rand(40, h - 40), rand(4, 8));
+      g.fillStyle = 'rgba(12,6,2,0.95)'; g.fillRect(i * pw - 1.5, 0, 3, h); g.fillStyle = 'rgba(255,215,160,0.18)'; g.fillRect(i * pw + 1.5, 0, 1.2, h);
+      for (const y of [16, h - 16]) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.ellipse(i * pw + pw / 2 + 1.5, y + 2, 5, 3, 0, 0, 7); g.fill(); const sg = g.createLinearGradient(0, y - 4, 0, y + 4); sg.addColorStop(0, '#9aa0a8'); sg.addColorStop(1, '#4a4f58'); g.fillStyle = sg; g.fillRect(i * pw + pw / 2 - 4, y - 4, 8, 8); g.strokeStyle = 'rgba(15,15,20,0.9)'; g.lineWidth = 0.9; g.strokeRect(i * pw + pw / 2 - 4, y - 4, 8, 8); } }
+    const sh = g.createLinearGradient(0, 0, 0, h); sh.addColorStop(0, 'rgba(0,0,0,0.25)'); sh.addColorStop(0.15, 'rgba(0,0,0,0)'); sh.addColorStop(0.85, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.3)'); g.fillStyle = sh; g.fillRect(0, 0, w, h);
+  },
+});
+
 function canHoleR(h, th) { // radius of the hole in direction th: uneven all the way round, with spikes. The fragment shader uses the same formula.
   const n = 0.5 + 0.22 * Math.sin(2 * th + h.ph[0]) + 0.17 * Math.sin(4 * th + h.ph[1]) + 0.12 * Math.sin(7 * th + h.ph[2]) + 0.09 * Math.sin(11 * th + h.ph[3]);
   const x = (th + h.ph[0]) * h.F / 6.2831853, saw = (x - Math.floor(x)) * 2 - 1;
@@ -3843,7 +3980,7 @@ function canHoleR(h, th) { // radius of the hole in direction th: uneven all the
 function canWallMat(map, W) { // the wall's own material: a smooth, pixel-exact hole is cut by the fragment shader
   const clear = W.kind === 'glass' || W.kind === 'ice' || W.kind === 'window', U = { uCrk: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uCrC: { value: new THREE.Vector4(W.crk[0], W.crk[1], W.crk[2], W.crk[3]) }, uHole: { value: new THREE.Vector4(0, 0, 1, 0) }, uPh: { value: new THREE.Vector4() }, uJag: { value: new THREE.Vector4(W.jag[0], W.jag[1], W.jag[2], W.jag[3]) }, uEdge: { value: new THREE.Color(W.edge) } };
   const mat = new THREE.MeshStandardMaterial({ map, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : W.kind === 'metal' ? 0.35 : 0.75, metalness: W.kind === 'metal' ? 0.85 : 0.05, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear });
-  mat.userData.U = U;
+  mat.userData.U = U; const BUMP = { brick: -1.6, stone: 2, concrete: 1.5, oak: 1.2, ply: 1, hay: 1.5, steel: 1.5, gold: 1.6, vault: 2, diamond: 1, window: 0.8 }[W.draw]; if (BUMP) { mat.bumpMap = map; mat.bumpScale = BUMP; } // relief from the picture itself: mortar, grain, rivets, bolts
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLP = position;');
@@ -3858,9 +3995,9 @@ if (uHole.w > 0.5) {
   if (uCrC.w > 0.0) {
     float crack = 0.0, along = dist - r;
     for (int i = 0; i < 8; i++) { vec4 c = uCrk[i]; if (c.y > 0.0 && along > 0.0) {
-      float a = c.x + 0.10 * sin(dist * 5.0 + c.z) + 0.05 * sin(dist * 13.0 + c.z * 2.0);
+      float a = c.x + 0.06 * (abs(fract(dist * 3.2 + c.z) - 0.5) * 4.0 - 1.0) + 0.018 * (abs(fract(dist * 9.0 + c.z * 2.0) - 0.5) * 4.0 - 1.0);
       float perp = abs(mod(ang - a + 3.14159265, 6.2831853) - 3.14159265) * dist;
-      float w = 0.010 + 0.016 * (1.0 - smoothstep(0.0, c.y, along));
+      float w = 0.008 + 0.012 * (1.0 - smoothstep(0.0, c.y, along));
       float ln1 = (1.0 - smoothstep(w * 0.3, w, perp)) * (1.0 - smoothstep(c.y * 0.6, c.y, along));
       float sg = sin(c.z * 7.0) > 0.0 ? 1.0 : -1.0, a2 = a + sg * 0.5, al2 = along - c.y * 0.35;
       float perp2 = abs(mod(ang - a2 + 3.14159265, 6.2831853) - 3.14159265) * dist;
@@ -4184,8 +4321,10 @@ function cannonStep(dt, now) {
 }
 function cannonCam() {
   if (!RAGSIM) { wantPos.set(LAB_LANE + 11, 2.6, MUZZLE_Z + 9); wantLook.set(LAB_LANE, 1.6, MUZZLE_Z - 4); return 6; }
-  const c = RAGSIM.core, k = RAGSIM.I.pel * 3, pz = c.x[k + 2], py = c.x[k + 1];
-  wantPos.set(LAB_LANE + 12.5, 2.8 + Math.max(0, py - 1.5) * 0.25, pz + 6); wantLook.set(LAB_LANE, Math.max(1.4, py * 0.8), pz - 6); return 14; // far enough to see the whole wall and him in front of it
+  const c = RAGSIM.core, I = RAGSIM.I; let z = 0, y = 0; for (const nm of ['pel', 'waist', 'chest']) { z += c.x[I[nm] * 3 + 2]; y += c.x[I[nm] * 3 + 1]; } z /= 3; y /= 3;
+  // locked on to him: the view is narrow in portrait (about 24 degrees wide), and looking 6 m ahead of him pushed him to the left edge
+  wantPos.set(LAB_LANE + 10.5, 2.6 + Math.max(0, y - 1.8) * 0.3, z + 4.2); wantLook.set(LAB_LANE, Math.max(1.3, y * 0.85), z - 1.4); snapCam = true; // snap: no smoothing lag at 40-60 m/s
+  return 14;
 }
 function labStep(dt, now) {
   stepGas(dt);
