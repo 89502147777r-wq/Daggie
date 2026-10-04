@@ -3745,7 +3745,7 @@ const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes
   { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone', crk: [0.04, 0.04, 0.05, 0.95], jag: [0.12, 5, 0.4, 0.06], edge: 0xbdbdb6 }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete', crk: [0.1, 0.1, 0.1, 0.9], jag: [0.16, 7, 0.4, 0.06], edge: 0xcfcfc8 },
   { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, kind: 'glass', T: 0.3, R: 1.2, draw: 'armor', crk: [0.9, 1.0, 1.0, 0.85], jag: [0.3, 9, 0.2, 0.05], edge: 0xbfe8f0 }, { n: 'STEEL', c: 100000, col: 0x8e99a8, kind: 'metal', T: 0.15, R: 0.95, draw: 'steel', crk: [0, 0, 0, 0], jag: [0.1, 7, 0.5, 0.05], edge: 0xdde4ee },
   { n: 'GOLD', c: 120000, col: 0xffc928, kind: 'metal', T: 0.2, R: 1.0, draw: 'gold', crk: [0, 0, 0, 0], jag: [0.1, 6, 0.3, 0.05], edge: 0xfff0a0 }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, kind: 'ice', T: 0.3, R: 1.1, draw: 'diamond', crk: [1, 1, 1, 0.8], jag: [0.25, 8, 0.0, 0.05], edge: 0xffffff },
-  { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault', crk: [0, 0, 0, 0], jag: [0.08, 6, 0.5, 0.05], edge: 0xaab3c0 },
+  { n: 'VAULT DOOR', c: 330000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault', crk: [0, 0, 0, 0], jag: [0.08, 6, 0.5, 0.05], edge: 0xaab3c0 },
 ];
 const CAN_PAL = { window: [[1.5, 3, 4], [3.2, 2, 0.8], [2.5, 3.5, 4.5]], glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
 const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
@@ -4118,7 +4118,7 @@ function cannonShow(on) {
 }
 function cannonStart(lv) {
   cannonBuild(); cannonShow(true); lv = clamp(lv, 1, 5);
-  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0, sd: 0, lastZ: undefined }); CAN.vmph = CAN.mph;
+  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0, sd: 0, lastZ: undefined, landing: false }); CAN.vmph = CAN.mph;
   LAB.phase = 'cannon'; board.visible = false; daggie.visible = false; rider.visible = false; // he is inside the barrel until the shot
   labSpeedo(0); labDmg(true, 0, 'WALLS', ' / 15', 0);
 }
@@ -4222,7 +4222,7 @@ function cannonSpin(c, I, wz, wx) { // wind him up: roll about the flight line (
   const pk = I.pel * 3, cx = c.x[pk], cy = c.x[pk + 1], cz = c.x[pk + 2];
   for (let q = 0; q < c.n; q++) { const k = q * 3, rx = c.x[k] - cx, ry = c.x[k + 1] - cy, rz = c.x[k + 2] - cz; c.o[k] -= (-wz * ry) / 240; c.o[k + 1] -= (wz * rx - wx * rz) / 240; c.o[k + 2] -= (wx * ry) / 240; }
 }
-function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-1, 1) * amt / 240; c.o[k + 1] -= rand(-0.7, 0.7) * amt / 240; } }
+function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-0.7, 0.7) * amt / 240; c.o[k + 1] -= rand(-0.7, 0.7) * amt / 240; } }
 function cannonShardStep(dt) {
   CAN.glass.step(dt); for (const st of CAN.sets) { st.main.step(dt); if (st.aux) st.aux.step(dt); }
   for (const sh of CAN.paper) { if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } sh.v.y -= 2.5 * dt; sh.v.multiplyScalar(1 / (1 + 1.5 * dt)); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; if (sh.m.position.y < 0.03) { sh.m.position.y = 0.03; sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); } }
@@ -4258,7 +4258,10 @@ function cannonDrive(c, I, dt) { // keeps his body at the model speed: the speed
   let cur = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; cur += -(c.x[k + 2] - c.o[k + 2]) * 240; } cur /= 3;
   const d = cannonVis(C.vmph) - cur; for (let q = 0; q < c.n; q++) c.o[q * 3 + 2] += d / 240;
   let y = 0, vy = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; y += c.x[k + 1]; vy += (c.x[k + 1] - c.o[k + 1]) * 240; } y /= 3; vy /= 3; // height keeping: the kicks and the spin used to lift him up over the top of the walls
-  const dv = (9 * (2.1 - y) - 6 * vy) * dt; for (let q = 0; q < c.n; q++) c.o[q * 3 + 1] -= dv / 240;
+  let dv = (20 * (2.1 - y) - 9 * vy) * dt; if (vy > 4) dv -= (vy - 4); else if (vy < -4) dv += (-4 - vy); // never faster than 4 m/s up or down: a torn limb used to throw his body 20 m up
+  for (let q = 0; q < c.n; q++) c.o[q * 3 + 1] -= dv / 240;
+  let x = 0, vx = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; x += c.x[k]; vx += (c.x[k] - c.o[k]) * 240; } x /= 3; vx /= 3; // and a soft pull to the lane: the kicks and the spin pushed him up to 10 m sideways
+  let dx = (9 * (LAB_LANE - x) - 6 * vx) * dt; if (vx > 4) dx -= (vx - 4); else if (vx < -4) dx += (-4 - vx); for (let q = 0; q < c.n; q++) c.o[q * 3] -= dx / 240;
 }
 const CAN_LIMB = { haL: 'armL', wrL: 'armL', haR: 'armR', wrR: 'armR', toL: 'legL', anL: 'legL', knL: 'legL', toR: 'legR', anR: 'legR', knR: 'legR' };
 function cannonWalls() {
@@ -4267,13 +4270,14 @@ function cannonWalls() {
   const zmin = names => { let m = 1e9, who = null; for (const nm of names) { if (!att(nm)) continue; const z = c.x[I[nm] * 3 + 2]; if (z < m) { m = z; who = nm; } } return [m, who]; };
   while (C.next < 15 && C.stuck < 0) {
     const i = C.next, W = CANNON_WALLS[i], wz = cannonWallZ(i) + 0.25, hard = W.c >= 30000, [leadAll, who] = zmin(CAN_LEAD), [leadTorso] = zmin(['top', 'chest', 'pel']);
-    if (hard && !C.touch[i] && leadAll <= wz) { // a hand or a foot gets there first and takes the first blow: it can be torn off, the wall only cracks
+    if (hard && !C.touch[i] && leadAll <= wz && Math.abs(c.x[I[who] * 3]) < 3.3) { // a hand or a foot gets there first and takes the first blow: it can be torn off, the wall only cracks
       C.touch[i] = true; const k = I[who] * 3, g = CAN_LIMB[who]; burst(new V3(c.x[k], c.x[k + 1], cannonWallZ(i)), 25, CAN_PAL[W.kind] || SPARK, 5); clank(10);
       canCracks(i, c.x[k], c.x[k + 1], 5, 0.7, true);
       if (g && !c.broken.includes(g) && Math.random() < 0.75) c.breakGroup(g); cannonKick(c, 0.6);
     }
     if ((hard ? leadTorso : leadAll) > wz) break;
     let sx = 0, sy = 0, cn = 0; for (const nm of ['top', 'chest', 'pel']) { if (!att(nm)) continue; sx += c.x[I[nm] * 3]; sy += c.x[I[nm] * 3 + 1]; cn++; } sx /= cn; sy /= cn; // the hole is centred on his body, not on a fingertip
+    if (Math.abs(sx) > 3.5 || sy < -0.3 || sy > 4.6) { C.next++; lastPop = 0; pop('MISSED ' + W.n, 'lilac'); continue; } // he flew past (beside it or over it): the wall stays whole, takes nothing from him and is not counted
     const vEff = C.vmph, v2 = vEff * vEff - W.c * Math.exp(-2 * CAN_KD * (MUZZLE_Z - cannonWallZ(i))); // the wall's cost is scaled by the air resistance already spent, so the levels keep their 3/6/9/12/15 walls
     if (v2 > 0) { // through: he slows down by what the wall took, a hole opens, pieces fly
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(vEff); C.vmph = Math.sqrt(v2);
@@ -4284,10 +4288,9 @@ function cannonWalls() {
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
       if (W.c >= 100000 && Math.random() < 0.35 && !c.broken.includes('head')) c.breakGroup('head');
       cannonKick(c, Math.min(2.4, 0.3 + W.c / 70000));
-      { const n = C.broken, target = Math.min(22, 6 + 1.9 * n); if (!C.sd) C.sd = Math.random() < 0.5 ? -1 : 1; const add = Math.max(2.5, target - Math.abs(canRoll(c, I))); C.spun = target; cannonSpin(c, I, C.sd * add, rand(-1, 1) * (1 + 0.5 * n)); cannonFlail(c, I, 1 + 0.5 * n); } // every wall winds him up more: faster roll and wilder flailing
+      { const n = C.broken, target = Math.min(22, 6 + 1.9 * n); if (!C.sd) C.sd = Math.random() < 0.5 ? -1 : 1; const add = Math.max(2.5, target - Math.abs(canRoll(c, I))); C.spun = target; cannonSpin(c, I, C.sd * add, rand(-1, 1) * (0.8 + 0.2 * n)); cannonFlail(c, I, 1 + 0.5 * n); } // every wall winds him up more: faster roll and wilder flailing
       if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
       lastPop = 0; pop(W.n + '!');
-      if (C.next === 15) { c.g = -6; c.damp = 0.9996; c.drag = 0.008; } // past the last wall the real air resistance slows him down and he lands
     } else { // stopped inside this wall
       C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
       canCracks(i, sx, sy, 8, 1.1 + W.R * 0.5, true);
@@ -4297,9 +4300,11 @@ function cannonWalls() {
       lastPop = 0; pop('STUCK IN ' + W.n + '!', 'lilac'); setFace('hit', 99999);
     }
   }
+  if (C.next >= 15 && C.stuck < 0 && !C.landing) { C.landing = true; cannonLanding(c); }
 }
 function canPaper(i, p, n) { const G = canShardGeo(), z = cannonWallZ(i), pm = p.mesh.material;
   for (let q = 0; q < n; q++) { const sh = CAN.paper.find(s => s.life <= 0); if (!sh) break; const m = sh.m; m.geometry = pick(G.paper); m.material.map = pm.map; m.material.needsUpdate = true; m.scale.setScalar(1); m.visible = true; m.position.set(LAB_LANE + p.x + rand(-0.4, 0.4), p.y + rand(-0.5, 0.5), z + 0.1); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6)); sh.v.set(rand(-2, 2), rand(0, 3), -rand(2, 9)); sh.w.set(rand(-6, 6), rand(-6, 6), rand(-6, 6)); sh.life = rand(4, 7); } }
+function cannonLanding(c) { c.g = -9.8; c.damp = 0.985; c.drag = 0.04; } // what is left of the shot is spent: air and ground stop him within a few metres
 function cannonStep(dt, now) {
   const C = CAN; C.t += dt; cannonShardStep(dt);
   if (C.recoil > 0) { C.recoil = Math.max(0, C.recoil - dt * 2.2); C.barrel.position.z = MUZZLE_Z + CAN_SPEC[clamp(C.lv, 1, 5) - 1].L + C.recoil * 0.9; }
