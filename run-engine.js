@@ -580,6 +580,41 @@ function makeCartMesh(S, wheelsOut) {
   root.userData.extras = extras; root.userData.g = g;
   return root;
 }
+const TUB_SPEC = {"prims":[{"t":"box","s":[0.84,0.04,1.36],"p":[0,0.52,0],"g":"floor","m":"enamel","r":0.02},{"t":"box","s":[0.05,0.47,1.21],"p":[-0.395,0.735,0],"g":"sideL","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":1.21,"ax":"z","p":[-0.4,0.955,0],"g":"sideL","m":"enamel"},{"t":"box","s":[0.05,0.47,1.21],"p":[0.395,0.735,0],"g":"sideR","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":1.21,"ax":"z","p":[0.4,0.955,0],"g":"sideR","m":"enamel"},{"t":"box","s":[0.69,0.47,0.05],"p":[0,0.735,-0.655],"g":"front","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":0.69,"ax":"x","p":[0,0.955,-0.66],"g":"front","m":"enamel"},{"t":"box","s":[0.69,0.47,0.05],"p":[0,0.735,0.655],"g":"back","m":"enamel","r":0.02},{"t":"cyl","rt":0.045,"rb":0.045,"h":0.69,"ax":"x","p":[0,0.955,0.66],"g":"back","m":"enamel"},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[-0.345,0.735,-0.605],"g":"cFL","m":"enamel"},{"t":"sph","r":0.06,"p":[-0.4,0.955,-0.66],"g":"cFL","m":"enamel","sc":[1,1,1]},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[-0.345,0.735,0.605],"g":"cBL","m":"enamel"},{"t":"sph","r":0.06,"p":[-0.4,0.955,0.66],"g":"cBL","m":"enamel","sc":[1,1,1]},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[0.345,0.735,-0.605],"g":"cFR","m":"enamel"},{"t":"sph","r":0.06,"p":[0.4,0.955,-0.66],"g":"cFR","m":"enamel","sc":[1,1,1]},{"t":"cyl","rt":0.075,"rb":0.075,"h":0.47,"ax":"y","p":[0.345,0.735,0.605],"g":"cBR","m":"enamel"},{"t":"sph","r":0.06,"p":[0.4,0.955,0.66],"g":"cBR","m":"enamel","sc":[1,1,1]},{"t":"box","s":[0.006,0.045,1.21],"p":[-0.423,0.8,0],"g":"deco","m":"blue","r":0.002},{"t":"box","s":[0.006,0.045,1.21],"p":[0.423,0.8,0],"g":"deco","m":"blue","r":0.002},{"t":"box","s":[0.69,0.045,0.006],"p":[0,0.8,-0.683],"g":"deco","m":"blue","r":0.002},{"t":"box","s":[0.69,0.045,0.006],"p":[0,0.8,0.683],"g":"deco","m":"blue","r":0.002},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[-0.345,0.8,-0.605],"g":"deco","m":"blue"},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[-0.345,0.8,0.605],"g":"deco","m":"blue"},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[0.345,0.8,-0.605],"g":"deco","m":"blue"},{"t":"cyl","rt":0.0765,"rb":0.0765,"h":0.045,"ax":"y","p":[0.345,0.8,0.605],"g":"deco","m":"blue"},{"t":"box","s":[0.72,0.006,1.24],"p":[0,0.543,0],"g":"deco","m":"inner","r":0.002},{"t":"tor","R":0.035,"tu":0.007,"arc":6.283185307179586,"rot":[1.5707963267948966,0,0],"p":[0,0.548,-0.4],"g":"deco","m":"chrome"},{"t":"cyl","rt":0.03,"rb":0.03,"h":0.004,"ax":"y","p":[0,0.547,-0.4],"g":"deco","m":"chrome"},{"t":"cyl","rt":0.03,"rb":0.03,"h":0.07,"ax":"y","p":[0,1.035,0.66],"g":"x:faucetBase","m":"chrome"},{"t":"tor","R":0.09,"tu":0.017,"arc":3.141592653589793,"rot":[0,1.5707963267948966,0],"p":[0,1.05,0.57],"g":"x:spout","m":"chrome"},{"t":"cyl","rt":0.02,"rb":0.02,"h":0.04,"ax":"y","p":[0,1.03,0.48],"g":"x:nozzle","m":"chrome"},{"t":"cyl","rt":0.011,"rb":0.011,"h":0.06,"ax":"y","p":[-0.13,1.04,0.655],"g":"x:stemL","m":"chrome"},{"t":"box","s":[0.07,0.012,0.012],"p":[-0.13,1.075,0.655],"g":"x:leverAL","m":"chrome","r":0.004},{"t":"box","s":[0.012,0.012,0.07],"p":[-0.13,1.075,0.655],"g":"x:leverBL","m":"chrome","r":0.004},{"t":"sph","r":0.016,"p":[-0.13,1.075,0.655],"g":"x:hubL","m":"chrome","sc":[1,1,1]},{"t":"cyl","rt":0.011,"rb":0.011,"h":0.06,"ax":"y","p":[0.13,1.04,0.655],"g":"x:stemR","m":"chrome"},{"t":"box","s":[0.07,0.012,0.012],"p":[0.13,1.075,0.655],"g":"x:leverAR","m":"chrome","r":0.004},{"t":"box","s":[0.012,0.012,0.07],"p":[0.13,1.075,0.655],"g":"x:leverBR","m":"chrome","r":0.004},{"t":"sph","r":0.016,"p":[0.13,1.075,0.655],"g":"x:hubR","m":"chrome","sc":[1,1,1]},{"t":"sph","r":0.07,"p":[0,1.06,-0.655],"g":"x:duckBody","m":"yellow","sc":[1.15,0.9,1.0]},{"t":"sph","r":0.042,"p":[0,1.135,-0.615],"g":"x:duckHead","m":"yellow","sc":[1,1,1]},{"t":"cone","r":0.018,"h":0.045,"rot":[1.5707963267948966,0,0],"p":[0,1.125,-0.572],"g":"x:duckBeak","m":"orange"},{"t":"sph","r":0.007,"p":[-0.02,1.15,-0.59],"g":"x:duckEyeL","m":"black","sc":[1,1,1]},{"t":"sph","r":0.007,"p":[0.02,1.15,-0.59],"g":"x:duckEyeR","m":"black","sc":[1,1,1]},{"t":"box","s":[0.05,0.05,1.36],"p":[-0.3,0.455,0],"g":"x:railL","m":"steel","r":0.005},{"t":"box","s":[0.05,0.05,1.36],"p":[0.3,0.455,0],"g":"x:railR","m":"steel","r":0.005},{"t":"box","s":[0.6,0.04,0.05],"p":[0,0.455,-0.5],"g":"x:crossF","m":"steel","r":0.005},{"t":"box","s":[0.6,0.04,0.05],"p":[0,0.455,0.5],"g":"x:crossB","m":"steel","r":0.005},{"t":"box","s":[0.04,0.27,0.04],"p":[-0.34,0.295,-0.52],"g":"x:legFL","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[-0.34,0.135,-0.52],"g":"x:forkFL","m":"chrome","r":0.004},{"t":"box","s":[0.04,0.27,0.04],"p":[-0.34,0.295,0.52],"g":"x:legBL","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[-0.34,0.135,0.52],"g":"x:forkBL","m":"chrome","r":0.004},{"t":"box","s":[0.04,0.27,0.04],"p":[0.34,0.295,-0.52],"g":"x:legFR","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[0.34,0.135,-0.52],"g":"x:forkFR","m":"chrome","r":0.004},{"t":"box","s":[0.04,0.27,0.04],"p":[0.34,0.295,0.52],"g":"x:legBR","m":"steel","r":0.004},{"t":"box","s":[0.05,0.08,0.05],"p":[0.34,0.135,0.52],"g":"x:forkBR","m":"chrome","r":0.004}],"wheels":[[-0.34,0.081,-0.52],[0.34,0.081,-0.52],[-0.34,0.081,0.52],[0.34,0.081,0.52]]};
+const TUB_PIECE_GROUPS = ['floor', 'sideL', 'sideR', 'front', 'back', 'cFL', 'cFR', 'cBL', 'cBR'];
+// a white enamel bathtub on a steel trolley: rolled rim, corner posts, chrome taps, a rubber duck on the front rim. Origin on the floor, front faces -z. Built in metres from TUB_SPEC.
+function makeTubMesh(wheelsOut) {
+  const S = CART_S, root = new THREE.Group(), g = new THREE.Group(); g.scale.setScalar(S); root.add(g);
+  const MAT = { enamel: new THREE.MeshPhysicalMaterial({ color: 0xf6f8fa, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.06 }), inner: new THREE.MeshPhysicalMaterial({ color: 0xe1e8f0, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.1 }), blue: new THREE.MeshPhysicalMaterial({ color: 0x3b82c4, roughness: 0.25, clearcoat: 1 }),
+    chrome: new THREE.MeshStandardMaterial({ color: 0xe6eaef, metalness: 1, roughness: 0.12 }), steel: new THREE.MeshStandardMaterial({ color: 0x3a404b, metalness: 0.7, roughness: 0.45 }), yellow: new THREE.MeshPhysicalMaterial({ color: 0xffd21f, roughness: 0.3, clearcoat: 0.8 }), orange: new THREE.MeshStandardMaterial({ color: 0xff8a1f, roughness: 0.5 }), black: new THREE.MeshStandardMaterial({ color: 0x101114, roughness: 0.4 }) };
+  try { const env = labEnv(); for (const k of ['enamel', 'chrome', 'blue', 'yellow', 'inner']) { MAT[k].envMap = env; MAT[k].envMapIntensity = k === 'chrome' ? 1 : 0.7; } } catch (e) { /* no reflections, still fine */ }
+  const shape = p => { let ge;
+    if (p.t === 'box') ge = new RoundedBoxGeometry(p.s[0], p.s[1], p.s[2], 3, p.r);
+    else if (p.t === 'cyl') { ge = new THREE.CylinderGeometry(p.rt, p.rb, p.h, 24); if (p.ax === 'x') ge.rotateZ(Math.PI / 2); else if (p.ax === 'z') ge.rotateX(Math.PI / 2); }
+    else if (p.t === 'sph') { ge = new THREE.SphereGeometry(p.r, 20, 14); ge.scale(p.sc[0], p.sc[1], p.sc[2]); }
+    else if (p.t === 'tor') { ge = new THREE.TorusGeometry(p.R, p.tu, 10, 32, p.arc); ge.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(p.rot[0], p.rot[1], p.rot[2]))); }
+    else { ge = new THREE.ConeGeometry(p.r, p.h, 14); ge.rotateX(p.rot[0]); }
+    return ge; };
+  const flat = ge => (ge.index ? ge.toNonIndexed() : ge), merge = list => mergeGeometries(list.map(flat));
+  const groups = {}, deco = {}, extras = [];
+  for (const p of TUB_SPEC.prims) {
+    const ge = shape(p);
+    if (p.g.startsWith('x:')) { ge.scale(1 / S, 1 / S, 1 / S); const m = new THREE.Mesh(ge, MAT[p.m]); m.position.set(p.p[0] / S, p.p[1] / S, p.p[2] / S); m.castShadow = true; m.name = p.g; g.add(m); extras.push(m); continue; }
+    ge.translate(p.p[0], p.p[1], p.p[2]); ge.scale(1 / S, 1 / S, 1 / S);
+    if (p.g === 'deco') (deco[p.m] = deco[p.m] || []).push(ge); else (groups[p.g] = groups[p.g] || []).push(ge);
+  }
+  const pieces = [];
+  for (const name of TUB_PIECE_GROUPS) { const geo = merge(groups[name]), m = new THREE.Mesh(geo, MAT.enamel); m.castShadow = true; m.receiveShadow = true; m.name = 'tub_' + name; g.add(m); pieces.push({ name, geo: geo.clone() }); }
+  for (const k of Object.keys(deco)) { const m = new THREE.Mesh(merge(deco[k]), MAT[k]); m.name = 'tub_deco_' + k; g.add(m); }
+  for (const [x, y, z] of TUB_SPEC.wheels) { // casters, built like the cart's
+    const w = new THREE.Group(); w.position.set(x / S, 0.06, z / S);
+    const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.035, 18), MAT.black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.04, 12), MAT.chrome); hub.rotation.z = Math.PI / 2; w.add(hub);
+    g.add(w); extras.push(w); if (wheelsOut) wheelsOut.push(w);
+  }
+  root.userData.pieces = pieces; root.userData.extras = extras; root.userData.g = g; root.userData.pieceMat = MAT.enamel;
+  return root;
+}
 var CART_ROOT; // var, not let: buildCart() is called earlier in the file (line ~508) and a let would still be unreachable there
 function buildCart() { CART_ROOT = makeCartMesh(CART_S, wheels); board.add(CART_ROOT); }
 // ---------- more obstacles ----------
@@ -1948,6 +1983,7 @@ const TITLES = {
   cart: ['CART VS|DEADLY TRACK', 'SHOPPING CART|AT FULL SPEED', 'CAN A CART|SURVIVE THIS?', 'NO BRAKES.|NO PLAN.', 'GROCERY RUN|GONE WRONG', "THE CART ISN'T|BUILT FOR THIS", 'WILL IT|TIP OVER?', 'ONE CART|ONE CHANCE', "THE CART WON'T|SURVIVE THIS", 'CART VS SAWS|WHO WINS?', 'HE FORGOT|TO BRAKE'],
   city: ["DON'T LOOK|DOWN", 'ONE JUMP|TOO FAR', 'ONE SLIP|AND HE FALLS', 'CITY ROOFS|NO SAFETY NET', 'ROOFTOP CHASE|GONE WRONG', 'GAPS, SAWS|AND CRATES', 'HE JUMPS|OVER THE CITY', "ONE MISSED JUMP|AND IT'S OVER", 'SURVIVE THE|CITY ROOFS', 'HIGH ABOVE|THE CITY'],
   bollard_any: ['CAN HE STAY|IN THE CART?', 'NO SEATBELT|NO PROBLEM?', 'CART VS POST|WHO WINS?', 'HOW FAR WILL|HE FLY?', 'CRASH TEST|LEVEL {lv}', 'CRASH TEST|SHOPPING CART'],
+  tub: ['BATHTUB VS|A STEEL POST', 'WILL HE STAY|IN THE BATH?', 'BATH TIME|GONE WRONG', 'NO SOAP.|JUST SPEED.', "A RUBBER DUCK|WON'T SAVE HIM", 'BATHTUB RACE|{mph} MPH', 'SQUEAKY CLEAN?|NOT FOR LONG', 'HE FORGOT|THE BRAKES', 'A BATH AT|{mph} MPH', 'BATHTUB VS|THE WALL OF DEATH'],
   bollard_low: ['ONLY {mph} MPH?|NO PROBLEM...', 'JUST A TAP|{mph} MPH', 'HOW BAD CAN|{mph} MPH BE?', 'LEVEL 1:|IT GETS WORSE'],
   bollard_mid: ['{mph} MPH|DOES IT HOLD?', 'CART AT {mph} MPH|HITS A POST', 'CAN HE SURVIVE|{mph} MPH?', '{mph} MPH|NO SEATBELT', '{mph} MPH|THE POST OR HIM?'],
   bollard_high: ['CART AT {mph} MPH|HITS A POST', 'THE POST|WILL SNAP', '{mph} MPH|NO MERCY', 'WORLD RECORD|FLIGHT?', 'CAN YOU SEE|HIM LAND?', '{mph} MPH|INTO A POST', 'CAN HE SURVIVE|{mph} MPH?'],
@@ -1964,7 +2000,7 @@ function rollTitle() {
   try {
     let pools = ['any'], v = {};
     if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m; v.t = PRESS_TONS[clamp(lv, 1, 5) - 1]; v.mph = CANNON_MPH[clamp(lv, 1, 5) - 1];
-      if (m === 'bollard') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; pools = ['bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
+      if (m === 'bollard' || m === 'tub') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; pools = [m === 'tub' ? 'tub' : 'bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
     else if (DLV) pools = ['delivery'];
     else if (VEH === 'cart') pools = ['cart'];
     else if (TH === 'city') pools = ['city', 'skate'];
@@ -2027,7 +2063,7 @@ function limbIK(A, B, C, target, pole, P) {
 }
 function levelPart(n, P, extra) { parentQ(n, _iqp); _iq.copy(_iqp).invert().multiply(rootQ); if (extra) _iq.multiply(extra); _iE.setFromQuaternion(_iq, 'XYZ'); P[n] = [_iE.x, _iE.y, _iE.z]; }
 // seated in the basket, in model space where y = 0 is the basket floor
-const CART_SEAT = new V3(0, 0.17, 0.32), CART_RIM_Y = (1.02 - 0.4) * CART_S, CART_RIM_X = (0.32 + 0.03) * CART_S;
+const CART_SEAT = new V3(0, 0.17, 0.32); let CART_RIM_Y = (1.02 - 0.4) * CART_S, CART_RIM_X = (0.32 + 0.03) * CART_S; // both change when the bathtub is in use (labVehicle)
 function poseCart(t) {
   if (state === 'intro') {
     if (R.carry) { rootQ.identity(); solveStance(flailPose(t * 0.6), 0); return; }
@@ -2784,6 +2820,7 @@ class CartSim {
     this.box = { on: true, toLocalPrev: (x, y, z) => me.toLocalPrev(x, y, z), hw: 0.32 * S, y0: 0.4 * S, y1: 1.02 * S, zf: -0.45 * S, zb: 0.45 * S, frontOpen: false, toWorld: (x, y, z) => me.toWorld(x, y, z), toLocal: (x, y, z) => me.toLocal(x, y, z), dirWorld: (x, y, z) => me.dirWorld(x, y, z) };
     this.cyls = [{ x: lane, z: bz, r: br, h: 1.1 }];
   }
+  setSpec(sp) { Object.assign(this.box, { hw: sp.hw, y0: sp.y0, y1: sp.y1, zf: sp.zf, zb: sp.zb }); this.zf0 = sp.zf; this.zfOut = sp.zfOut; this.zbOut = sp.zbOut; this.H = sp.H; this.pl = [0, this.zfOut]; }
   place(zFront) { this.bent = false; this.tumble = false; this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.box.frontOpen = false; this.cyls.length = 0; this.cyls.push({ x: this.lane, z: this.bz, r: this.br, h: 1.1 }); }
   toWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a), yy = y - this.pl[0], zz = z - this.pl[1]; return [x + this.lane, this.pw[0] + yy * c - zz * s, this.pw[1] + yy * s + zz * c]; }
   toLocal(X, Y, Z) { const c = Math.cos(this.a), s = Math.sin(this.a), yy = Y - this.pw[0], zz = Z - this.pw[1]; return [X - this.lane, yy * c - zz * s + this.pl[0], yy * s + zz * c + this.pl[1]]; }
@@ -2973,8 +3010,10 @@ let BOLLARD = null;
 // the post snaps just above its concrete base and falls forward, the way the cart was going (-z), turned a little by an off-centre hit
 function bollardFall(e) { if (!BOLLARD) return; BOLLARD.rotation.set(-(CART.knocked ? 1.35 : 0.5) * e, (LAB.tipYaw || 0) * e, 0); } // snapped: falls flat; bent (50 mph): leans over and stays
 const CART = new CartSim(CART_S, LAB_LANE, BOLLARD_Z, BOLLARD_R);
+CART.zf0 = CART.box.zf;
 CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); clank(Math.min(12, v)); };
-function labDentAt(y, z, v) { // crush the wires around a corner that slammed into the floor, toward the middle of the basket
+function labDentAt(y, z, v) {
+  if (LAB_VEH === 'tub') return; // crush the wires around a corner that slammed into the floor, toward the middle of the basket
   const cage = board.getObjectByName('cage'); if (!cage) return;
   const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 40, 0.02, 0.12), R = 0.22;
   for (let i = 0; i < a.length; i += 3) {
@@ -2987,6 +3026,7 @@ const LABCART = { get box() { return CART.box; }, get cyls() { return CART.cyls;
 function labCartPlace() { const w = CART.toWorld(0, 0, 0); board.position.set(w[0], w[1], w[2]); board.rotation.set(-CART.a, 0, 0); }
 function labCartStep(dt) { if (LABCART.hit) CART.step(dt); labCartPlace(); }
 function labDent(v) { // crumple the front of the basket: deeper, wider and higher the faster it hit
+  if (LAB_VEH === 'tub') return 0; // the enamel tub does not bend: it holds, or it shatters (cartBreak)
   const cage = board.getObjectByName('cage'); if (!cage) return;
   const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 40, 0.05, 0.3), R = 0.16 + Math.min(0.3, v / 60);
   for (let i = 0; i < a.length; i += 3) {
@@ -3005,7 +3045,7 @@ function labDent(v) { // crumple the front of the basket: deeper, wider and high
 const CDEB = { list: [], on: false, timer: 0, built: false, cool: 0 };
 function cartDebrisBuild() {
   if (CDEB.built || !CART_ROOT) return; CDEB.built = true;
-  const g = CART_ROOT.userData.g, chromeM = new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 1, roughness: 0.2 });
+  const g = CART_ROOT.userData.g, chromeM = CART_ROOT.userData.pieceMat || new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 1, roughness: 0.2 });
   for (const p of CART_ROOT.userData.pieces) {
     const geo = p.geo.clone(); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z);
     const m = new THREE.Mesh(geo, chromeM); m.castShadow = true; m.visible = false; scene.add(m);
@@ -3046,16 +3086,33 @@ function cartDebrisStep(dt) {
   }
 }
 function cartDebrisReset() { for (const d of CDEB.list) { d.m.visible = false; d.rest = true; } CDEB.on = false; CDEB.timer = 0; if (CART_ROOT) CART_ROOT.visible = true; CART.box.on = true; }
+
+// ---------- the vehicle in the crash hall: the shopping cart or a bathtub on a trolley ----------
+let LAB_VEH = 'cart', TUB_ROOT = null, CART_ROOT0 = null, CART_WHEELS0 = null, TUB_WHEELS = [], CART_SPEC0 = null;
+const TUB_BOX = { hw: 0.38, y0: 0.54, y1: 1.0, zf: -0.62, zb: 0.62, zfOut: -0.67, zbOut: 0.70, H: 1.0 };
+function labVehicle(kind) {
+  if (kind === 'tub' && VEH !== 'cart') return; // the lab hall is a cart level: both vehicles live on the same board
+  if (!CART_ROOT0) { CART_ROOT0 = CART_ROOT; CART_WHEELS0 = wheels.slice(); CART_SPEC0 = { hw: CART.box.hw, y0: CART.box.y0, y1: CART.box.y1, zf: CART.box.zf, zb: CART.box.zb, zfOut: CART.zfOut, zbOut: CART.zbOut, H: CART.H }; }
+  if (kind === LAB_VEH) return;
+  if (kind === 'tub' && !TUB_ROOT) { TUB_ROOT = makeTubMesh(TUB_WHEELS); board.add(TUB_ROOT); }
+  LAB_VEH = kind; const tub = kind === 'tub';
+  CART_ROOT0.visible = !tub; if (TUB_ROOT) TUB_ROOT.visible = tub; CART_ROOT = tub ? TUB_ROOT : CART_ROOT0;
+  wheels.length = 0; wheels.push(...(tub ? TUB_WHEELS : CART_WHEELS0));
+  CART.setSpec(tub ? TUB_BOX : CART_SPEC0);
+  CART_SEAT.set(0, tub ? 0.14 : 0.17, tub ? 0.26 : 0.32); CART_RIM_Y = tub ? 0.45 : (1.02 - 0.4) * CART_S; CART_RIM_X = tub ? 0.40 : (0.32 + 0.03) * CART_S;
+  for (const d of CDEB.list) scene.remove(d.m); CDEB.list.length = 0; CDEB.built = false; CDEB.on = false; // pieces are rebuilt from the new vehicle
+}
+const labBol = () => LAB.machine === 'bollard' || LAB.machine === 'tub'; // both crash-hall machines
 function labCartReset() {
   cartDebrisBuild(); cartDebrisReset();
   const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
   for (const w of wheels) w.visible = true; { const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
-  CART.box.zf = -0.45 * CART_S; LABCART.hit = false; CART.place(BOLLARD_Z + BOLLARD_R + 14); CART.vz = 0; labCartPlace();
+  CART.box.zf = CART.zf0; LABCART.hit = false; CART.place(BOLLARD_Z + BOLLARD_R + 14); CART.vz = 0; labCartPlace();
   bollardFall(0); LAB.bollardTip = 0;
 }
 function labImpact() {
   const v = LABCART.v; LABCART.hit = true; CART.impact(v);
-  const dd = labDent(v); CART.box.zf = -0.45 * CART_S + dd * CART_S * 0.75; // the crumpled front wires are a wall further back now
+  const dd = labDent(v); CART.box.zf = CART.zf0 + dd * CART_S * 0.75; // the crumpled front wires are a wall further back now
   ragStart(new V3(0, 0, -v), v);
   if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.25, 0.25); lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
   else if (CART.bent) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.1, 0.1); lastPop = 0; pop('POST BENT!', 'lilac'); }
@@ -3066,7 +3123,7 @@ function labImpact() {
 }
 function labBollardOutcome() {
   const S = RAGSIM, c = S.core, torn = c.broken.length, inCart = c.inCart[S.I.pel], held = c.pins.some(p => p.on);
-  const txt = inCart ? (S.maxY - S.seatY > 0.3 ? 'almost flew out' : 'stayed in the cart') : held ? 'flew out but held on' : 'was thrown out';
+  const txt = inCart ? (S.maxY - S.seatY > 0.3 ? 'almost flew out' : (LAB_VEH === 'tub' ? 'stayed in the tub' : 'stayed in the cart')) : held ? 'flew out but held on' : 'was thrown out';
   LAB.lost = torn; return txt + (torn ? ', ' + torn + ' limb' + (torn > 1 ? 's' : '') + ' torn off' : '');
 }
 
@@ -3338,9 +3395,10 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
 const LAB_SPEEDS = [15, 50, 100, 150, 200]; // mph for levels 1..5. The post holds on 1-2 and snaps on 3-5; Daggie doesn't grip the cart
-const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : LAB.machine === 'press' || LAB.machine === 'cannon' ? 5 : 100);
+const LAB_MAX = () => (labBol() ? LAB_SPEEDS.length : LAB.machine === 'press' || LAB.machine === 'cannon' ? 5 : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
+  tub: { title: 'BATHTUB vs BOLLARD', ask: 'How fast before he flies out of the bath?' },
   fart: { title: 'FART POWER', ask: 'How high does he fly?' },
   sock: { title: 'SOCK SIZE', ask: 'How big a foot can he take?' },
   anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
@@ -3349,6 +3407,7 @@ const LAB_INFO = {
 };
 if (Array.isArray(L.machines) && !L.machines.includes('press') && !L.machines.every(m => m === 'bollard')) L.machines.push('press'); // the press joins the stand lab
 if (Array.isArray(L.machines) && L.machines.length && L.machines.every(m => m === 'bollard') && !L.machines.includes('cannon')) L.machines.push('cannon'); // the wall cannon joins the cart hall
+if (Array.isArray(L.machines) && L.machines.includes('bollard') && !L.machines.includes('tub') && VEH === 'cart') L.machines.splice(L.machines.indexOf('bollard') + 1, 0, 'tub'); // and so does the bathtub
 const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
 try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press' || LAB.machine === 'cannon') LAB.level = Math.min(LAB.level, 5); } catch (e) {}
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
@@ -3376,9 +3435,9 @@ function brrt(power) { // the fart sound: a wobbling low buzz, longer and deeper
   for (let i = 0; i < n; i++) tone(rand(60, 115) - power * 20, rand(40, 60), 0.09, i % 2 ? 'square' : 'sawtooth', 0.06 + power * 0.05, i * 0.055);
 }
 function buildLab() {
-  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon');
+  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub');
   for (const o of TRACK_OBJS) o.visible = false; // the lab has no track
-  BIG.visible = false; board.visible = LAB.machine === 'bollard';
+  BIG.visible = false; board.visible = labBol();
   { const bm = new THREE.Group(), post = new THREE.Group(); post.rotation.order = 'YXZ'; post.position.y = 0.12; bm.add(post); const st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2 - 0.12; st.castShadow = true; post.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H - 0.12; post.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = post; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
   scene.fog = new THREE.Fog(0x2a2733, 60, 260);
   const conc = tex(512, 512, (g, w, h) => {
@@ -3400,7 +3459,7 @@ function buildLab() {
   const warn = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('DO NOT TRY THIS', '#e0322b', '#ffffff', 768, 192)); warn.position.set(-10, 5, HZ + 0.15); scene.add(warn);
   const warn2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('LEVEL 1 - 100', '#16141c', '#3dff9a', 768, 192)); warn2.position.set(10, 5, HZ + 0.15); scene.add(warn2);
   for (let i = 0; i < 5; i++) { const lamp = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: glowColor(0xfff3dc, 2.2) })); lamp.position.set(-12 + i * 6, 13.6, -8); scene.add(lamp); }
-  LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon');
+  LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub');
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R, STAND_R + 0.2, STAND_H, 40), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.8, roughness: 0.35 })); stand.position.y = STAND_H / 2; stand.castShadow = stand.receiveShadow = true; stand.visible = !LABNOSTAND; scene.add(stand);
   const band = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 0.01, STAND_R + 0.01, 0.16, 40, 1, true), stripeMat(8)); band.position.y = STAND_H - 0.1; band.visible = !LABNOSTAND; scene.add(band);
   const gt = gasTex();
@@ -3685,9 +3744,10 @@ function labUI() {
   if (!labBuilt) return;
   PRESS.visible = LAB.machine === 'press'; if (PRESS.visible && PRESS.mode === 'idle') { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
   cannonShow(LAB.machine === 'cannon');
+  if (labBol()) { const was = LAB_VEH; labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); if (was !== LAB_VEH) { board.visible = true; labCartReset(); } }
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
   $('labKnob').style.left = ((LAB.level - 1) / (LAB_MAX() - 1) * 100) + '%'; $('labRange').max = String(LAB_MAX());
-  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : 'LEVEL ' + LAB.level;
+  $('labLvl').textContent = labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : 'LEVEL ' + LAB.level;
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labRec').setAttribute('aria-pressed', String(REC_MODE));
@@ -3698,7 +3758,7 @@ function labReset() {
   if (!labBuilt) buildLab();
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
   drone.visible = false; BB.free = false; RAGSIM = null;
-  if (LAB.machine === 'bollard') { board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); }
+  if (labBol()) { labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); }
   state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dist = 0; labDmg(false);
   if (LEG) { LEG.visible = false; }
   PRESS.mode = 'idle'; PRESS.visible = LAB.machine === 'press'; if (PRESS.visible) { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
@@ -3711,7 +3771,7 @@ function labStart() {
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
-  if (LAB.machine === 'bollard') { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
+  if (labBol()) { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
   else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
   else if (LAB.machine === 'cannon') cannonStart(lv);
@@ -4335,7 +4395,7 @@ function labStep(dt, now) {
   if (state === 'lab') { if (now - stateT > 2500) $('hook').classList.remove('show'); if (LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } }
   const lv = LAB.level, P = LAB.phase; LAB.t += dt;
   const butt = () => byName.pelvis.getWorldPosition(new V3()).add(new V3(0, -0.3, 0));
-  if (LAB.machine === 'bollard') {
+  if (labBol()) {
     labSpeedo(P === 'roll' && state === 'ride' ? LABCART.v / 0.447 : P === 'idle' ? 0 : LABCART.v / 0.447 * (LABCART.hit ? 1 : 0));
     if (state === 'ride' && (P === 'roll' || P === 'crash')) labRec(dt);
     if (LAB_STREAKS) LAB_STREAKS.visible = P === 'roll' && state === 'ride' && LABCART.v >= 22.3; // 50 mph and up
@@ -4396,7 +4456,7 @@ function labStep(dt, now) {
   }
 }
 function labPose(t) {
-  if (LAB.machine === 'bollard' || LAB.machine === 'cannon') { if (!RAGSIM) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
+  if (labBol() || LAB.machine === 'cannon') { if (!RAGSIM) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
   rider.position.set(R.x, R.y, 0); rider.rotation.set(0, LAB_YAW, 0);
   let P;
   if (LAB.phase === 'air') { rootQ.setFromEuler(new THREE.Euler(LAB.spin * 0.7, LAB.spin * 0.4, LAB.spin * 0.2)); P = flailPose(t * 1.4); }
@@ -4415,7 +4475,7 @@ function labCam(now, dt) {
   if (LAB.replay) return labReplayCam();
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
   if (m === 'cannon') return cannonCam();
-  if (m === 'bollard') {
+  if (labBol()) {
     if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, z + 2.4); wantLook.set(LAB_LANE, 0.9, z - 2.2); return 30; } // a tracking shot beside the cart
     // follow the body; while it is near the post keep the cart in the shot too
     const c = RAGSIM.core, k = RAGSIM.I.pel * 3, px = c.x[k], py = c.x[k + 1], pz = c.x[k + 2], far = clamp((BOLLARD_Z - pz) / 15, 0, 1);
@@ -4433,10 +4493,10 @@ function labCam(now, dt) {
 }
 function labDone() {
   if (!labBuilt) return;
-  const survived = LAB.text === 'survived' || LAB.text === 'stayed in the cart', lost = LAB.machine === 'bollard' ? 0 : cause ? 15 : LAB.lost;
+  const survived = LAB.text === 'survived' || LAB.text === 'stayed in the cart' || LAB.text === 'stayed in the tub', lost = labBol() ? 0 : cause ? 15 : LAB.lost;
   $('labRes').innerHTML = '';
   const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
-  $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (LAB.machine === 'bollard' && LAB.dist ? ' · FLEW ' + Math.round(LAB.dist).toLocaleString('en-US') + ' FT' : '')));
+  $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (labBol() && LAB.dist ? ' · FLEW ' + Math.round(LAB.dist).toLocaleString('en-US') + ' FT' : '')));
   $('labPanel').hidden = false; labUI();
   lastPop = 0; pop(survived ? 'SURVIVED!' : lost >= 15 ? 'DESTROYED!' : 'DAMAGED!', survived ? 'green' : 'lilac');
 }
