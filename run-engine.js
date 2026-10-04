@@ -3598,7 +3598,7 @@ function labRec(dt) {
 function labBars(on) {
   let b = document.getElementById('labBars');
   if (!b) { b = document.createElement('div'); b.id = 'labBars'; b.innerHTML = '<i></i><i></i><span>● REPLAY</span>'; stage.appendChild(b);
-    const css = document.createElement('style'); css.textContent = `#labBars{position:absolute;inset:0;z-index:9;pointer-events:none}#labBars i{position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s ease}#labBars i:first-child{top:0}#labBars i:nth-child(2){bottom:0}#labBars.on i{height:12%}#labBars span{position:absolute;left:16px;top:calc(12% + 10px);font:700 18px "Chakra Petch",sans-serif;color:#ff3b4e;opacity:0;transition:opacity .3s;animation:blink 1s steps(2) infinite}#labBars.on span{opacity:1}.labmode.replaying .labgauge{opacity:0}`; document.head.appendChild(css); }
+    const css = document.createElement('style'); css.textContent = `#labBars{position:absolute;inset:0;z-index:9;pointer-events:none}#labBars i{position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s ease}#labBars i:first-child{top:0}#labBars i:nth-child(2){bottom:0}#labBars.on i{height:12%}#labBars span{position:absolute;left:16px;top:calc(12% + 10px);font:700 18px "Chakra Petch",sans-serif;color:#ff3b4e;opacity:0;transition:opacity .3s}#labBars.on span{opacity:1;animation:blink 1s steps(2) infinite}.labmode.replaying .labgauge{opacity:0}`; document.head.appendChild(css); }
   b.classList.toggle('on', on); stage.classList.toggle('replaying', on);
 }
 function labReplayStart() {
@@ -3738,16 +3738,16 @@ function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(k
 // ---------- wall cannon: 15 walls from thin glass to a vault door; the cannon's power decides how many he breaks ----------
 const CANNON_MPH = [100, 200, 350, 600, 1000];
 const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes. Checked offline: 100/200/350/600/1000 mph break 3/6/9/12/15 walls. T: thickness, R: size of the hole he punches (m)
-  { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, kind: 'glass', T: 0.1, R: 1.5, draw: 'glass', jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff }, { n: 'HAY BALES', c: 2500, col: 0xd8b04a, kind: 'wood', T: 0.5, R: 1.3, draw: 'hay', jag: [0.26, 13, 0.25, 0.07], edge: 0xe6c36a },
-  { n: 'TIRES', c: 4000, col: 0x3a3a42, kind: 'stone', T: 0.5, R: 1.2, draw: 'tires', jag: [0.07, 5, 0.3, 0.05], edge: 0x2a2a2e }, { n: 'ICE', c: 4000, col: 0xbfe8ff, kind: 'ice', T: 0.3, R: 1.4, draw: 'ice', jag: [0.24, 7, 0.0, 0.05], edge: 0xffffff },
-  { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, kind: 'wood', T: 0.12, R: 1.3, draw: 'ply', jag: [0.3, 19, 0.15, 0.06], edge: 0xecd9b0 }, { n: 'OAK', c: 13000, col: 0x7a4a22, kind: 'wood', T: 0.22, R: 1.25, draw: 'oak', jag: [0.26, 15, 0.18, 0.06], edge: 0xd8b27a },
-  { n: 'BRICK', c: 14000, col: 0xb5452f, kind: 'brick', T: 0.35, R: 1.3, draw: 'brick', jag: [0.22, 9, 0.4, 0.06], edge: 0xc9826a }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, kind: 'glass', T: 0.2, R: 1.4, draw: 'glass2', jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff },
-  { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone', jag: [0.2, 8, 0.4, 0.06], edge: 0xbdbdb6 }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete', jag: [0.25, 10, 0.4, 0.06], edge: 0xcfcfc8 },
-  { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, kind: 'glass', T: 0.3, R: 1.2, draw: 'armor', jag: [0.3, 9, 0.2, 0.05], edge: 0xbfe8f0 }, { n: 'STEEL', c: 100000, col: 0x8e99a8, kind: 'metal', T: 0.15, R: 0.95, draw: 'steel', jag: [0.1, 7, 0.5, 0.05], edge: 0xdde4ee },
-  { n: 'GOLD', c: 120000, col: 0xffc928, kind: 'metal', T: 0.2, R: 1.0, draw: 'gold', jag: [0.1, 6, 0.3, 0.05], edge: 0xfff0a0 }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, kind: 'ice', T: 0.3, R: 1.1, draw: 'diamond', jag: [0.25, 8, 0.0, 0.05], edge: 0xffffff },
-  { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault', jag: [0.08, 6, 0.5, 0.05], edge: 0xaab3c0 },
+  { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, kind: 'glass', T: 0.1, R: 1.5, draw: 'glass', crk: [0, 0, 0, 0], jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff }, { n: 'HAY BALES', c: 2500, col: 0xd8b04a, kind: 'wood', T: 0.5, R: 1.3, draw: 'hay', crk: [0, 0, 0, 0], jag: [0.26, 13, 0.25, 0.07], edge: 0xe6c36a },
+  { n: 'WINDOW', c: 4000, col: 0xeaf2f4, kind: 'window', T: 0.14, R: 1.35, draw: 'window', crk: [0, 0, 0, 0], jag: [0.2, 11, 0.05, 0.05], edge: 0xf3f0e8 }, { n: 'ICE', c: 4000, col: 0xbfe8ff, kind: 'ice', T: 0.3, R: 1.4, draw: 'ice', crk: [1, 1, 1, 0.9], jag: [0.24, 7, 0.0, 0.05], edge: 0xffffff },
+  { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, kind: 'wood', T: 0.12, R: 1.3, draw: 'ply', crk: [0.12, 0.07, 0.03, 0.9], jag: [0.3, 19, 0.15, 0.06], edge: 0xecd9b0 }, { n: 'OAK', c: 13000, col: 0x7a4a22, kind: 'wood', T: 0.22, R: 1.25, draw: 'oak', crk: [0.08, 0.05, 0.02, 0.9], jag: [0.26, 15, 0.18, 0.06], edge: 0xd8b27a },
+  { n: 'BRICK', c: 14000, col: 0xb5452f, kind: 'brick', T: 0.35, R: 1.3, draw: 'brick', crk: [0.05, 0.04, 0.04, 0.95], jag: [0.22, 9, 0.4, 0.06], edge: 0xc9826a }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, kind: 'glass', T: 0.2, R: 1.4, draw: 'glass2', crk: [0, 0, 0, 0], jag: [0.0, 7, 0.0, 0.05], edge: 0xffffff },
+  { n: 'STONE', c: 26000, col: 0x7d7f86, kind: 'stone', T: 0.5, R: 1.2, draw: 'stone', crk: [0.04, 0.04, 0.05, 0.95], jag: [0.2, 8, 0.4, 0.06], edge: 0xbdbdb6 }, { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, kind: 'stone', T: 0.5, R: 1.2, draw: 'concrete', crk: [0.1, 0.1, 0.1, 0.9], jag: [0.25, 10, 0.4, 0.06], edge: 0xcfcfc8 },
+  { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, kind: 'glass', T: 0.3, R: 1.2, draw: 'armor', crk: [0.9, 1.0, 1.0, 0.85], jag: [0.3, 9, 0.2, 0.05], edge: 0xbfe8f0 }, { n: 'STEEL', c: 100000, col: 0x8e99a8, kind: 'metal', T: 0.15, R: 0.95, draw: 'steel', crk: [0, 0, 0, 0], jag: [0.1, 7, 0.5, 0.05], edge: 0xdde4ee },
+  { n: 'GOLD', c: 120000, col: 0xffc928, kind: 'metal', T: 0.2, R: 1.0, draw: 'gold', crk: [0, 0, 0, 0], jag: [0.1, 6, 0.3, 0.05], edge: 0xfff0a0 }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, kind: 'ice', T: 0.3, R: 1.1, draw: 'diamond', crk: [1, 1, 1, 0.8], jag: [0.25, 8, 0.0, 0.05], edge: 0xffffff },
+  { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, kind: 'metal', T: 0.6, R: 1.0, draw: 'vault', crk: [0, 0, 0, 0], jag: [0.08, 6, 0.5, 0.05], edge: 0xaab3c0 },
 ];
-const CAN_PAL = { glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
+const CAN_PAL = { window: [[1.5, 3, 4], [3.2, 2, 0.8], [2.5, 3.5, 4.5]], glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
 const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
 const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7, CAN_NX = 16, CAN_NY = 10, CAN_W = 6, CAN_H = 3.8;
 const CAN = { built: false, group: null, walls: [], wallMats: [], mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
@@ -3779,6 +3779,27 @@ const CAN_DRAW = { // procedural textures, 512 x 320, drawn once
     for (let i = 0; i < 2800; i++) { g.strokeStyle = pick(['#e8c566', '#b88a2e', '#d9b45a', '#a97b25', '#f0d98a', '#8f6a1f']); g.lineWidth = rand(0.8, 2); const x = rand(-20, w), y = rand(0, h), an = rand(-0.5, 0.5), l = rand(18, 70); g.globalAlpha = rand(0.5, 1); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an) * l, y + Math.sin(an) * l); g.stroke(); } g.globalAlpha = 1;
     for (const y of [h * 0.28, h * 0.72]) { g.strokeStyle = '#3a2a14'; g.lineWidth = 7; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); g.strokeStyle = 'rgba(255,220,150,0.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, y - 2); g.lineTo(w, y - 2); g.stroke(); }
     g.fillStyle = 'rgba(60,35,5,0.35)'; for (const x of [w / 4, w / 2, 3 * w / 4]) g.fillRect(x - 2, 0, 4, h); },
+  winFrame(g, w, h, broken) { // a painted wooden double casement: two sashes, small panes, a centre stile with a handle
+    g.clearRect(0, 0, w, h); const F = 24, cx = w / 2, st = 26, rows = 3, cols = 2, mu = 8;
+    const paint = (x, y, ww, hh) => { const gr = g.createLinearGradient(x, y, x + ww, y + hh); gr.addColorStop(0, '#f6f4ee'); gr.addColorStop(0.5, '#ece9e0'); gr.addColorStop(1, '#dcd8cc'); g.fillStyle = gr; g.fillRect(x, y, ww, hh); g.strokeStyle = 'rgba(150,140,120,0.28)'; g.lineWidth = 1; for (let i = 0; i < 14; i++) { const yy = y + rand(0, hh); g.beginPath(); g.moveTo(x, yy); g.lineTo(x + ww, yy + rand(-2, 2)); g.stroke(); } };
+    const bevel = (x, y, ww, hh) => { g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 2; g.strokeRect(x + 1, y + 1, ww - 2, hh - 2); g.strokeStyle = 'rgba(90,80,60,0.55)'; g.lineWidth = 2; g.strokeRect(x + 3, y + 3, ww - 6, hh - 6); };
+    paint(0, 0, w, h); bevel(0, 0, w, h);
+    const px = [F, cx - st / 2 - 4, cx + st / 2 + 4, w - F], panes = [];
+    for (let s = 0; s < 2; s++) { const x0 = s ? px[2] : px[0], x1 = s ? px[3] : px[1], sw = x1 - x0, pw = (sw - mu * (cols - 1)) / cols, ph = (h - F - 36 - mu * (rows - 1)) / rows; for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) panes.push([x0 + c * (pw + mu), F + r * (ph + mu), pw, ph]); }
+    for (const [x, y, ww, hh] of panes) {
+      if (!broken) { const gr = g.createLinearGradient(x, y, x + ww, y + hh); gr.addColorStop(0, 'rgba(205,232,245,0.32)'); gr.addColorStop(0.5, 'rgba(160,205,225,0.18)'); gr.addColorStop(1, 'rgba(215,238,248,0.34)'); g.fillStyle = gr; g.fillRect(x, y, ww, hh); const sk = g.createLinearGradient(x, y, x + ww * 0.7, y + hh); sk.addColorStop(0.15, 'rgba(255,255,255,0)'); sk.addColorStop(0.3, 'rgba(255,255,255,0.55)'); sk.addColorStop(0.38, 'rgba(255,255,255,0)'); g.fillStyle = sk; g.fillRect(x, y, ww, hh); }
+      else { g.fillStyle = 'rgba(200,235,250,0.8)'; for (let k = 0; k < 7; k++) { const e = Math.floor(rand(0, 4)), t = rand(0.1, 0.9), sz = rand(7, 20); g.beginPath(); if (e === 0) { g.moveTo(x + ww * t, y); g.lineTo(x + ww * t + sz * 0.5, y + sz); g.lineTo(x + ww * t - sz * 0.4, y + sz * 0.6); } else if (e === 1) { g.moveTo(x + ww * t, y + hh); g.lineTo(x + ww * t + sz * 0.5, y + hh - sz); g.lineTo(x + ww * t - sz * 0.4, y + hh - sz * 0.6); } else if (e === 2) { g.moveTo(x, y + hh * t); g.lineTo(x + sz, y + hh * t + sz * 0.4); g.lineTo(x + sz * 0.6, y + hh * t - sz * 0.5); } else { g.moveTo(x + ww, y + hh * t); g.lineTo(x + ww - sz, y + hh * t + sz * 0.4); g.lineTo(x + ww - sz * 0.6, y + hh * t - sz * 0.5); } g.closePath(); g.fill(); } }
+      g.strokeStyle = 'rgba(80,70,55,0.6)'; g.lineWidth = 2; g.strokeRect(x, y, ww, hh); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 1; g.strokeRect(x - 1, y - 1, ww + 2, hh + 2);
+    }
+    paint(cx - st / 2, F, st, h - F - 36); bevel(cx - st / 2, F, st, h - F - 36); paint(0, h - 40, w, 40); bevel(0, h - 40, w, 40);
+    for (const y of [h * 0.17, h * 0.5, h * 0.83]) for (const x of [F + 2, w - F - 2]) { g.fillStyle = '#6d7480'; g.fillRect(x - 5, y - 18, 10, 36); g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(x - 4, y - 17, 3, 34); for (const dy of [-12, 12]) { g.fillStyle = '#2d3138'; g.beginPath(); g.arc(x, y + dy, 2, 0, 7); g.fill(); } }
+    const hx = cx, hy = h * 0.5; g.fillStyle = '#9aa2ae'; g.fillRect(hx - 9, hy - 38, 18, 76); g.fillStyle = 'rgba(255,255,255,0.65)'; g.fillRect(hx - 8, hy - 37, 4, 74); g.strokeStyle = '#4a505a'; g.lineWidth = 1.5; g.strokeRect(hx - 9, hy - 38, 18, 76);
+    const hg = g.createRadialGradient(hx - 3, hy - 3, 1, hx, hy, 15); hg.addColorStop(0, '#f2f4f7'); hg.addColorStop(1, '#707884'); g.fillStyle = hg; g.beginPath(); g.arc(hx, hy, 14, 0, 7); g.fill(); g.strokeStyle = '#3d424b'; g.lineWidth = 1.5; g.stroke();
+    g.save(); g.translate(hx, hy); g.rotate(0.12); const lg = g.createLinearGradient(0, -7, 0, 7); lg.addColorStop(0, '#f4f6f9'); lg.addColorStop(0.5, '#a8b0bc'); lg.addColorStop(1, '#5e6571'); g.fillStyle = lg; g.beginPath(); if (g.roundRect) g.roundRect(-4, -7, 11, 64, 5); else g.rect(-4, -7, 11, 64); g.fill(); g.strokeStyle = '#3d424b'; g.stroke(); g.restore();
+    for (const [x, y] of [[hx, hy - 30], [hx, hy + 30]]) { g.fillStyle = '#2d3138'; g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); }
+  },
+  window(g, w, h) { this.winFrame(g, w, h, false); },
+  windowBroken(g, w, h) { this.winFrame(g, w, h, true); },
   tires(g, w, h) { g.fillStyle = '#0a0a0d'; g.fillRect(0, 0, w, h); const d = 64; for (let r = 0, y = d / 2; y < h + d; r++, y += d * 0.9) for (let x = (r % 2) * d / 2; x < w + d; x += d) {
       g.fillStyle = '#18181d'; g.beginPath(); g.arc(x, y, d / 2 - 1, 0, 7); g.fill(); g.strokeStyle = '#2a2a31'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, d / 2 - 4, 0, 7); g.stroke();
       for (let k = 0; k < 18; k++) { const an = k / 18 * 6.283; g.strokeStyle = k % 2 ? '#0a0a0d' : '#25252c'; g.lineWidth = 3; g.beginPath(); g.moveTo(x + Math.cos(an) * (d / 2 - 2), y + Math.sin(an) * (d / 2 - 2)); g.lineTo(x + Math.cos(an) * (d / 2 - 8), y + Math.sin(an) * (d / 2 - 8)); g.stroke(); }
@@ -3820,17 +3841,34 @@ function canHoleR(h, th) { // radius of the hole in direction th: uneven all the
   return h.R * (0.5 + 0.35 * n) * (1 + h.A * saw);
 }
 function canWallMat(map, W) { // the wall's own material: a smooth, pixel-exact hole is cut by the fragment shader
-  const clear = W.kind === 'glass' || W.kind === 'ice', U = { uHole: { value: new THREE.Vector4(0, 0, 1, 0) }, uPh: { value: new THREE.Vector4() }, uJag: { value: new THREE.Vector4(W.jag[0], W.jag[1], W.jag[2], W.jag[3]) }, uEdge: { value: new THREE.Color(W.edge) } };
+  const clear = W.kind === 'glass' || W.kind === 'ice' || W.kind === 'window', U = { uCrk: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uCrC: { value: new THREE.Vector4(W.crk[0], W.crk[1], W.crk[2], W.crk[3]) }, uHole: { value: new THREE.Vector4(0, 0, 1, 0) }, uPh: { value: new THREE.Vector4() }, uJag: { value: new THREE.Vector4(W.jag[0], W.jag[1], W.jag[2], W.jag[3]) }, uEdge: { value: new THREE.Color(W.edge) } };
   const mat = new THREE.MeshStandardMaterial({ map, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : W.kind === 'metal' ? 0.35 : 0.75, metalness: W.kind === 'metal' ? 0.85 : 0.05, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear });
   mat.userData.U = U;
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLP = position;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vLP; uniform vec4 uHole, uPh, uJag; uniform vec3 uEdge;
+varying vec3 vLP; uniform vec4 uHole, uPh, uJag, uCrk[8], uCrC; uniform vec3 uEdge;
 float holeR(float th) { float n = 0.5 + 0.22 * sin(2.0 * th + uPh.x) + 0.17 * sin(4.0 * th + uPh.y) + 0.12 * sin(7.0 * th + uPh.z) + 0.09 * sin(11.0 * th + uPh.w); float x = (th + uPh.x) * uJag.y / 6.2831853; float saw = fract(x) * 2.0 - 1.0; return uHole.z * (0.5 + 0.35 * n) * (1.0 + uJag.x * saw); }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
-if (uHole.w > 0.5) { vec2 d = vLP.xy - uHole.xy; float dist = length(d), r = holeR(atan(d.y, d.x)); if (dist < r) discard; float rim = 1.0 - smoothstep(0.0, uJag.w, dist - r); diffuseColor.rgb = mix(diffuseColor.rgb, uEdge, rim * 0.9); float dk = 1.0 - smoothstep(0.0, 0.4, dist - r); diffuseColor.rgb *= 1.0 - uJag.z * dk; }`);
+if (uHole.w > 0.5) {
+  vec2 d = vLP.xy - uHole.xy; float dist = length(d), ang = atan(d.y, d.x), r = uHole.w > 1.5 ? uHole.z : holeR(ang);
+  if (uHole.w < 1.5) { if (dist < r) discard; float rim = 1.0 - smoothstep(0.0, uJag.w, dist - r); diffuseColor.rgb = mix(diffuseColor.rgb, uEdge, rim * 0.9); float dk = 1.0 - smoothstep(0.0, 0.4, dist - r); diffuseColor.rgb *= 1.0 - uJag.z * dk; }
+  else { float cr = 1.0 - smoothstep(0.0, 0.3, dist); diffuseColor.rgb *= 1.0 - uJag.z * cr * 1.3; }
+  if (uCrC.w > 0.0) {
+    float crack = 0.0, along = dist - r;
+    for (int i = 0; i < 8; i++) { vec4 c = uCrk[i]; if (c.y > 0.0 && along > 0.0) {
+      float a = c.x + 0.10 * sin(dist * 5.0 + c.z) + 0.05 * sin(dist * 13.0 + c.z * 2.0);
+      float perp = abs(mod(ang - a + 3.14159265, 6.2831853) - 3.14159265) * dist;
+      float w = 0.010 + 0.016 * (1.0 - smoothstep(0.0, c.y, along));
+      float ln1 = (1.0 - smoothstep(w * 0.3, w, perp)) * (1.0 - smoothstep(c.y * 0.6, c.y, along));
+      float sg = sin(c.z * 7.0) > 0.0 ? 1.0 : -1.0, a2 = a + sg * 0.5, al2 = along - c.y * 0.35;
+      float perp2 = abs(mod(ang - a2 + 3.14159265, 6.2831853) - 3.14159265) * dist;
+      float ln2 = al2 > 0.0 ? (1.0 - smoothstep(0.006, 0.014, perp2)) * (1.0 - smoothstep(c.y * 0.15, c.y * 0.45, al2)) : 0.0;
+      crack = max(crack, max(ln1, ln2)); } }
+    diffuseColor.rgb = mix(diffuseColor.rgb, uCrC.rgb, crack * uCrC.w);
+  }
+}`);
   };
   return mat;
 }
@@ -3900,7 +3938,8 @@ function cannonBuild() {
   const crackTex = tex(256, 256, (c, w, h) => CAN_DRAW.cracks(c, w, h)), frameM = new THREE.MeshStandardMaterial({ color: 0x23262e, metalness: 0.6, roughness: 0.5 });
   CANNON_WALLS.forEach((W, i) => {
     const grp = new THREE.Group(); grp.position.set(LAB_LANE, 0, cannonWallZ(i)); grp.visible = false; scene.add(grp);
-    const map = tex(512, 320, (c, w, h) => CAN_DRAW[W.draw](c, w, h)), clear = W.kind === 'glass' || W.kind === 'jelly' || W.kind === 'ice';
+    const map = tex(512, 320, (c, w, h) => CAN_DRAW[W.draw](c, w, h)), clear = W.kind === 'glass' || W.kind === 'jelly' || W.kind === 'ice' || W.kind === 'window';
+    if (W.draw === 'window') CAN.winBroken = tex(512, 320, (c, w, h) => CAN_DRAW.windowBroken(c, w, h));
     const mat = canWallMat(map, W), smat = new THREE.MeshStandardMaterial({ map, roughness: mat.roughness, metalness: mat.metalness, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear });
     try { for (const m of [mat, smat]) { m.envMap = labEnv(); m.envMapIntensity = W.kind === 'metal' ? 1.0 : W.kind === 'glass' || W.kind === 'ice' ? 0.9 : 0.12; } } catch (e) { /* no reflections, still fine */ }
     if (W.draw === 'diamond') for (const m of [mat, smat]) { m.emissive = new THREE.Color(0x9fd8ff); m.emissiveMap = map; m.emissiveIntensity = 0.35; }
@@ -3925,7 +3964,7 @@ function cannonBuild() {
   const G = canShardGeo(), gm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false });
   const tri = new THREE.BufferGeometry(); tri.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0.1, 0, 0.35, 1, 0], 3)); tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0.1, 0.35, 1], 2)); tri.computeVertexNormals();
   CAN.glass = new CanDebris(tri, gm, 900); CAN.glass.mesh.setColorAt(0, new THREE.Color(0xffffff));
-  CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; CAN.sets.push({ main, aux }); });
+  CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' || K === 'window' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; if (W.kind === 'window') main.mesh.material = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.55, side: THREE.DoubleSide }); CAN.sets.push({ main, aux }); });
   for (let p = 0; p < 24; p++) { const mesh = new THREE.Mesh(G.paper[0], new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); mesh.visible = false; scene.add(mesh); CAN.paper.push({ m: mesh, v: new V3(), w: new V3(), life: 0 }); }
 }
 function cannonShow(on) {
@@ -3936,7 +3975,7 @@ function cannonShow(on) {
   CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0;
   const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L;
   const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
-  CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
+  CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; for (const c of CAN.wallMats[i].userData.U.uCrk.value) c.set(0, 0, 0, 0); if (CANNON_WALLS[i].draw === 'window') { CAN.wallMats[i].map = CAN.mats[i].map; CAN.wallMats[i].needsUpdate = true; } w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
   CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.touch = new Array(15).fill(false);
   board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
 }
@@ -3995,13 +4034,24 @@ function canHole(i, px, py, small) { // a hole with an uneven edge, cut in the s
   const w = CAN.walls[i], U = CAN.wallMats[i] && CAN.wallMats[i].userData.U;
   if (w && U) {
     if (full) { w.userData.panel.visible = false; } // the whole pane bursts
-    else if (!small) { U.uHole.value.set(px, py, h.R, 1); U.uPh.value.set(h.ph[0], h.ph[1], h.ph[2], h.ph[3]); U.uJag.value.x = h.A; U.uJag.value.y = h.F; canTube(i, h); w.userData.panel.castShadow = false; }
+    else if (!small) { U.uHole.value.set(px, py, h.R, 1); U.uPh.value.set(h.ph[0], h.ph[1], h.ph[2], h.ph[3]); U.uJag.value.x = h.A; U.uJag.value.y = h.F; canTube(i, h); w.userData.panel.castShadow = false; if (W.draw === 'window') { CAN.wallMats[i].map = CAN.winBroken; CAN.wallMats[i].needsUpdate = true; } else canCracks(i, px, py, 7, 0.9 + W.R * 0.55, false); }
   }
   return { gone, px, py, rad: h.rad };
+}
+function canCracks(i, cx, cy, n, len, stuck) { // cracks run out from the hole edge (or from a dent when he got stuck): thin, jagged, branching, and never across the hole
+  const W = CANNON_WALLS[i], m = CAN.wallMats[i], U = m && m.userData.U; if (!U || !W.crk || W.crk[3] <= 0) return;
+  const arr = U.uCrk.value; for (let k = 0; k < 8; k++) { if (k < n) arr[k].set(k / n * 6.2831853 + rand(-0.35, 0.35), len * rand(0.55, 1.25), rand(0, 6.3), 1); else arr[k].set(0, 0, 0, 0); }
+  if (stuck) U.uHole.value.set(clamp(cx, -2.6, 2.6), clamp(cy, 0.4, 3.4), 0.12, 2);
 }
 function canDebris(W, i, h, stuck) { // what a broken wall turns into
   const z = cannonWallZ(i), vis = cannonVis(CAN.vmph), set = CAN.sets[i], gl = CAN.glass, ix = h.px, iy = h.py, n = h.gone.length;
   const out = (cx, cy) => { const dx = cx - ix, dy = cy - iy, d = Math.hypot(dx, dy) || 0.01; return [dx / d, dy / d, d]; };
+  if (W.kind === 'window') { // every pane bursts into slivers, the white frame splinters around the hole
+    if (!stuck) for (let q = 0; q < 300; q++) { const px = rand(-2.8, 2.8), py = rand(0.3, 3.4), [ux, uy, d] = out(px, py), sp = (4 / (0.6 + d)) * rand(0.4, 1.2); gl.spawn(LAB_LANE + px, py, z + rand(-0.05, 0.05), ux * sp, uy * sp + rand(0, 2.5), -vis * rand(0.12, 0.5) + rand(-1, 2), rand(0.04, 0.22), rand(0.04, 0.22), 1, rand(8, 11), 0xd8f4ff); }
+    for (const [cx, cy] of h.gone) { if (Math.random() < 0.55) { const [ux, uy] = out(cx, cy), sp = rand(1.5, 5); set.main.spawn(LAB_LANE + cx, cy, z, ux * sp, uy * sp + rand(0, 3), -vis * rand(0.15, 0.5) + rand(-1, 2), rand(0.7, 1.6), rand(0.7, 1.6), rand(0.6, 1.4), rand(7, 11)); } }
+    if (!stuck) for (let q = 0; q < 12; q++) { const th = rand(0, 6.283), r = h.rad(th) * rand(0.92, 1.04); set.main.spawn(LAB_LANE + h.px + Math.cos(th) * r, clamp(h.py + Math.sin(th) * r, 0.1, 3.8), z - W.T / 2 - rand(0.05, 0.2), 0, 0, 0, rand(0.5, 1.1), rand(0.5, 1.1), rand(0.35, 0.8), 999, undefined, true); }
+    return;
+  }
   if ((W.draw === 'glass' || W.draw === 'glass2') && !stuck) { // the whole pane bursts into hundreds of slivers
     const total = W.draw === 'glass' ? 420 : 340;
     for (let q = 0; q < total; q++) { const near = Math.random() < 0.6, px = near ? clamp(ix + gauss() * 0.8, -3, 3) : rand(-3, 3), py = near ? clamp(iy + gauss() * 0.8, 0.1, 3.85) : rand(0.1, 3.85), [ux, uy, d] = out(px, py), sp = (4.5 / (0.6 + d)) * rand(0.4, 1.2);
@@ -4044,6 +4094,7 @@ function wallSound(W, i) {
   tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
   if (!AC) return; OUT(); const t = AC.currentTime;
   if (W.draw === 'hay') { noise(t, 0.35, 0.22, 'bandpass', 1400, 500, 0.8); noise(t, 0.2, 0.15, 'highpass', 4500, 2500, 0.7); sweep(t, 140, 55, 0.22, 0.25, 'sine'); }
+  else if (W.kind === 'window') { noise(t, 0.45, 0.3, 'highpass', 5200, 2400, 0.7); noise(t, 0.08, 0.25, 'bandpass', 3600, 2800, 2); noiseDist(t, 0.12, 0.2, 1800, 300, 1.2); sweep(t, 2600, 1200, 0.22, 0.04, 'sine'); }
   else if (W.draw === 'tires') { sweep(t, 150, 48, 0.3, 0.45, 'sine'); sweep(t, 190, 340, 0.18, 0.1, 'triangle'); noise(t, 0.25, 0.2, 'lowpass', 700, 150, 0.7); }
   else if (W.kind === 'glass' || W.kind === 'ice') { noise(t, 0.4, 0.3, 'highpass', 5500, 2500, 0.7); noise(t, 0.08, 0.25, 'bandpass', 3800, 3000, 2); sweep(t, 2400 + i * 60, 1300, 0.25, 0.04, 'sine'); }
   else if (W.kind === 'jelly') { sweep(t, 320, 80, 0.3, 0.3, 'sine'); noise(t, 0.2, 0.18, 'lowpass', 700, 200, 0.7); }
@@ -4081,7 +4132,7 @@ function cannonWalls() {
     const i = C.next, W = CANNON_WALLS[i], wz = cannonWallZ(i) + 0.25, hard = W.c >= 30000, [leadAll, who] = zmin(CAN_LEAD), [leadTorso] = zmin(['top', 'chest', 'pel']);
     if (hard && !C.touch[i] && leadAll <= wz) { // a hand or a foot gets there first and takes the first blow: it can be torn off, the wall only cracks
       C.touch[i] = true; const k = I[who] * 3, g = CAN_LIMB[who]; burst(new V3(c.x[k], c.x[k + 1], cannonWallZ(i)), 25, CAN_PAL[W.kind] || SPARK, 5); clank(10);
-      CAN.cracks[i].position.set(clamp(c.x[k], -2.3, 2.3), clamp(c.x[k + 1], 0.7, 3.1), W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(0.55); CAN.cracks[i].visible = true;
+      canCracks(i, c.x[k], c.x[k + 1], 5, 0.7, true);
       if (g && !c.broken.includes(g) && Math.random() < 0.75) c.breakGroup(g); cannonKick(c, 0.6);
     }
     if ((hard ? leadTorso : leadAll) > wz) break;
@@ -4091,7 +4142,6 @@ function cannonWalls() {
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(vEff); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
       C.broken++; C.next++; const h = canHole(i, sx, sy); canDebris(W, i, h, false);
-      if (W.draw === 'armor' || W.draw === 'brick' || W.draw === 'stone' || W.draw === 'concrete' || W.draw === 'ice' || W.draw === 'ply') { CAN.cracks[i].position.set(h.px, h.py, W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(W.draw === 'armor' ? 1.5 : 1.15 + Math.random() * 0.3); CAN.cracks[i].rotation.z = rand(0, 6.28); CAN.cracks[i].visible = true; } // cracks spread from the hole
       for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; canPaper(i, p, 9); burst(new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)), 10, [[4, 4, 4]], 3); }
       const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
@@ -4103,7 +4153,7 @@ function cannonWalls() {
       if (C.next === 15) { c.g = -6; c.damp = 0.9996; c.drag = 0.008; } // past the last wall the real air resistance slows him down and he lands
     } else { // stopped inside this wall
       C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
-      CAN.cracks[i].position.set(clamp(sx, -2.3, 2.3), clamp(sy, 0.9, 3), W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.1); CAN.cracks[i].visible = true;
+      canCracks(i, sx, sy, 8, 1.1 + W.R * 0.5, true);
       const h = canHole(i, sx, sy, true); canDebris(W, i, h, true); // a dent: only the front pieces chip off
       burst(new V3(sx + LAB_LANE, sy, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
       if (Math.random() < 0.5 && !c.broken.includes('head')) c.breakGroup('head');
