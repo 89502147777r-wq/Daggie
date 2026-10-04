@@ -40,19 +40,21 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 5000);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.15, 0.3, 1.0));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), MODE === 'lab' ? 0.09 : 0.15, 0.3, MODE === 'lab' ? 1.3 : 1.0));
 composer.addPass(new OutputPass());
 // colour grade: punchier contrast and saturation so the feed thumbnail pops
-const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, sat: { value: 1.32 }, con: { value: 1.12 }, bri: { value: 0.01 } },
+const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, sat: { value: 1.32 }, con: { value: 1.12 }, bri: { value: 0.01 }, curve: { value: 0 }, vig: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: 'uniform sampler2D tDiffuse; uniform float sat, con, bri; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); vec3 col = mix(vec3(l), c.rgb, sat); float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b)); col = mix(vec3(dot(col, vec3(0.333))), col, 1.0 + 0.25 * (1.0 - (mx - mn))); col = (col - 0.5) * con + 0.5 + bri; gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a); }' });
+  fragmentShader: 'uniform sampler2D tDiffuse; uniform float sat, con, bri, curve, vig; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); vec3 col = mix(vec3(l), c.rgb, sat); float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b)); col = mix(vec3(dot(col, vec3(0.333))), col, 1.0 + 0.25 * (1.0 - (mx - mn))); col = (col - 0.5) * con + 0.5 + bri; vec3 cc = clamp(col, 0.0, 1.0); col = mix(col, cc * cc * (3.0 - 2.0 * cc), curve); col *= 1.0 - vig * smoothstep(0.38, 0.9, distance(vUv, vec2(0.5))); gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a); }' });
 composer.addPass(grade);
+const LAB0 = MODE === 'lab'; if (LAB0) { grade.uniforms.sat.value = 1.42; grade.uniforms.con.value = 1.04; grade.uniforms.bri.value = -0.01; grade.uniforms.curve.value = 0.65; grade.uniforms.vig.value = 0.4; renderer.toneMappingExposure = 0.58; }
 // "Rec mode" (for iPhone screen recording): punchier picture, no UI while riding, lighter shadows for smoothness
 let REC_MODE = false; try { REC_MODE = localStorage.getItem('daggie-recmode') === '1'; } catch (e) {}
-const GSAT = () => REC_MODE ? 1.6 : 1.32;
+const LAB_LOOK = MODE === 'lab'; // the crash lab: darker, contrastier, richer colour, no blown highlights
+const GSAT = () => LAB_LOOK ? (REC_MODE ? 1.5 : 1.42) : REC_MODE ? 1.6 : 1.32;
 function applyRecMode() {
-  grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = REC_MODE ? 1.18 : 1.12; grade.uniforms.bri.value = REC_MODE ? 0.03 : 0.01;
-  renderer.toneMappingExposure = REC_MODE ? 0.9 : 0.74;
+  grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = LAB_LOOK ? 1.04 : REC_MODE ? 1.18 : 1.12; grade.uniforms.bri.value = LAB_LOOK ? -0.01 : REC_MODE ? 0.03 : 0.01; grade.uniforms.curve.value = LAB_LOOK ? 0.65 : 0; grade.uniforms.vig.value = LAB_LOOK ? 0.4 : 0;
+  renderer.toneMappingExposure = LAB_LOOK ? (REC_MODE ? 0.62 : 0.58) : REC_MODE ? 0.9 : 0.74;
   const ms = REC_MODE ? 1024 : 2048;
   if (typeof sunLight !== 'undefined' && sunLight.shadow.mapSize.x !== ms) { sunLight.shadow.mapSize.set(ms, ms); if (sunLight.shadow.map) { sunLight.shadow.map.dispose(); sunLight.shadow.map = null; } }
   document.getElementById('stage').classList.toggle('recmode', REC_MODE);
@@ -74,8 +76,8 @@ function makeSky() { const s = new Sky(); s.scale.setScalar(4000); const u = s.m
 scene.add(makeSky());
 { const envScene = new THREE.Scene(); envScene.add(makeSky()); const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0).texture; }
 scene.fog = TH === 'city' ? new THREE.Fog(0xe9b996, 170, 1300) : new THREE.Fog(0xcbe0f6, 520, 2600);
-const hemi = new THREE.HemisphereLight(0xcfe6ff, 0x9aa3b5, 0.85); scene.add(hemi);
-const sunLight = new THREE.DirectionalLight(TH === 'city' ? 0xffc48a : 0xfff1dc, TH === 'city' ? 3.3 : 3.8);
+const hemi = new THREE.HemisphereLight(0xcfe6ff, MODE === 'lab' ? 0x5a6070 : 0x9aa3b5, MODE === 'lab' ? 0.45 : 0.85); scene.add(hemi); // the lab: less fill light, so shadows stay deep
+const sunLight = new THREE.DirectionalLight(TH === 'city' ? 0xffc48a : 0xfff1dc, TH === 'city' ? 3.3 : MODE === 'lab' ? 2.7 : 3.8);
 sunLight.castShadow = true; sunLight.shadow.mapSize.set(2048, 2048);
 Object.assign(sunLight.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 80 });
 sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.02;
@@ -3833,6 +3835,7 @@ function canWheel(r, wd, spokes, rimM, spokeM) {
 function canModel(lv) { // five cannons, each bigger and meaner; the muzzle is at z = MUZZLE_Z
   const S = CAN_SPEC[lv - 1], g = new THREE.Group(), M = (c, m = 0.75, r = 0.4, e = 0) => new THREE.MeshStandardMaterial({ color: c, metalness: m, roughness: r, emissive: e ? c : 0x000000, emissiveIntensity: e });
   const wood = M(0x7a4d28, 0.05, 0.8), iron = M(0x2b2d33, 0.8, 0.45), steel = M(0x6b7280, 0.85, 0.35), barrelM = M(S.col, 0.7, 0.35), bandM = M(S.band, S.glow ? 0.3 : 0.8, 0.3, S.glow ? 1.6 : 0), dark = M(0x101114, 0.5, 0.6);
+  try { const env = labEnv(); for (const m of [iron, steel, barrelM, bandM]) { m.envMap = env; m.envMapIntensity = 0.9; } } catch (e) {}
   const yb = S.wr + 0.35, zc = MUZZLE_Z + S.L * 0.55, barrel = new THREE.Group(); barrel.position.set(LAB_LANE, yb, MUZZLE_Z + S.L); g.add(barrel); g.userData.barrel = barrel;
   const tube = new THREE.Mesh(new THREE.CylinderGeometry(S.r1, S.r0, S.L, 36), barrelM); tube.rotation.x = -Math.PI / 2; tube.position.z = -S.L / 2; tube.castShadow = true; barrel.add(tube);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(S.r0, 24, 16), barrelM); cap.position.z = 0; barrel.add(cap);
@@ -3859,6 +3862,13 @@ function canModel(lv) { // five cannons, each bigger and meaner; the muzzle is a
   }
   g.visible = false; return g;
 }
+let LAB_ENV = null;
+function labEnv() { // a small studio: warm top light, soft boxes, dark floor: what polished things reflect
+  if (LAB_ENV) return LAB_ENV;
+  const t = tex(512, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#9fb6d6'); gr.addColorStop(0.45, '#d8d2c6'); gr.addColorStop(0.5, '#3a3a42'); gr.addColorStop(1, '#101014'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,248,235,0.95)'; for (const [x, y, ww, hh] of [[60, 30, 90, 40], [250, 20, 120, 34], [400, 40, 80, 46], [150, 110, 50, 26], [330, 105, 60, 22]]) g.fillRect(x, y, ww, hh); });
+  t.mapping = THREE.EquirectangularReflectionMapping; const pm = new THREE.PMREMGenerator(renderer); LAB_ENV = pm.fromEquirectangular(t).texture; pm.dispose(); return LAB_ENV;
+}
 function cannonBuild() {
   if (CAN.built || !labBuilt) return; CAN.built = true;
   const g = CAN.group = new THREE.Group(); g.visible = false; scene.add(g);
@@ -3868,6 +3878,7 @@ function cannonBuild() {
     const grp = new THREE.Group(); grp.position.set(LAB_LANE, 0, cannonWallZ(i)); grp.visible = false; scene.add(grp);
     const map = tex(512, 320, (c, w, h) => CAN_DRAW[W.draw](c, w, h)), clear = W.kind === 'glass' || W.kind === 'jelly' || W.kind === 'ice';
     const mat = new THREE.MeshStandardMaterial({ map, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : W.kind === 'metal' ? 0.35 : 0.75, metalness: W.kind === 'metal' ? 0.85 : 0.05, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear, envMapIntensity: 1 });
+    try { mat.envMap = labEnv(); mat.envMapIntensity = W.kind === 'metal' ? 1.0 : W.kind === 'glass' || W.kind === 'ice' ? 0.9 : 0.12; } catch (e) { /* no reflections, still fine */ }
     if (W.draw === 'diamond') { mat.emissive = new THREE.Color(0x9fd8ff); mat.emissiveMap = map; mat.emissiveIntensity = 0.35; }
     const geo = canTileGeo(W.T), mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh);
     for (const sx of [-3.1, 3.1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, W.T + 0.2), frameM); p.position.set(sx, 2.0, 0); grp.add(p); }
@@ -3905,7 +3916,7 @@ function cannonShow(on) {
 }
 function cannonStart(lv) {
   cannonBuild(); cannonShow(true); lv = clamp(lv, 1, 5);
-  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0 }); CAN.vmph = CAN.mph;
+  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0, sd: 0 }); CAN.vmph = CAN.mph;
   LAB.phase = 'cannon'; board.visible = false; daggie.visible = false; rider.visible = false; // he is inside the barrel until the shot
   labSpeedo(0); labDmg(true, 0, 'WALLS', ' / 15', 0);
 }
@@ -4006,10 +4017,22 @@ function wallSound(W, i) {
   else if (W.kind === 'wood') { noiseDist(t, 0.14, 0.3, 2000, 280, 1.2); sweep(t, 190, 60, 0.2, 0.3, 'sine'); }
   else crashSound(clamp(0.12 + W.c / 220000 * 0.7, 0.12, 0.85));
 }
+const CAN_GRP = { top: 'head', haL: 'armL', haR: 'armR', toL: 'legL', knL: 'legL', toR: 'legR', knR: 'legR' };
+function canBodySpeed(c, I) { let t = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; t += Math.hypot(c.x[k] - c.o[k], c.x[k + 1] - c.o[k + 1], c.x[k + 2] - c.o[k + 2]); } return t / 3 * 240; } // m/s of his torso, as it really is now
+const canMph = v => (v <= 16 ? 0 : 1000 * Math.pow((v - 16) / 44, 2)); // the model speed that matches a real speed on screen
+function canRoll(c, I) { // how fast he is rolling about the flight line now (rad/s, signed)
+  const pk = I.pel * 3, px = c.x[pk], py = c.x[pk + 1], vx0 = (c.x[pk] - c.o[pk]) * 240, vy0 = (c.x[pk + 1] - c.o[pk + 1]) * 240; let num = 0, den = 1e-6;
+  for (let q = 0; q < c.n; q++) { const k = q * 3, rx = c.x[k] - px, ry = c.x[k + 1] - py, vx = (c.x[k] - c.o[k]) * 240 - vx0, vy = (c.x[k + 1] - c.o[k + 1]) * 240 - vy0; num += rx * vy - ry * vx; den += rx * rx + ry * ry; }
+  return num / den;
+}
+function cannonFlail(c, I, amp) { // hands, feet and head whip about: more and more with every wall
+  for (const nm of ['haL', 'haR', 'toL', 'toR', 'top', 'knL', 'knR']) { const k = I[nm] * 3; c.o[k] -= rand(-3, 3) * amp / 240; c.o[k + 1] -= rand(-3, 3) * amp / 240; c.o[k + 2] -= rand(-1.2, 1.2) * amp / 240; }
+}
 const CAN_LIMB = { haL: 'armL', wrL: 'armL', haR: 'armR', wrR: 'armR', toL: 'legL', anL: 'legL', knL: 'legL', toR: 'legR', anR: 'legR', knR: 'legR' };
 function cannonWalls() {
   const C = CAN, S = RAGSIM, c = S.core, I = S.I; if (C.stuck >= 0) return;
-  const zmin = names => { let m = 1e9, who = null; for (const nm of names) { const z = c.x[I[nm] * 3 + 2]; if (z < m) { m = z; who = nm; } } return [m, who]; };
+  const att = nm => !(CAN_GRP[nm] && c.broken.includes(CAN_GRP[nm])); // a torn-off hand, foot or head is just debris: it never breaks a wall
+  const zmin = names => { let m = 1e9, who = null; for (const nm of names) { if (!att(nm)) continue; const z = c.x[I[nm] * 3 + 2]; if (z < m) { m = z; who = nm; } } return [m, who]; };
   while (C.next < 15 && C.stuck < 0) {
     const i = C.next, W = CANNON_WALLS[i], wz = cannonWallZ(i) + 0.25, hard = W.c >= 30000, [leadAll, who] = zmin(CAN_LEAD), [leadTorso] = zmin(['top', 'chest', 'pel']);
     if (hard && !C.touch[i] && leadAll <= wz) { // a hand or a foot gets there first and takes the first blow: it can be torn off, the wall only cracks
@@ -4018,10 +4041,10 @@ function cannonWalls() {
       if (g && !c.broken.includes(g) && Math.random() < 0.75) c.breakGroup(g); cannonKick(c, 0.6);
     }
     if ((hard ? leadTorso : leadAll) > wz) break;
-    let sx = 0, sy = 0; for (const nm of ['top', 'chest', 'pel']) { sx += c.x[I[nm] * 3]; sy += c.x[I[nm] * 3 + 1]; } sx /= 3; sy /= 3; // the hole is centred on his body, not on a fingertip
-    const v2 = C.vmph * C.vmph - W.c;
+    let sx = 0, sy = 0, cn = 0; for (const nm of ['top', 'chest', 'pel']) { if (!att(nm)) continue; sx += c.x[I[nm] * 3]; sy += c.x[I[nm] * 3 + 1]; cn++; } sx /= cn; sy /= cn; // the hole is centred on his body, not on a fingertip
+    const vEff = Math.min(C.vmph, canMph(canBodySpeed(c, I)) * 1.12 + 8), v2 = vEff * vEff - W.c; // what he really has left decides, not the number on the counter
     if (v2 > 0) { // through: he slows down by what the wall took, a hole opens, pieces fly
-      const r = cannonVis(Math.sqrt(v2)) / cannonVis(C.vmph); C.vmph = Math.sqrt(v2);
+      const r = cannonVis(Math.sqrt(v2)) / cannonVis(vEff); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
       C.broken++; C.next++; const h = canHole(i, sx, sy); canDebris(W, i, h, false);
       if (W.draw === 'armor') { CAN.cracks[i].position.set(h.px, h.py, W.T / 2 + 0.013); CAN.cracks[i].scale.setScalar(1.5); CAN.cracks[i].visible = true; }
@@ -4030,7 +4053,7 @@ function cannonWalls() {
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
       if (W.c >= 100000 && Math.random() < 0.35 && !c.broken.includes('head')) c.breakGroup('head');
       cannonKick(c, Math.min(2.4, 0.3 + W.c / 70000));
-      { const first = !C.spun; if (first) C.sd = Math.random() < 0.5 ? -1 : 1; C.spun = Math.min(14, C.spun + (first ? 5 + Math.random() * 3 : 1.2)); cannonSpin(c, I, C.sd * (first ? C.spun : 1.2), first ? rand(-2, 2) : rand(-0.8, 0.8)); } // from the first wall on he spins, a bit faster with every wall
+      { const n = C.broken, target = Math.min(22, 6 + 1.9 * n); if (!C.sd) C.sd = Math.random() < 0.5 ? -1 : 1; const add = Math.max(2.5, target - Math.abs(canRoll(c, I))); C.spun = target; cannonSpin(c, I, C.sd * add, rand(-1, 1) * (1 + 0.5 * n)); cannonFlail(c, I, 1 + 0.5 * n); } // every wall winds him up more: faster roll and wilder flailing
       if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
       lastPop = 0; pop(W.n + '!');
       if (C.next === 15) c.g = -6;
