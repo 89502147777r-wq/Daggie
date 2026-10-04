@@ -1954,13 +1954,14 @@ const TITLES = {
   fart: ['HOW HIGH CAN|HE FLY?', 'FART POWER {lv}|HOW HIGH?', 'POWERED BY|PURE GAS', 'ROCKET FART|TEST', 'TOO MUCH|BEANS?', 'NO FUEL|JUST FARTS', 'WILL HE REACH|THE SKY?', 'ONE FART|TO THE MOON?', 'HOW MUCH GAS|DOES HE NEED?'],
   sock: ['HOW BIG A|STINKY SOCK?', 'SOCK SIZE {lv}|TOO STINKY?', 'THE STINKIEST|SOCK EVER', 'SMELLY SOCK|VS DAGGIE', 'WHO WINS?|HIM OR SOCK', 'CAN HE TAKE|THIS SMELL?', 'THE SOCK|IS GETTING BIGGER'],
   press: ['HYDRAULIC PRESS|VS DAGGIE', 'HOW MANY TONS|CAN HE TAKE?', '{t} TONS|ON ONE ROBOT', 'WILL HE SURVIVE|{t} TONS?', 'SLOWLY CRUSHED|{t} TONS', "THE PRESS|DOESN'T STOP", "DON'T BLINK|THE PRESS IS COMING", 'WHAT HAPPENS AT|{t} TONS?'],
+  cannon: ['HOW MANY WALLS|CAN HE BREAK?', '{mph} MPH|15 WALLS', 'CANNON VS|15 WALLS', 'GLASS, BRICK, STEEL...|HOW FAR?', 'WILL HE BREAK|THE VAULT DOOR?', 'FROM PAPER-THIN|TO VAULT STEEL', 'ONE SHOT|15 WALLS', 'STUCK OR|THROUGH ALL 15?'],
   anvil: ['ANVIL FROM|{lv} METERS', 'HOW HIGH TO|BREAK HIM?', '1000 KG|FROM THE SKY', 'LOOK UP|DAGGIE!', 'CAN HE|TAKE THIS?', "THE ANVIL|DOESN'T MISS"],
   any: ['CRASH TEST|DAGGIE', 'WILL HE|SURVIVE?'],
 };
 function rollTitle() {
   try {
     let pools = ['any'], v = {};
-    if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m; v.t = PRESS_TONS[clamp(lv, 1, 5) - 1];
+    if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m; v.t = PRESS_TONS[clamp(lv, 1, 5) - 1]; v.mph = CANNON_MPH[clamp(lv, 1, 5) - 1];
       if (m === 'bollard') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; pools = ['bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
     else if (DLV) pools = ['delivery'];
     else if (VEH === 'cart') pools = ['cart'];
@@ -2947,7 +2948,7 @@ function ragSimStep(dt) {
   // fixed 1/240 s physics steps (the grip and tearing limits were tuned at this rate), also in slow motion
   S.acc = (S.acc || 0) + dt; let n = 0;
   if (S.fast) { S.core.relax = S.t < 0.25; S.core.capUp = 0; } else { S.core.relax = true; S.core.capUp = 3; } // 15 mph: soft joint limits and no upward kicks, so he lurches forward and settles instead of bouncing around; tested offline
-  while (S.acc >= 1 / 240 && n < 12) { labCartStep(1 / 240); S.core.step(1 / 240, 10); S.acc -= 1 / 240; n++; }
+  while (S.acc >= 1 / 240 && n < 12) { labCartStep(1 / 240); S.core.step(1 / 240, 10); if (S.hook) S.hook(S.core); S.acc -= 1 / 240; n++; }
   if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); bollardFall(1 - Math.pow(1 - LAB.bollardTip, 3)); }
   if (n === 12) S.acc = 0;
   if (n > 0) ragSparks(S, dt);
@@ -3334,17 +3335,19 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
 const LAB_SPEEDS = [15, 50, 100, 150, 200]; // mph for levels 1..5. The post holds on 1-2 and snaps on 3-5; Daggie doesn't grip the cart
-const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : LAB.machine === 'press' ? 5 : 100);
+const LAB_MAX = () => (LAB.machine === 'bollard' ? LAB_SPEEDS.length : LAB.machine === 'press' || LAB.machine === 'cannon' ? 5 : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
   fart: { title: 'FART POWER', ask: 'How high does he fly?' },
   sock: { title: 'SOCK SIZE', ask: 'How big a foot can he take?' },
   anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
   press: { title: 'HYDRAULIC PRESS', ask: 'How many tons can he take?' },
+  cannon: { title: 'WALL CANNON', ask: 'How many walls can he break?' },
 };
 if (Array.isArray(L.machines) && !L.machines.includes('press') && !L.machines.every(m => m === 'bollard')) L.machines.push('press'); // the press joins the stand lab
+if (Array.isArray(L.machines) && L.machines.length && L.machines.every(m => m === 'bollard') && !L.machines.includes('cannon')) L.machines.push('cannon'); // the wall cannon joins the cart hall
 const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
-try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press') LAB.level = Math.min(LAB.level, 5); } catch (e) {}
+try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press' || LAB.machine === 'cannon') LAB.level = Math.min(LAB.level, 5); } catch (e) {}
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
 let LAB_YAW = 0, labBuilt = false, LEG = null;
 const GAS = [];
@@ -3370,7 +3373,7 @@ function brrt(power) { // the fart sound: a wobbling low buzz, longer and deeper
   for (let i = 0; i < n; i++) tone(rand(60, 115) - power * 20, rand(40, 60), 0.09, i % 2 ? 'square' : 'sawtooth', 0.06 + power * 0.05, i * 0.055);
 }
 function buildLab() {
-  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard');
+  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon');
   for (const o of TRACK_OBJS) o.visible = false; // the lab has no track
   BIG.visible = false; board.visible = LAB.machine === 'bollard';
   { const bm = new THREE.Group(), post = new THREE.Group(); post.rotation.order = 'YXZ'; post.position.y = 0.12; bm.add(post); const st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2 - 0.12; st.castShadow = true; post.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H - 0.12; post.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = post; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
@@ -3394,7 +3397,7 @@ function buildLab() {
   const warn = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('DO NOT TRY THIS', '#e0322b', '#ffffff', 768, 192)); warn.position.set(-10, 5, HZ + 0.15); scene.add(warn);
   const warn2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('LEVEL 1 - 100', '#16141c', '#3dff9a', 768, 192)); warn2.position.set(10, 5, HZ + 0.15); scene.add(warn2);
   for (let i = 0; i < 5; i++) { const lamp = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: glowColor(0xfff3dc, 2.2) })); lamp.position.set(-12 + i * 6, 13.6, -8); scene.add(lamp); }
-  LABNOSTAND = (L.machines || []).every(m => m === 'bollard');
+  LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon');
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R, STAND_R + 0.2, STAND_H, 40), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.8, roughness: 0.35 })); stand.position.y = STAND_H / 2; stand.castShadow = stand.receiveShadow = true; stand.visible = !LABNOSTAND; scene.add(stand);
   const band = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 0.01, STAND_R + 0.01, 0.16, 40, 1, true), stripeMat(8)); band.position.y = STAND_H - 0.1; band.visible = !LABNOSTAND; scene.add(band);
   const gt = gasTex();
@@ -3678,9 +3681,10 @@ function labSave() { try { localStorage.setItem('daggie-lab', JSON.stringify({ m
 function labUI() {
   if (!labBuilt) return;
   PRESS.visible = LAB.machine === 'press'; if (PRESS.visible && PRESS.mode === 'idle') { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
+  cannonShow(LAB.machine === 'cannon');
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
   $('labKnob').style.left = ((LAB.level - 1) / (LAB_MAX() - 1) * 100) + '%'; $('labRange').max = String(LAB_MAX());
-  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : 'LEVEL ' + LAB.level;
+  $('labLvl').textContent = LAB.machine === 'bollard' ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : 'LEVEL ' + LAB.level;
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labRec').setAttribute('aria-pressed', String(REC_MODE));
@@ -3695,6 +3699,7 @@ function labReset() {
   state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dist = 0; labDmg(false);
   if (LEG) { LEG.visible = false; }
   PRESS.mode = 'idle'; PRESS.visible = LAB.machine === 'press'; if (PRESS.visible) { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
+  cannonShow(LAB.machine === 'cannon');
   setFace('idle', 0); snapCam = true;
 }
 function labStart() {
@@ -3706,6 +3711,7 @@ function labStart() {
   if (LAB.machine === 'bollard') { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
   else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
+  else if (LAB.machine === 'cannon') cannonStart(lv);
   else if (LAB.machine === 'press') { LAB.phase = 'fall'; PRESS.visible = true; PRESS.rotation.y = pressYaw(); PRESS.gauge.material = sign('PRESS ' + PRESS_TONS[clamp(lv, 1, 5) - 1] + ' TONS', '#16141c', '#ffc21a', 768, 192); pressPlace(HEAD_TOP + 1.6); PRESS.mode = 'desc'; PRESS.t = 0; PRESS.step = 0; setFace('scared', 5000); tone(300, 300, 0.1, 'square', 0.04); }
   else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
   lastPop = 0; pop('LEVEL ' + lv, 'lilac'); snapCam = true;
@@ -3726,8 +3732,144 @@ function labPancake() {
 }
 function labFinish(text) { LAB.text = text; LAB.phase = 'done'; if (state === 'ride') { state = 'lab'; stateT = performance.now(); LAB.pending = performance.now() + 1400; } }
 function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(kind); LAB.lost = 15; }
+
+// ---------- wall cannon: 15 walls from thin glass to a vault door; the cannon's power decides how many he breaks ----------
+const CANNON_MPH = [100, 200, 350, 600, 1000];
+const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes. Checked offline: 100/200/350/600/1000 mph break 3/6/9/12/15 walls
+  { n: 'THIN GLASS', c: 1500, col: 0x9fe8ff, op: 0.35, kind: 'glass' }, { n: 'JELLY', c: 2500, col: 0x5cff9a, op: 0.7, kind: 'jelly' }, { n: 'CAKE', c: 4000, col: 0xffb6d9, op: 1, kind: 'cake' },
+  { n: 'ICE', c: 4000, col: 0xbfe8ff, op: 0.8, kind: 'ice' }, { n: 'PLYWOOD', c: 10000, col: 0xc99a5b, op: 1, kind: 'wood' }, { n: 'OAK', c: 13000, col: 0x7a4a22, op: 1, kind: 'wood' },
+  { n: 'BRICK', c: 14000, col: 0xb5452f, op: 1, kind: 'brick' }, { n: 'THICK GLASS', c: 25000, col: 0x7fd0e8, op: 0.5, kind: 'glass' }, { n: 'STONE', c: 26000, col: 0x7d7f86, op: 1, kind: 'stone' },
+  { n: 'CONCRETE', c: 30000, col: 0x9a9a9a, op: 1, kind: 'stone' }, { n: 'ARMORED GLASS', c: 70000, col: 0x4fa0b8, op: 0.55, kind: 'glass' }, { n: 'STEEL', c: 100000, col: 0x8e99a8, op: 1, kind: 'metal' },
+  { n: 'GOLD', c: 120000, col: 0xffc928, op: 1, kind: 'metal' }, { n: 'DIAMOND', c: 180000, col: 0xc8f4ff, op: 0.75, kind: 'ice' }, { n: 'VAULT DOOR', c: 200000, col: 0x3a3f4a, op: 1, kind: 'metal' },
+];
+const CAN_PAL = { glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
+const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
+const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7;
+const CAN = { built: false, group: null, walls: [], barrel: null, shards: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0 };
+const cannonWallZ = i => WALL_Z0 - i * WALL_DZ;
+const cannonVis = mph => 16 + 44 * Math.sqrt(Math.max(0, mph) / 1000); // how fast he moves on screen (m/s); the mph shown is the model's
+function cannonBuild() {
+  if (CAN.built || !labBuilt) return; CAN.built = true;
+  const g = CAN.group = new THREE.Group(); g.visible = false; scene.add(g);
+  const steel = new THREE.MeshStandardMaterial({ color: 0x3a3f4a, metalness: 0.8, roughness: 0.4 });
+  CAN.barrelMat = new THREE.MeshStandardMaterial({ color: 0x3f7d4a, metalness: 0.7, roughness: 0.35 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.0), steel); base.position.set(LAB_LANE, 0.55, MUZZLE_Z + 1.2); base.castShadow = true; g.add(base);
+  for (const sx of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.25, 20), steel); w.rotation.z = Math.PI / 2; w.position.set(LAB_LANE + sx * 1.0, 0.55, MUZZLE_Z + 1.2); w.castShadow = true; g.add(w); }
+  CAN.barrel = new THREE.Group(); CAN.barrel.position.set(LAB_LANE, 1.3, MUZZLE_Z + 2.4); g.add(CAN.barrel);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.62, 3.4, 28), CAN.barrelMat); tube.rotation.x = Math.PI / 2; tube.position.z = -1.7; tube.castShadow = true; CAN.barrel.add(tube);
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.3, 28), steel); ring.rotation.x = Math.PI / 2; ring.position.z = -3.35; CAN.barrel.add(ring);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 20, 14), CAN.barrelMat); cap.position.z = 0.05; CAN.barrel.add(cap);
+  CANNON_WALLS.forEach((W, i) => {
+    const grp = new THREE.Group(); grp.position.set(LAB_LANE, 0, cannonWallZ(i));
+    const mat = new THREE.MeshStandardMaterial({ color: W.col, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : 0.7, metalness: W.kind === 'metal' ? 0.8 : 0.05, transparent: W.op < 1, opacity: W.op });
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(6, 3.8, 0.3), mat); panel.position.y = 1.9; panel.castShadow = true; grp.add(panel);
+    const frameM = new THREE.MeshStandardMaterial({ color: 0x23262e, metalness: 0.6, roughness: 0.5 });
+    for (const sx of [-3.1, 3.1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, 0.45), frameM); p.position.set(sx, 2.0, 0); grp.add(p); }
+    const top = new THREE.Mesh(new THREE.BoxGeometry(6.45, 0.25, 0.45), frameM); top.position.y = 4.0; grp.add(top);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), sign((i + 1) + '  ' + W.n, '#16141c', '#' + W.col.toString(16).padStart(6, '0'), 640, 160)); tag.position.set(0, 4.65, 0.24); grp.add(tag);
+    grp.visible = false; scene.add(grp); CAN.walls.push(grp);
+  });
+  for (let i = 0; i < 96; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })); m.visible = false; scene.add(m); CAN.shards.push({ m, v: new V3(), w: new V3(), life: 0, max: 1 }); }
+}
+function cannonShow(on) {
+  if (BOLLARD) BOLLARD.visible = !on;
+  if (on) cannonBuild(); if (!CAN.built) return;
+  CAN.group.visible = on; CAN.walls.forEach(w => { w.visible = on; });
+  if (on) { CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0; CAN.barrel.position.z = MUZZLE_Z + 2.4; for (const sh of CAN.shards) { sh.m.visible = false; sh.life = 0; } const lv = LAB.level; CAN.barrelMat.color.setHex([0x3f7d4a, 0x6b7280, 0xa83232, 0x20232b, 0xd4a017][clamp(lv, 1, 5) - 1]); CAN.barrel.scale.set(1 + 0.08 * lv, 1 + 0.08 * lv, 1 + 0.1 * lv); board.position.set(LAB_LANE, 0.55, MUZZLE_Z - 0.7); }
+}
+function cannonStart(lv) {
+  cannonBuild(); cannonShow(true);
+  Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[clamp(lv, 1, 5) - 1], recoil: 0, rest: 0, count: 0 }); CAN.vmph = CAN.mph;
+  LAB.phase = 'cannon'; board.visible = false; board.position.set(LAB_LANE, 0.55, MUZZLE_Z - 0.7); setFace('scared', 3000);
+  labSpeedo(0); labDmg(true, 0, 'WALLS', ' / 15', 0);
+}
+function cannonFire() {
+  CAN.phase = 'fly'; CAN.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false;
+  ragStart(new V3(0, 2.2, -cannonVis(CAN.mph)), 0);
+  const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0.01; c.g = -2.2; S.hook = cannonHold; S.t = 0;
+  { const pk = I.pel * 3, yc = c.x[pk + 1] + 0.3, zc = c.x[pk + 2], om = -1.2; for (let i = 0; i < c.n; i++) { const k = i * 3, ry = c.x[k + 1] - yc, rz = c.x[k + 2] - zc; c.vel(i, 0, 2.2 - om * rz, -cannonVis(CAN.mph) + om * ry, 1 / 240); } }
+  burst(new V3(LAB_LANE, 1.3, MUZZLE_Z), 140, SPARK, 10); burst(new V3(LAB_LANE, 1.3, MUZZLE_Z - 0.5), 60, CONF, 6); crashSound(1); CAN.recoil = 1;
+  if (!reduceMotion) { shake = 0.8; const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
+  lastPop = 0; pop('BOOM!', 'lilac'); setFace('wow', 4000); slowUntil = performance.now() + 9000; slowK = 0.4;
+}
+function cannonHold(core) { // the wall that stopped him: nothing gets through it any more
+  if (CAN.stuck < 0) return; const zp = cannonWallZ(CAN.stuck) + 0.2;
+  for (let i = 0; i < core.n; i++) { const k = i * 3; if (core.x[k + 2] < zp) { core.x[k + 2] = zp; core.o[k + 2] = zp; core.o[k] = core.x[k] - (core.x[k] - core.o[k]) * 0.6; } }
+}
+function cannonShards(W, i, n, dirZ) {
+  let made = 0; const z = cannonWallZ(i);
+  for (const sh of CAN.shards) {
+    if (made >= n) break; if (sh.life > 0) continue; made++;
+    const s = rand(0.12, 0.4); sh.m.scale.set(s, s * rand(0.5, 1.4), s * rand(0.3, 0.8)); sh.m.material.color.setHex(W.col); sh.m.material.transparent = W.op < 1; sh.m.material.opacity = Math.max(0.6, W.op);
+    sh.m.position.set(LAB_LANE + rand(-2.6, 2.6), rand(0.4, 3.6), z + rand(-0.2, 0.2)); sh.m.visible = true; sh.m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6));
+    sh.v.set(rand(-3, 3), rand(0.5, 5), dirZ * rand(0.3, 1) + rand(-2, 2)); sh.w.set(rand(-9, 9), rand(-9, 9), rand(-9, 9)); sh.life = sh.max = rand(0.9, 1.5);
+  }
+}
+function cannonShardStep(dt) {
+  for (const sh of CAN.shards) {
+    if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; }
+    sh.v.y -= 9.8 * dt; sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; sh.m.rotation.z += sh.w.z * dt;
+    if (sh.m.position.y < 0.05) { sh.m.position.y = 0.05; sh.v.y *= -0.3; sh.v.x *= 0.8; sh.v.z *= 0.8; }
+    const f = sh.life < 0.35 ? sh.life / 0.35 : 1; sh.m.scale.multiplyScalar(f < 1 ? 0.96 : 1);
+  }
+}
+function wallSound(W, i) {
+  tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
+  if (!AC) return; OUT(); const t = AC.currentTime;
+  if (W.kind === 'glass' || W.kind === 'ice') { noise(t, 0.4, 0.3, 'highpass', 5500, 2500, 0.7); noise(t, 0.08, 0.25, 'bandpass', 3800, 3000, 2); sweep(t, 2400 + i * 60, 1300, 0.25, 0.04, 'sine'); }
+  else if (W.kind === 'jelly') { sweep(t, 320, 80, 0.3, 0.3, 'sine'); noise(t, 0.2, 0.18, 'lowpass', 700, 200, 0.7); }
+  else if (W.kind === 'cake') { sweep(t, 260, 110, 0.25, 0.3, 'sine'); noise(t, 0.25, 0.14, 'bandpass', 1600, 700, 1.2); }
+  else if (W.kind === 'wood') { noiseDist(t, 0.14, 0.3, 2000, 280, 1.2); sweep(t, 190, 60, 0.2, 0.3, 'sine'); }
+  else crashSound(clamp(0.12 + W.c / 220000 * 0.7, 0.12, 0.85));
+}
+function cannonWalls() {
+  const C = CAN, S = RAGSIM, c = S.core, I = S.I; if (C.stuck >= 0) return;
+  let lead = 1e9; for (const nm of CAN_LEAD) lead = Math.min(lead, c.x[I[nm] * 3 + 2]);
+  while (C.next < 15 && C.stuck < 0 && lead <= cannonWallZ(C.next) + 0.25) {
+    const i = C.next, W = CANNON_WALLS[i], v2 = C.vmph * C.vmph - W.c;
+    if (v2 > 0) { // through: he slows down by what the wall took
+      const r = cannonVis(Math.sqrt(v2)) / cannonVis(C.vmph); C.vmph = Math.sqrt(v2);
+      for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
+      C.broken++; C.next++; CAN.walls[i].visible = false; cannonShards(W, i, 12, -1);
+      const pal = CAN_PAL[W.kind] || SPARK, p = new V3(LAB_LANE + c.x[I.pel * 3], 1.8, cannonWallZ(i)); p.x = c.x[I.pel * 3]; burst(p, 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
+      if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
+      lastPop = 0; pop(W.n + '!');
+      if (C.next === 15) c.g = -6;
+    } else { // stopped inside this wall
+      C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t;
+      for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
+      burst(new V3(c.x[I.pel * 3], 1.6, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
+      lastPop = 0; pop('STUCK IN ' + W.n + '!', 'lilac'); setFace('hit', 99999);
+    }
+  }
+}
+function cannonStep(dt, now) {
+  const C = CAN; C.t += dt; cannonShardStep(dt);
+  if (C.recoil > 0) { C.recoil = Math.max(0, C.recoil - dt * 2.2); C.barrel.position.z = MUZZLE_Z + 2.4 + C.recoil * 0.9; }
+  if (C.phase === 'load') {
+    labSpeedo(0); const n = Math.floor(C.t / 0.45); if (n !== C.count && n < 4) { C.count = n; if (n >= 1 && n <= 3) { lastPop = 0; pop(String(4 - n), 'lilac'); tone(700, 700, 0.1, 'square', 0.05); } }
+    if (C.t >= 1.8) cannonFire();
+  } else if (C.phase === 'fly' && RAGSIM) {
+    const S = RAGSIM; ragSimStep(dt); cannonWalls();
+    labSpeedo(CAN.vmph); labDmg(true, CAN.broken, 'WALLS', ' / 15', 0);
+    const k = S.I.pel * 3, sp = Math.hypot(S.core.x[k] - S.core.o[k], S.core.x[k + 1] - S.core.o[k + 1], S.core.x[k + 2] - S.core.o[k + 2]) * 240;
+    C.rest = sp < 0.6 ? C.rest + dt : 0; LAB.dist = Math.max(0, (BOLLARD_Z - S.core.x[k + 2])) * 3.28084;
+    const over = C.stuck >= 0 ? S.t - C.stuckT > 2.2 : (C.next >= 15 && C.rest > 0.8) || S.t > 14;
+    if (over || C.rest > 1.6) {
+      C.phase = 'end'; const nm = C.stuck >= 0 ? CANNON_WALLS[C.stuck].n : '';
+      LAB.text = C.broken >= 15 ? 'broke all 15 walls!' : 'broke ' + C.broken + ' wall' + (C.broken === 1 ? '' : 's') + (nm ? ' · stopped by ' + nm : '');
+      lastPop = 0; pop(C.broken >= 15 ? 'ALL 15!' : C.broken + ' / 15', 'green'); labFinish(LAB.text);
+    }
+  } else if (C.phase === 'end' && RAGSIM) ragSimStep(dt);
+}
+function cannonCam() {
+  if (!RAGSIM) { wantPos.set(LAB_LANE + 5.5, 1.9, MUZZLE_Z + 4.5); wantLook.set(LAB_LANE, 1.3, MUZZLE_Z - 5); return 6; }
+  const c = RAGSIM.core, k = RAGSIM.I.pel * 3, pz = c.x[k + 2], py = c.x[k + 1];
+  wantPos.set(LAB_LANE + 6.5, 1.8 + Math.max(0, py - 1.2) * 0.3, pz + 3.2); wantLook.set(LAB_LANE, Math.max(1.0, py * 0.9), pz - 5); return 9;
+}
 function labStep(dt, now) {
   stepGas(dt);
+  if (LAB.machine === 'cannon') { cannonStep(dt, now); return; }
   if (state === 'lab') { if (now - stateT > 2500) $('hook').classList.remove('show'); if (LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } }
   const lv = LAB.level, P = LAB.phase; LAB.t += dt;
   const butt = () => byName.pelvis.getWorldPosition(new V3()).add(new V3(0, -0.3, 0));
@@ -3792,7 +3934,7 @@ function labStep(dt, now) {
   }
 }
 function labPose(t) {
-  if (LAB.machine === 'bollard') { if (!RAGSIM) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
+  if (LAB.machine === 'bollard' || LAB.machine === 'cannon') { if (!RAGSIM) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
   rider.position.set(R.x, R.y, 0); rider.rotation.set(0, LAB_YAW, 0);
   let P;
   if (LAB.phase === 'air') { rootQ.setFromEuler(new THREE.Euler(LAB.spin * 0.7, LAB.spin * 0.4, LAB.spin * 0.2)); P = flailPose(t * 1.4); }
@@ -3810,6 +3952,7 @@ function labPose(t) {
 function labCam(now, dt) {
   if (LAB.replay) return labReplayCam();
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
+  if (m === 'cannon') return cannonCam();
   if (m === 'bollard') {
     if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, z + 2.4); wantLook.set(LAB_LANE, 0.9, z - 2.2); return 30; } // a tracking shot beside the cart
     // follow the body; while it is near the post keep the cart in the shot too
