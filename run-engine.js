@@ -2009,6 +2009,7 @@ const TITLES = {
   fart: ['HOW HIGH CAN|HE FLY?', 'FART POWER {lv}|HOW HIGH?', 'POWERED BY|PURE GAS', 'ROCKET FART|TEST', 'TOO MUCH|BEANS?', 'NO FUEL|JUST FARTS', 'WILL HE REACH|THE SKY?', 'ONE FART|TO THE MOON?', 'HOW MUCH GAS|DOES HE NEED?'],
   sock: ['HOW BIG A|STINKY SOCK?', 'SOCK SIZE {lv}|TOO STINKY?', 'THE STINKIEST|SOCK EVER', 'SMELLY SOCK|VS DAGGIE', 'WHO WINS?|HIM OR SOCK', 'CAN HE TAKE|THIS SMELL?', 'THE SOCK|IS GETTING BIGGER'],
   press: ['HYDRAULIC PRESS|VS DAGGIE', 'HOW MANY TONS|CAN HE TAKE?', '{t} TONS|ON ONE ROBOT', 'WILL HE SURVIVE|{t} TONS?', 'SLOWLY CRUSHED|{t} TONS', "THE PRESS|DOESN'T STOP", "DON'T BLINK|THE PRESS IS COMING", 'WHAT HAPPENS AT|{t} TONS?'],
+  stairs: ['{n} STEPS|CAN HE SURVIVE?', 'DOWN {n} STEPS|HOW MANY PARTS LEFT?', 'PUSHED OFF|THE TOP', 'ONE ROBOT.|{n} STEPS.', 'STEP BY STEP|HE FALLS APART', 'WILL HE REACH|THE BOTTOM?', 'THE LONGEST|FALL YET', 'NO RAILING.|NO MERCY.'],
   cannon: ['HOW MANY WALLS|CAN HE BREAK?', '{mph} MPH|15 WALLS', 'CANNON VS|15 WALLS', 'GLASS, BRICK, STEEL...|HOW FAR?', 'WILL HE BREAK|THE VAULT DOOR?', 'FROM PAPER-THIN|TO VAULT STEEL', 'ONE SHOT|15 WALLS', 'STUCK OR|THROUGH ALL 15?'],
   anvil: ['ANVIL FROM|{lv} METERS', 'HOW HIGH TO|BREAK HIM?', '1000 KG|FROM THE SKY', 'LOOK UP|DAGGIE!', 'CAN HE|TAKE THIS?', "THE ANVIL|DOESN'T MISS"],
   any: ['CRASH TEST|DAGGIE', 'WILL HE|SURVIVE?'],
@@ -2016,7 +2017,7 @@ const TITLES = {
 function rollTitle() {
   try {
     let pools = ['any'], v = {};
-    if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m; v.t = PRESS_TONS[clamp(lv, 1, 5) - 1]; v.mph = CANNON_MPH[clamp(lv, 1, 5) - 1];
+    if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m; v.t = PRESS_TONS[clamp(lv, 1, 5) - 1]; v.mph = CANNON_MPH[clamp(lv, 1, 5) - 1]; v.n = STAIRS_STEPS[clamp(lv, 1, STAIRS_STEPS.length) - 1];
       if (m === 'bollard' || m === 'tub') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; pools = [m === 'tub' ? 'tub' : 'bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
     else if (DLV) pools = ['delivery'];
     else if (VEH === 'cart') pools = ['cart'];
@@ -3413,7 +3414,7 @@ if (DLV) { buildDoor(); buildPenny(); buildDlvHud(); }
 // Machines: FART POWER (launch height), SOCK SIZE (giant stinky foot), ANVIL HEIGHT (drop height).
 // =====================================================================
 const LAB_SPEEDS = [15, 50, 100, 150, 200]; // mph for levels 1..5. The post holds on 1-2 and snaps on 3-5; Daggie doesn't grip the cart
-const LAB_MAX = () => (labBol() ? LAB_SPEEDS.length : LAB.machine === 'press' || LAB.machine === 'cannon' ? 5 : 100);
+const LAB_MAX = () => (labBol() ? LAB_SPEEDS.length : LAB.machine === 'stairs' ? STAIRS_STEPS.length : LAB.machine === 'press' || LAB.machine === 'cannon' ? 5 : 100);
 const LAB_INFO = {
   bollard: { title: 'CART vs BOLLARD', ask: 'How fast before he flies out?' },
   tub: { title: 'BATHTUB vs BOLLARD', ask: 'How fast before he flies out of the bath?' },
@@ -3422,12 +3423,13 @@ const LAB_INFO = {
   anvil: { title: 'ANVIL HEIGHT', ask: 'From how high does it break him?' },
   press: { title: 'HYDRAULIC PRESS', ask: 'How many tons can he take?' },
   cannon: { title: 'WALL CANNON', ask: 'How many walls can he break?' },
+  stairs: { title: 'STAIRS', ask: 'How many steps can he survive?' },
 };
 if (Array.isArray(L.machines) && !L.machines.includes('press') && !L.machines.every(m => m === 'bollard')) L.machines.push('press'); // the press joins the stand lab
-if (Array.isArray(L.machines) && L.machines.length && L.machines.every(m => m === 'bollard') && !L.machines.includes('cannon')) L.machines.push('cannon'); // the wall cannon joins the cart hall
+if (Array.isArray(L.machines) && L.machines.length && L.machines.every(m => m === 'bollard') && !L.machines.includes('cannon')) { L.machines.push('cannon'); L.machines.push('stairs'); } // the wall cannon and the stairs join the cart hall
 if (Array.isArray(L.machines) && L.machines.includes('bollard') && !L.machines.includes('tub') && VEH === 'cart') L.machines.splice(L.machines.indexOf('bollard') + 1, 0, 'tub'); // and so does the bathtub
 const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
-try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press' || LAB.machine === 'cannon') LAB.level = Math.min(LAB.level, 5); } catch (e) {}
+try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press' || LAB.machine === 'cannon') LAB.level = Math.min(LAB.level, 5); if (LAB.machine === 'stairs') LAB.level = Math.min(LAB.level, 3); } catch (e) {} // (3 = the number of stair levels; the table is defined further down)
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
 let LAB_YAW = 0, labBuilt = false, LEG = null;
 const GAS = [];
@@ -3453,7 +3455,7 @@ function brrt(power) { // the fart sound: a wobbling low buzz, longer and deeper
   for (let i = 0; i < n; i++) tone(rand(60, 115) - power * 20, rand(40, 60), 0.09, i % 2 ? 'square' : 'sawtooth', 0.06 + power * 0.05, i * 0.055);
 }
 function buildLab() {
-  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub');
+  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub' || m === 'stairs');
   for (const o of TRACK_OBJS) o.visible = false; // the lab has no track
   BIG.visible = false; board.visible = labBol();
   { const bm = new THREE.Group(), post = new THREE.Group(); post.rotation.order = 'YXZ'; post.position.y = 0.12; bm.add(post); const st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2 - 0.12; st.castShadow = true; post.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H - 0.12; post.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = post; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
@@ -3477,7 +3479,7 @@ function buildLab() {
   const warn = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('DO NOT TRY THIS', '#e0322b', '#ffffff', 768, 192)); warn.position.set(-10, 5, HZ + 0.15); scene.add(warn);
   const warn2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('LEVEL 1 - 100', '#16141c', '#3dff9a', 768, 192)); warn2.position.set(10, 5, HZ + 0.15); scene.add(warn2);
   for (let i = 0; i < 5; i++) { const lamp = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: glowColor(0xfff3dc, 2.2) })); lamp.position.set(-12 + i * 6, 13.6, -8); scene.add(lamp); }
-  LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub');
+  LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub' || m === 'stairs');
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R, STAND_R + 0.2, STAND_H, 40), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.8, roughness: 0.35 })); stand.position.y = STAND_H / 2; stand.castShadow = stand.receiveShadow = true; stand.visible = !LABNOSTAND; scene.add(stand);
   const band = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 0.01, STAND_R + 0.01, 0.16, 40, 1, true), stripeMat(8)); band.position.y = STAND_H - 0.1; band.visible = !LABNOSTAND; scene.add(band);
   const gt = gasTex();
@@ -3760,11 +3762,11 @@ function labUI() {
   if (!labBuilt) return;
   if (!labBol() && daggie.position.y !== BOARD_TOP) daggie.position.y = BOARD_TOP;
   PRESS.visible = LAB.machine === 'press'; if (PRESS.visible && PRESS.mode === 'idle') { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
-  cannonShow(LAB.machine === 'cannon');
+  cannonShow(LAB.machine === 'cannon'); stairsShow(LAB.machine === 'stairs');
   if (labBol()) { const was = LAB_VEH; labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); if (was !== LAB_VEH) { board.visible = true; labCartReset(); } }
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
   $('labKnob').style.left = ((LAB.level - 1) / (LAB_MAX() - 1) * 100) + '%'; $('labRange').max = String(LAB_MAX());
-  $('labLvl').textContent = labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : 'LEVEL ' + LAB.level;
+  $('labLvl').textContent = labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : LAB.machine === 'stairs' ? 'LEVEL ' + LAB.level + ' · ' + STAIRS_STEPS[LAB.level - 1] + ' STEPS' : 'LEVEL ' + LAB.level;
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labRec').setAttribute('aria-pressed', String(REC_MODE));
@@ -3779,7 +3781,7 @@ function labReset() {
   state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dist = 0; labDmg(false);
   if (LEG) { LEG.visible = false; }
   PRESS.mode = 'idle'; PRESS.visible = LAB.machine === 'press'; if (PRESS.visible) { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
-  cannonShow(LAB.machine === 'cannon');
+  cannonShow(LAB.machine === 'cannon'); stairsShow(LAB.machine === 'stairs');
   setFace('idle', 0); snapCam = true;
 }
 function labStart() {
@@ -3791,6 +3793,7 @@ function labStart() {
   if (labBol()) { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
   else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
+  else if (LAB.machine === 'stairs') stairsStart(lv);
   else if (LAB.machine === 'cannon') cannonStart(lv);
   else if (LAB.machine === 'press') { LAB.phase = 'fall'; PRESS.visible = true; PRESS.rotation.y = pressYaw(); PRESS.gauge.material = sign('PRESS ' + PRESS_TONS[clamp(lv, 1, 5) - 1] + ' TONS', '#16141c', '#ffc21a', 768, 192); pressPlace(HEAD_TOP + 1.6); PRESS.mode = 'desc'; PRESS.t = 0; PRESS.step = 0; setFace('scared', 5000); tone(300, 300, 0.1, 'square', 0.04); }
   else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
@@ -4455,8 +4458,8 @@ function cannonReplayEnd() {
   CAN.phase = 'end'; labFinish(LAB.text);
 }
 // the orbit camera: drag to turn, pinch (or wheel) to move closer or further, double tap to put it back. It always looks at him.
-function canOrbit(tx, ty, tz, dx0, dz0, cam) { // pure: where the camera goes for a default offset (dx0, dz0, height above the target) and the player's turn / tilt / zoom
-  const dy0 = 2.6 - ty, hd = Math.hypot(dx0, dz0), yaw = Math.atan2(dx0, dz0) + cam.yaw, el = Math.min(1.35, Math.max(0.02, Math.atan2(dy0, hd) + cam.pitch)), dist = Math.hypot(hd, dy0) * cam.zoom;
+function canOrbit(tx, ty, tz, dx0, dz0, cam, camH) { // pure: where the camera goes for a default offset (dx0, dz0, height above the target) and the player's turn / tilt / zoom
+  const dy0 = (camH === undefined ? 2.6 : camH) - ty, hd = Math.hypot(dx0, dz0), yaw = Math.atan2(dx0, dz0) + cam.yaw, el = Math.min(1.35, Math.max(0.02, Math.atan2(dy0, hd) + cam.pitch)), dist = Math.hypot(hd, dy0) * cam.zoom;
   return [tx + dist * Math.cos(el) * Math.sin(yaw), Math.max(0.5, ty + dist * Math.sin(el)), tz + dist * Math.cos(el) * Math.cos(yaw)];
 }
 
@@ -4517,7 +4520,7 @@ function cannonMuzzleCloud() { // the big puff of smoke at the muzzle, bigger wi
 let CAN_IN = false;
 function canInput() {
   if (CAN_IN) return; CAN_IN = true; const pts = new Map(); let moved = 0, downT = 0, lastTap = 0; const cam = CAN.cam;
-  const on = e => MODE === 'lab' && LAB.machine === 'cannon' && e.target === canvas;
+  const on = e => MODE === 'lab' && (LAB.machine === 'cannon' || LAB.machine === 'stairs') && e.target === canvas;
   stage.addEventListener('pointerdown', e => { if (!on(e)) return; e.stopImmediatePropagation(); try { canvas.setPointerCapture(e.pointerId); } catch (x) { /* fine */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 1) { moved = 0; downT = performance.now(); } }, true);
   stage.addEventListener('pointermove', e => { if (!pts.has(e.pointerId) || !on(e)) return; e.stopImmediatePropagation(); const p = pts.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y; moved += Math.abs(dx) + Math.abs(dy);
     if (pts.size === 1) { cam.yaw -= dx * 0.008; cam.pitch = Math.min(1.2, Math.max(-0.3, cam.pitch + dy * 0.006)); }
@@ -4560,9 +4563,96 @@ function cannonCam() {
   const ty = Math.max(1.3, CAN.fy * 0.85), tz = CAN.fz - 1.4; p = canOrbit(LAB_LANE, ty, tz, 10.5, 5.6, CAN.cam); wantPos.set(p[0], p[1], p[2]); wantLook.set(LAB_LANE, ty, tz); snapCam = true; // snap: no smoothing lag at 40-60 m/s
   return 14;
 }
+
+// ---------- the staircase: Daggie is pushed off the top landing of a long concrete stair and tumbles down it ----------
+const STAIRS_STEPS = [10, 50, 100]; // (300 and 1000 come next)
+const STR_RUN = 0.32, STR_RISE = 0.19, STR_W = 6, STR_LIMB = { haL: 'armL', wrL: 'armL', haR: 'armR', wrR: 'armR', toL: 'legL', knL: 'legL', toR: 'legR', knR: 'legR', top: 'head' };
+const STAIR = { built: {}, n: 10, H: 1.9, z0: BOLLARD_Z - 4, phase: 'idle', t: 0, steps: 0, rest: 0, cool: {}, psp: {}, lampDone: {}, lostMark: 0, count: 0, fx: 0, fy: 1, fz: -12, lamps: [], lampsOf: {} };
+function stairFloor(x, z) { if (z >= STAIR.z0) return STAIR.H; const k = Math.floor((STAIR.z0 - z) / STR_RUN); return k >= STAIR.n ? 0 : STAIR.H - (k + 1) * STR_RISE; }
+function stairsGeo(n) { // the stair block: platform, treads, risers and both sides, as one mesh
+  const W2 = STR_W / 2, H = n * STR_RISE, z0 = STAIR.z0, P = [], N = [], U = [];
+  const quad = (a, b, c, d, nx, ny, nz, us) => { for (const v of [a, b, c, a, c, d]) { P.push(v[0], v[1], v[2]); N.push(nx, ny, nz); U.push(us === 'xz' ? v[0] / 3 : us === 'zy' ? v[2] / 3 : v[0] / 3, us === 'xz' ? v[2] / 3 : v[1] / 3); } };
+  quad([-W2, H, z0 + 7], [W2, H, z0 + 7], [W2, H, z0], [-W2, H, z0], 0, 1, 0, 'xz'); // the top landing
+  quad([-W2, 0, z0 + 7], [W2, 0, z0 + 7], [W2, H, z0 + 7], [-W2, H, z0 + 7], 0, 0, 1, 'xy');
+  for (const sx of [-1, 1]) quad([sx * W2, 0, z0], [sx * W2, 0, z0 + 7], [sx * W2, H, z0 + 7], [sx * W2, H, z0], sx, 0, 0, 'zy');
+  for (let k = 0; k < n; k++) {
+    const zf = z0 - k * STR_RUN, zb = zf - STR_RUN, yk = Math.max(0.004, H - (k + 1) * STR_RISE), yp = H - k * STR_RISE;
+    quad([-W2, yk, zf], [W2, yk, zf], [W2, yk, zb], [-W2, yk, zb], 0, 1, 0, 'xz'); // tread
+    quad([-W2, yk, zf], [W2, yk, zf], [W2, yp, zf], [-W2, yp, zf], 0, 0, -1, 'xy'); // riser (faces down the stairs)
+    for (const sx of [-1, 1]) quad([sx * W2, 0, zf], [sx * W2, 0, zb], [sx * W2, yk, zb], [sx * W2, yk, zf], sx, 0, 0, 'zy');
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); return g;
+}
+function stairsBuild(n) {
+  if (STAIR.built[n]) return STAIR.built[n]; const grp = new THREE.Group(), W2 = STR_W / 2, H = n * STR_RISE, z0 = STAIR.z0, L = n * STR_RUN;
+  const map = tex(512, 320, (c, w, h) => CAN_DRAW.concrete(c, w, h)); map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  const conc = new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: 1.4, roughness: 0.85, metalness: 0.02, side: THREE.DoubleSide }), rail = new THREE.MeshStandardMaterial({ color: 0x2b2f38, metalness: 0.6, roughness: 0.45 });
+  const body = new THREE.Mesh(stairsGeo(n), conc); body.castShadow = true; body.receiveShadow = true; grp.add(body);
+  const ang = -Math.atan2(H, L), slope = Math.hypot(H, L);
+  for (const sx of [-1, 1]) { // low walls along both sides (he is kept on the stairs)
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, slope), rail); r.position.set(sx * (W2 + 0.1), H / 2 + 0.5, z0 - L / 2); r.rotation.x = ang; r.castShadow = true; grp.add(r);
+    const lp = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 7), rail); lp.position.set(sx * (W2 + 0.1), H + 0.5, z0 + 3.5); grp.add(lp);
+  }
+  const lamps = [];
+  for (let m = 1; m <= Math.floor(n / 10); m++) { // a lamp and a number every 10 steps
+    const k = m * 10, z = z0 - k * STR_RUN, y = H - k * STR_RISE, bulbM = new THREE.MeshStandardMaterial({ color: 0x2c2f36, roughness: 0.15, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 }), haloM = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+    for (const sx of [-1, 1]) { const x = sx * (W2 + 0.1), post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.5, 10), rail); post.position.set(x, y + 1.25, z); grp.add(post);
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), bulbM); bulb.position.set(x, y + 1.6, z); grp.add(bulb); const halo = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 8), haloM); halo.position.copy(bulb.position); grp.add(halo);
+      const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.38), sign(String(k), '#16141c', '#ffd23a', 256, 108)); sg.position.set(sx * (W2 + 0.003 - 0.0) * 1, y + 0.55, z - 0.0); sg.rotation.y = sx * Math.PI / 2 * -1; grp.add(sg); }
+    lamps.push({ bulbM, haloM, state: 0, flash: 0 });
+  }
+  grp.visible = false; scene.add(grp); return (STAIR.built[n] = { grp, lamps });
+}
+function stairsLamp(i, state) { const L = STAIR.lamps[i]; if (!L) return; L.state = state; L.flash = state ? 1 : 0; const col = state === 1 ? 0x2bff63 : state === 2 ? 0xff2a2a : 0x000000; L.bulbM.color.setHex(state ? col : 0x2c2f36); L.bulbM.emissive.setHex(col); L.bulbM.emissiveIntensity = state ? 4 : 0; L.haloM.color.setHex(col); L.haloM.opacity = state ? 0.55 : 0; }
+function stairsShow(on) {
+  for (const k in STAIR.built) STAIR.built[k].grp.visible = false; if (!on) { stage.classList.remove('cannonrun'); return; }
+  const n = STAIRS_STEPS[clamp(LAB.level, 1, STAIRS_STEPS.length) - 1]; STAIR.n = n; STAIR.H = n * STR_RISE; const b = stairsBuild(n); b.grp.visible = true; STAIR.lamps = b.lamps; STAIR.lamps.forEach((l, i) => stairsLamp(i, 0));
+  if (!CAN_IN) { canInput(); CAN.hint(); } if (!(RAGSIM && LAB.phase === 'stairs')) stage.classList.remove('cannonrun'); BOLLARD && (BOLLARD.visible = false);
+}
+function stairsStart(lv) {
+  stairsShow(true); lv = clamp(lv, 1, STAIRS_STEPS.length); Object.assign(STAIR, { phase: 'load', t: 0, steps: 0, rest: 0, cool: {}, psp: {}, lampDone: {}, lostMark: 0, count: 0, maxSteps: 0, bottom: false });
+  LAB.phase = 'stairs'; board.visible = false; stage.classList.add('cannonrun'); labDmg(false); CAN.sub = 'PARTS 5 / 5';
+}
+function stairsPush() {
+  STAIR.phase = 'fall'; STAIR.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false;
+  ragStart(new V3(rand(-0.7, 0.7), 1.5, -rand(3, 5)), 0);
+  const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.floor = stairFloor; c.friction = 0.995; c.damp = 0.9995; c.drag = 0; c.airXZ = false; c.g = -9.8; S.hook = stairsHold; S.t = 0;
+  cannonSpin(c, I, 0, -rand(3, 5.5)); // pushed head first: a forward somersault
+  lastPop = 0; pop('PUSH!', 'lilac'); setFace('scared', 6000);
+}
+function stairsHold(core) { for (let i = 0; i < core.n; i++) { const k = i * 3, lim = STR_W / 2 - 0.1; if (core.x[k] > LAB_LANE + lim) { core.x[k] = LAB_LANE + lim; core.o[k] = core.x[k]; } else if (core.x[k] < LAB_LANE - lim) { core.x[k] = LAB_LANE - lim; core.o[k] = core.x[k]; } } }
+function stairsTear(c, I, dt) { // a hard knock on a hand, a foot or the head can tear that part off: the harder the knock, the likelier
+  const torn = [];
+  for (const nm in STR_LIMB) { const g = STR_LIMB[nm]; STAIR.cool[g] = (STAIR.cool[g] || 0) - dt; const k = I[nm] * 3, sp = Math.hypot(c.x[k] - c.o[k], c.x[k + 1] - c.o[k + 1], c.x[k + 2] - c.o[k + 2]) * 240, drop = (STAIR.psp[nm] ?? sp) - sp; STAIR.psp[nm] = sp;
+    if (drop > 4.5 && STAIR.cool[g] <= 0 && !c.broken.includes(g)) { STAIR.cool[g] = 0.3; if (Math.random() < Math.min(0.7, (drop - 4.5) / 16)) { c.breakGroup(g); torn.push(g); } } }
+  return torn;
+}
+function stairsStep(dt, now) {
+  STAIR.t += dt; for (const L of STAIR.lamps) if (L.flash > 0) { L.flash = Math.max(0, L.flash - dt * 1.6); L.bulbM.emissiveIntensity = 2.6 + 3.2 * L.flash; L.haloM.opacity = 0.35 + 0.35 * L.flash; }
+  if (STAIR.phase === 'load') { const n = Math.floor(STAIR.t / 0.45); if (n !== STAIR.count && n < 4) { STAIR.count = n; if (n >= 1 && n <= 3) { lastPop = 0; pop(String(4 - n), 'lilac'); tone(700, 700, 0.1, 'square', 0.05); } } if (STAIR.t >= 1.8) stairsPush(); return; }
+  if (!RAGSIM) return;
+  const S = RAGSIM, c = S.core, I = S.I; ragSimStep(dt); if (STAIR.phase === 'end') return;
+  const k = I.pel * 3, z = c.x[k + 2], sp = Math.hypot(c.x[k] - c.o[k], c.x[k + 1] - c.o[k + 1], c.x[k + 2] - c.o[k + 2]) * 240; STAIR.fx = c.x[k]; STAIR.fy = c.x[k + 1]; STAIR.fz = z;
+  const steps = clamp(Math.floor((STAIR.z0 - z) / STR_RUN), 0, STAIR.n); STAIR.steps = Math.max(STAIR.steps, steps); stairsTear(c, I, dt);
+  const left = 5 - c.broken.length; CAN.sub = 'PARTS ' + left + ' / 5'; labDmg(true, STAIR.steps, 'STEPS', ' / ' + STAIR.n, 0, CAN.sub);
+  for (let m = 1; m <= STAIR.lamps.length; m++) if (STAIR.steps >= m * 10 && !STAIR.lampDone[m]) { STAIR.lampDone[m] = true; stairsLamp(m - 1, c.broken.length > STAIR.lostMark ? 2 : 1); STAIR.lostMark = c.broken.length; tone(520 + m * 40, 520 + m * 40, 0.12, 'sine', 0.05); }
+  if (z < STAIR.z0 - STAIR.n * STR_RUN - 1) STAIR.bottom = true;
+  STAIR.rest = sp < 0.6 && STAIR.t > 1.5 ? STAIR.rest + dt : 0;
+  if (STAIR.rest > 1.3 || STAIR.t > 90) {
+    STAIR.phase = 'end'; const parts = 5 - c.broken.length;
+    LAB.text = STAIR.steps >= STAIR.n - 1 ? (parts === 5 ? 'survived' : 'rolled down all ' + STAIR.n + ' steps, ' + (parts ? parts + ' of 5 parts left' : 'no parts left')) : 'stopped on step ' + STAIR.steps + ' of ' + STAIR.n + ', ' + parts + ' of 5 parts left';
+    lastPop = 0; pop(STAIR.steps >= STAIR.n - 1 ? 'BOTTOM!' : 'STEP ' + STAIR.steps, 'green'); labFinish(LAB.text);
+  }
+}
+function stairsCam() {
+  let p, ty, tz; const n = STAIR.n, H = STAIR.H, L = n * STR_RUN;
+  if (!RAGSIM) { ty = H * 0.5 + 0.8; tz = STAIR.z0 - L * 0.5 + 1.5; const d = Math.max(10, L * 2.3 + 6); p = canOrbit(LAB_LANE, ty, tz, d, d * 0.25, CAN.cam, ty + 1); wantPos.set(p[0], p[1], p[2]); wantLook.set(LAB_LANE, ty, tz); snapCam = true; return 6; }
+  ty = STAIR.fy + 0.4; tz = STAIR.fz - 1.0; p = canOrbit(LAB_LANE, ty, tz, 11, 3.5, CAN.cam, ty + 2); wantPos.set(p[0], p[1], p[2]); wantLook.set(LAB_LANE, ty, tz); snapCam = true; return 14;
+}
 function labStep(dt, now) {
   stepGas(dt);
-  if (LAB.machine === 'cannon') { if (state === 'lab' && LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } cannonStep(dt, now); return; } // (the result menu was never reached from here before)
+  if (LAB.machine === 'cannon') { if (state === 'lab' && LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } cannonStep(dt, now); return; }
+  if (LAB.machine === 'stairs') { if (state === 'lab' && LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } stairsStep(dt, now); return; } // (the result menu was never reached from here before)
   if (state === 'lab') { if (now - stateT > 2500) $('hook').classList.remove('show'); if (LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } }
   const lv = LAB.level, P = LAB.phase; LAB.t += dt;
   const butt = () => byName.pelvis.getWorldPosition(new V3()).add(new V3(0, -0.3, 0));
@@ -4627,8 +4717,10 @@ function labStep(dt, now) {
   }
 }
 function labPose(t) {
+  if (LAB.machine === 'stairs' && RAGSIM) return; // the physics body has taken over
   if (labBol() || LAB.machine === 'cannon') { if (!RAGSIM) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
   rider.position.set(R.x, R.y, 0); rider.rotation.set(0, LAB_YAW, 0);
+  if (LAB.machine === 'stairs') { rider.position.set(LAB_LANE, STAIR.H - BOARD_TOP, STAIR.z0 + 0.7); rider.rotation.set(0, Math.PI, 0); } // on the top landing, facing down the stairs
   let P;
   if (LAB.phase === 'air') { rootQ.setFromEuler(new THREE.Euler(LAB.spin * 0.7, LAB.spin * 0.4, LAB.spin * 0.2)); P = flailPose(t * 1.4); }
   else {
@@ -4646,6 +4738,7 @@ function labCam(now, dt) {
   if (LAB.replay) return labReplayCam();
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
   if (m === 'cannon') return cannonCam();
+  if (m === 'stairs') return stairsCam();
   if (labBol()) {
     if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, z + 2.4); wantLook.set(LAB_LANE, 0.9, z - 2.2); return 30; } // a tracking shot beside the cart
     // follow the body; while it is near the post keep the cart in the shot too
