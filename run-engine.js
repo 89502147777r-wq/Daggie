@@ -4495,22 +4495,24 @@ class CanTrail { // camera-facing quads with their own colour and fade; one draw
 const CAN_TRAIL = [
   { gap: 0.9, smoke: [0.88, 0.9, 0.94, 0.5, 0.35, 1.3, 1.3, 1.2] },
   { gap: 0.75, smoke: [0.62, 0.64, 0.7, 0.6, 0.45, 1.7, 1.5, 1.1] },
-  { gap: 0.6, smoke: [0.36, 0.35, 0.37, 0.65, 0.55, 2.2, 1.8, 1.0], fire: [2.2, 0.6, 0.1, 0.55, 0.25, 0.7, 0.45, 2.0], fgap: 0.45 },
-  { gap: 0.55, smoke: [0.22, 0.22, 0.25, 0.7, 0.7, 2.8, 2.2, 0.9], fire: [2.6, 0.7, 0.12, 0.5, 0.6, 1.4, 0.5, 2.5], fgap: 0.3, core: [0.6, 1.2, 2.4, 0.5, 0.3, 0.8, 0.35, 3] },
-  { gap: 0.5, smoke: [0.13, 0.12, 0.13, 0.75, 1.0, 3.6, 2.6, 0.8], fire: [2.8, 0.8, 0.15, 0.45, 0.8, 2.2, 0.55, 3], fgap: 0.2, core: [2.8, 1.6, 0.5, 0.5, 0.35, 0.9, 0.3, 4] },
+  // from level 3 on the trail stays thin and pale, like the wake of something very fast, with a few small embers close behind him (no rocket flame)
+  { gap: 0.8, smoke: [0.6, 0.6, 0.62, 0.26, 0.3, 1.0, 1.0, 1.6], fire: [2.4, 1.0, 0.25, 0.5, 0.14, 0.3, 0.2, 3], fgap: 0.8 },
+  { gap: 0.7, smoke: [0.62, 0.62, 0.65, 0.28, 0.32, 1.2, 1.1, 1.6], fire: [2.4, 1.0, 0.25, 0.55, 0.15, 0.33, 0.22, 3], fgap: 0.55 },
+  { gap: 0.6, smoke: [0.66, 0.66, 0.7, 0.3, 0.35, 1.4, 1.2, 1.6], fire: [2.6, 1.1, 0.3, 0.6, 0.16, 0.38, 0.24, 3], fgap: 0.4 },
 ];
+const CAN_MUZZLE_FIRE = [2.6, 1.1, 0.25]; // the flash at the muzzle keeps its own, stronger colour
 function cannonTrail(x, y, z) { // called every frame with the point behind him; puffs are laid by distance, so a fast shot leaves a continuous trail
   const T = CAN_TRAIL[clamp(CAN.lv, 1, 5) - 1], L = CAN.tl; if (!L) { CAN.tl = [x, y, z, x, y, z]; return; }
   const lay = (idx, gap, fn) => { const d = Math.hypot(x - L[idx], y - L[idx + 1], z - L[idx + 2]); if (d > 6) { L[idx] = x; L[idx + 1] = y; L[idx + 2] = z; return; } const n = Math.floor(d / gap); if (!n) return;
     for (let k = 1; k <= n; k++) { const u = k * gap / d; fn(L[idx] + (x - L[idx]) * u, L[idx + 1] + (y - L[idx + 1]) * u, L[idx + 2] + (z - L[idx + 2]) * u); } const u = n * gap / d; L[idx] += (x - L[idx]) * u; L[idx + 1] += (y - L[idx + 1]) * u; L[idx + 2] += (z - L[idx + 2]) * u; };
   const em = (sys, a, ex, ey, ez, rise) => sys.emit(ex + rand(-0.12, 0.12), ey + rand(-0.12, 0.12), ez, rand(-0.5, 0.5), rise * rand(0.2, 1.1), rand(-0.3, 0.6), a[4], a[5] * rand(0.8, 1.2), a[6] * rand(0.8, 1.2), a[0], a[1], a[2], a[3], a[7]);
   lay(0, T.gap, (ex, ey, ez) => em(CAN.smoke, T.smoke, ex, ey, ez, 1.1));
-  if (T.fire) lay(3, T.fgap, (ex, ey, ez) => { em(CAN.fire, T.fire, ex, ey, ez, 0.2); if (T.core) em(CAN.fire, T.core, ex, ey, ez, 0); });
+  if (T.fire) lay(3, T.fgap, (ex, ey, ez) => em(CAN.fire, T.fire, ex, ey, ez, 0.2));
 }
 function cannonMuzzleCloud() { // the big puff of smoke at the muzzle, bigger with the cannon
   const T = CAN_TRAIL[clamp(CAN.lv, 1, 5) - 1], lv = CAN.lv, sp = CAN_SPEC[lv - 1], mz = [LAB_LANE, sp.wr + 0.35, MUZZLE_Z - 0.5], n = 10 + lv * 6, a = T.smoke;
   for (let k = 0; k < n; k++) CAN.smoke.emit(mz[0] + rand(-0.4, 0.4), mz[1] + rand(-0.3, 0.3), mz[2] - rand(0, 1.2), rand(-3, 3) * (0.6 + lv * 0.15), rand(0.2, 2.4), -rand(1, 7 + lv * 1.8), a[4] * 2.5, a[5] * 2.2 * rand(0.7, 1.3), 2.6, Math.min(1, a[0] * 1.3), Math.min(1, a[1] * 1.3), Math.min(1, a[2] * 1.3), Math.min(1, a[3] + 0.15), 1.1);
-  if (T.fire) for (let k = 0; k < 4 + lv * 2; k++) CAN.fire.emit(mz[0] + rand(-0.2, 0.2), mz[1] + rand(-0.2, 0.2), mz[2] - rand(0, 1.5), rand(-2, 2), rand(-1, 2), -rand(4, 14), 0.5 + lv * 0.25, 1.4 + lv * 0.5, 0.35 + lv * 0.06, T.fire[0], T.fire[1], T.fire[2], 1, 3);
+  if (T.fire) for (let k = 0; k < 4 + lv * 2; k++) CAN.fire.emit(mz[0] + rand(-0.2, 0.2), mz[1] + rand(-0.2, 0.2), mz[2] - rand(0, 1.5), rand(-2, 2), rand(-1, 2), -rand(4, 14), 0.5 + lv * 0.25, 1.4 + lv * 0.5, 0.35 + lv * 0.06, CAN_MUZZLE_FIRE[0], CAN_MUZZLE_FIRE[1], CAN_MUZZLE_FIRE[2], 1, 3);
 }
 let CAN_IN = false;
 function canInput() {
