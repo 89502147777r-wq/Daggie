@@ -15,6 +15,7 @@ window.__daggieStarted = true;
 // the level being played (set by run.html from a level file listed in levels.js)
 const L = window.LEVEL;
 const TH = L.theme || 'sky', VEH = L.vehicle || 'skate', MODE = L.mode || 'run'; // world look and what Daggie rides
+var CREC = { on: false, t: 0, frames: [], ev: [], play: null }; // instant replay of the wall cannon: Daggie per frame, plus a time-stamped log of everything else
 const CART_S = 1.35; // the player's cart is scaled up so a life-size robot can sit in it
 const V3 = THREE.Vector3, TAU = Math.PI * 2, Y = new V3(0, 1, 0);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -1366,7 +1367,7 @@ function sparkQuads() {
 let spNext = 0;
 const SPARK = [[4, 2.6, 0.6], [4, 1.8, 0.4], [3, 3, 2.2]], CONF = [[4, 2.8, 0.2], [2.8, 1, 4], [0.8, 3, 4], [0.8, 4, 1.8]];
 function burst(p, n, pal, sp) {
-  recEvt('b', [p.x, p.y, p.z, n, pal === CONF ? 1 : 0, sp || 0]);
+  recEvt('b', [p.x, p.y, p.z, n, pal === CONF ? 1 : 0, sp || 0]); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'b', a: [p.x, p.y, p.z, n, pal, sp] });
   for (let k = 0; k < n; k++) {
     const i = spNext; spNext = (spNext + 1) % SPN;
     spPos[i * 3] = p.x; spPos[i * 3 + 1] = p.y; spPos[i * 3 + 2] = p.z;
@@ -1550,7 +1551,7 @@ function crashSound(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
   if (p > 0.6) { noise(t + 0.05, 0.5, 0.18, 'highpass', 6000, 2500, 0.7); } // glass-like air shatter
 }
 function ripSound() { // a limb tearing off: metal screech, snap, sizzle
-  recEvt('r', []); if (!AC) return; OUT(); const t = AC.currentTime;
+  recEvt('r', []); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'rs', a: [] }); if (!AC) return; OUT(); const t = AC.currentTime;
   noiseDist(t, 0.22, 0.3, 3200, 500, 3); noise(t, 0.04, 0.3, 'highpass', 4500, 2000, 0.7); sweep(t, 900, 260, 0.2, 0.06, 'sawtooth'); noise(t + 0.05, 0.3, 0.1, 'highpass', 7000, 3500, 0.6);
 }
 function scrapeSound(v) { if (!AC) return; OUT(); const t = AC.currentTime; noise(t, 0.12, Math.min(0.12, 0.02 + v * 0.004), 'bandpass', 2600 + v * 30, 1400, 2.5); }
@@ -1972,11 +1973,11 @@ const DROP_H = 10, INTRO_V = 14; // drop height, speed of the drone + the rollin
 // ---------- state & helpers ----------
 const tv = new V3(), tv2 = new V3(), tq = new THREE.Quaternion();
 let faceUntil = 0;
-function setFace(m, hold) { faceMode = m; faceUntil = performance.now() + (hold || 0); }
+function setFace(m, hold) { faceMode = m; faceUntil = performance.now() + (hold || 0); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'face', a: [m, hold || 0] }); }
 let lastPop = 0;
 function pop(text, cls) {
   const now = performance.now(); if (now - lastPop < 160) return; lastPop = now;
-  recEvt('p', [text, cls || '']);
+  recEvt('p', [text, cls || '']); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'pop', a: [text, cls || ''] });
   const el = document.createElement('div'); el.className = 'pop' + (cls ? ' ' + cls : ''); el.textContent = text;
   const n = $('pops').children.length; el.style.top = (34 + n * 9) + '%'; ovlAdd(text, cls || '', n);
   $('pops').appendChild(el); setTimeout(() => el.remove(), 1100);
@@ -2993,10 +2994,10 @@ function ragSparks(S, dt) {
     else if (c.x[k + 1] < 0.2 && hv > 6 && S.spk.t[nm] <= 0) { burst(p, 2 + Math.round(hv * 0.18), SPARK, 2 + hv * 0.12); S.spk.t[nm] = 0.035; if (S.spk.snd <= 0 && hv > 9) { scrapeSound(hv); S.spk.snd = 0.12; } } // dragging along the floor
   }
 }
-function labDmg(show, val, label, unit, dec) {
+function labDmg(show, val, label, unit, dec, sub) {
   let el = document.getElementById('labDmg');
-  if (!el) { if (!show) return; const st = document.createElement('style'); st.textContent = '#labDmg{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 112px);transform:translateX(-50%);z-index:8;pointer-events:none;white-space:nowrap;font:800 min(40px,10vw) "Chakra Petch",ui-sans-serif,system-ui,sans-serif;color:#ffd23a;-webkit-text-stroke:2px #1a1020;paint-order:stroke fill;text-shadow:0 4px 0 #1a1020,0 0 22px rgba(255,170,30,.8);font-variant-numeric:tabular-nums}'; document.head.appendChild(st); el = document.createElement('div'); el.id = 'labDmg'; stage.appendChild(el); }
-  el.style.display = show ? 'block' : 'none'; if (show) { const d = dec || 0, tx = (label || 'DAMAGE') + ' ' + val.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) + (unit || ''); if (el.textContent !== tx) el.textContent = tx; }
+  if (!el) { if (!show) return; const st = document.createElement('style'); st.textContent = '#labDmg{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 112px);transform:translateX(-50%);z-index:8;pointer-events:none;white-space:nowrap;font:800 min(40px,10vw) "Chakra Petch",ui-sans-serif,system-ui,sans-serif;color:#ffd23a;-webkit-text-stroke:2px #1a1020;paint-order:stroke fill;text-shadow:0 4px 0 #1a1020,0 0 22px rgba(255,170,30,.8);font-variant-numeric:tabular-nums;text-align:center;line-height:1.05}#labDmg .s{font-size:.42em;letter-spacing:2px;color:#fff;-webkit-text-stroke:1px #1a1020;text-shadow:0 2px 0 #1a1020;margin-top:2px}.cannonrun #labDmg{top:calc(env(safe-area-inset-top,0px) + 14px);font-size:min(34px,9vw)}.cannonrun .labgauge{opacity:0!important;pointer-events:none!important;transition:opacity .15s}.cannonrun #hook{opacity:0!important;transition:none!important}'; document.head.appendChild(st); el = document.createElement('div'); el.id = 'labDmg'; stage.appendChild(el); }
+  el.style.display = show ? 'block' : 'none'; if (show) { const d = dec || 0, tx = (label || 'DAMAGE') + ' ' + val.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) + (unit || ''); const key = tx + '|' + (sub || ''); if (el.dataset.k !== key) { el.dataset.k = key; el.textContent = ''; const l1 = document.createElement('div'); l1.textContent = tx; el.appendChild(l1); if (sub) { const l2 = document.createElement('div'); l2.className = 's'; l2.textContent = sub; el.appendChild(l2); } } }
 }
 function labDist() { const S = RAGSIM; if (!S) return 0; const k = S.I.pel * 3; S.maxFlight = Math.max(S.maxFlight || 0, BOLLARD_Z - S.core.x[k + 2]); return S.maxFlight * 3.28084; } // how far he flew from the post, in feet
 function ragSimStep(dt) {
@@ -3672,11 +3673,9 @@ function labRec(dt) {
   { const base = 8 + parts.length * 7; f[base] = CDEB.on ? 1 : 0; CDEB.list.forEach((d, i) => { d.m.getWorldPosition(v); d.m.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], base + 1 + i * 7); }); }
   LREC.frames.push(f); if (LREC.frames.length > 700) LREC.frames.shift();
 }
-function labBars(on) {
-  let b = document.getElementById('labBars');
-  if (!b) { b = document.createElement('div'); b.id = 'labBars'; b.innerHTML = '<i></i><i></i><span>● REPLAY</span>'; stage.appendChild(b);
-    const css = document.createElement('style'); css.textContent = `#labBars{position:absolute;inset:0;z-index:9;pointer-events:none}#labBars i{position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s ease}#labBars i:first-child{top:0}#labBars i:nth-child(2){bottom:0}#labBars.on i{height:12%}#labBars span{position:absolute;left:16px;top:calc(12% + 10px);font:700 18px "Chakra Petch",sans-serif;color:#ff3b4e;opacity:0;transition:opacity .3s}#labBars.on span{opacity:1;animation:blink 1s steps(2) infinite}.labmode.replaying .labgauge{opacity:0}`; document.head.appendChild(css); }
-  b.classList.toggle('on', on); stage.classList.toggle('replaying', on);
+function labBars(on) { // the replay used to draw black bars over 24% of the screen and a blinking REPLAY label: gone, so a replay cut into a video looks like the rest of it
+  if (!document.getElementById('labBarsCss')) { const css = document.createElement('style'); css.id = 'labBarsCss'; css.textContent = '.labmode.replaying .labgauge{opacity:0}#labBars{display:none!important}'; document.head.appendChild(css); }
+  stage.classList.toggle('replaying', on);
 }
 function labReplayStart() {
   const imp = LREC.impT ?? LREC.t;
@@ -3795,7 +3794,7 @@ function labStart() {
   else if (LAB.machine === 'cannon') cannonStart(lv);
   else if (LAB.machine === 'press') { LAB.phase = 'fall'; PRESS.visible = true; PRESS.rotation.y = pressYaw(); PRESS.gauge.material = sign('PRESS ' + PRESS_TONS[clamp(lv, 1, 5) - 1] + ' TONS', '#16141c', '#ffc21a', 768, 192); pressPlace(HEAD_TOP + 1.6); PRESS.mode = 'desc'; PRESS.t = 0; PRESS.step = 0; setFace('scared', 5000); tone(300, 300, 0.1, 'square', 0.04); }
   else { LAB.phase = 'fall'; LAB.h = Math.max(1, lv); LAB.v = 0; ANVIL.visible = true; ANVIL.rotation.set(0, LAB_YAW, 0); ANVIL.position.set(0, HEAD_TOP + LAB.h, 0); ANVIL_RING.visible = true; ANVIL_RING.position.set(0, STAND_H + 0.02, 0); setFace('scared', 5000); tone(1200, 1200, 0.1, 'square', 0.05); tone(1200, 1200, 0.1, 'square', 0.05, 0.2); }
-  lastPop = 0; pop('LEVEL ' + lv, 'lilac'); snapCam = true;
+  if (LAB.machine !== 'cannon') { lastPop = 0; pop('LEVEL ' + lv, 'lilac'); } snapCam = true; // (the cannon shows the level under the counter instead)
 }
 function labLose(n, dir) { // knock off n limbs, head last
   const order = ['foreL', 'foreR', 'upperL', 'upperR', 'shinL', 'shinR', 'head'].sort(() => Math.random() - 0.5);
@@ -3829,7 +3828,7 @@ const CANNON_WALLS = [ // c: how much of his energy (mph squared) the wall takes
 const CAN_PAL = { window: [[1.5, 3, 4], [3.2, 2, 0.8], [2.5, 3.5, 4.5]], glass: [[1.5, 3, 4], [2.5, 3.5, 4.5], [1, 2, 3]], jelly: [[0.6, 4, 1.4], [0.4, 3, 1]], cake: [[4, 1.4, 3], [1.4, 3.6, 4], [4, 4, 1.4]], ice: [[2.4, 3.4, 4], [3.2, 4, 4.5]], wood: [[3.2, 2, 0.8], [2.4, 1.4, 0.5]], brick: [[3.6, 1.2, 0.6], [3, 2, 1.6]], stone: [[2.6, 2.6, 2.7], [3.2, 3.2, 3.2]], metal: null };
 const CAN_LEAD = ['top', 'chest', 'pel', 'haL', 'haR', 'toL', 'toR', 'knL', 'knR'];
 const MUZZLE_Z = BOLLARD_Z + 1, WALL_Z0 = BOLLARD_Z - 8, WALL_DZ = 7, CAN_NX = 16, CAN_NY = 10, CAN_W = 6, CAN_H = 3.8;
-const CAN = { built: false, group: null, walls: [], wallMats: [], lamps: [], mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
+const CAN = { built: false, group: null, walls: [], wallMats: [], lamps: [], byId: {}, cam: { yaw: 0, pitch: 0, zoom: 1 }, fx: LAB_LANE, fy: 1.8, fz: -8, mats: [], cracks: [], posters: [], paper: [], sets: [], glass: null, models: [], geo: null, touch: [], phase: 'idle', t: 0, next: 0, stuck: -1, broken: 0, mph: 0, vmph: 0, recoil: 0, rest: 0, count: 0, barrel: null, lv: 1 };
 const cannonWallZ = i => WALL_Z0 - i * WALL_DZ;
 const cannonVis = mph => 16 + 44 * Math.sqrt(Math.max(0, mph) / 1000); // how fast he moves on screen (m/s); the mph shown is the model's
 const CAN_SPEC = [
@@ -4183,40 +4182,51 @@ function cannonBuild() {
   }
   const G = canShardGeo(), gm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false });
   const tri = new THREE.BufferGeometry(); tri.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0.1, 0, 0.35, 1, 0], 3)); tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0.1, 0.35, 1], 2)); tri.computeVertexNormals();
-  CAN.glass = new CanDebris(tri, gm, 900); CAN.glass.mesh.setColorAt(0, new THREE.Color(0xffffff));
-  CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' || K === 'window' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; if (W.kind === 'window') main.mesh.material = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.55, side: THREE.DoubleSide }); CAN.sets.push({ main, aux }); });
+  CAN.smoke = new CanTrail(600, false); CAN.fire = new CanTrail(700, true);
+  CAN.glass = new CanDebris(tri, gm, 900); CAN.glass.id = 'g'; CAN.byId.g = CAN.glass; CAN.glass.mesh.setColorAt(0, new THREE.Color(0xffffff));
+  CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' || K === 'window' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; if (W.kind === 'window') main.mesh.material = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.55, side: THREE.DoubleSide }); main.id = 'm' + k; CAN.byId['m' + k] = main; if (aux) { aux.id = 'a' + k; CAN.byId['a' + k] = aux; } CAN.sets.push({ main, aux }); });
   for (let p = 0; p < 24; p++) { const mesh = new THREE.Mesh(G.paper[0], new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); mesh.visible = false; scene.add(mesh); CAN.paper.push({ m: mesh, v: new V3(), w: new V3(), life: 0 }); }
 }
+function canWallSnap(i) { const m = CAN.wallMats[i], U = m.userData.U, w = CAN.walls[i], tb = w.userData.tube, pm = w.userData.panel;
+  return { i, hole: U.uHole.value.toArray(), ph: U.uPh.value.toArray(), jag: U.uJag.value.toArray(), crk: U.uCrk.value.map(v => v.toArray()), panel: pm.visible, shadow: pm.castShadow, tube: tb.visible, tpos: tb.visible ? tb.geometry.attributes.position.array.slice() : null, tuv: tb.visible ? tb.geometry.attributes.uv.array.slice() : null, win: !!CAN.winBroken && m.map === CAN.winBroken }; }
+function canWallApply(sn) { const i = sn.i, m = CAN.wallMats[i], U = m.userData.U, w = CAN.walls[i], tb = w.userData.tube, pm = w.userData.panel;
+  U.uHole.value.fromArray(sn.hole); U.uPh.value.fromArray(sn.ph); U.uJag.value.fromArray(sn.jag); sn.crk.forEach((a, k) => U.uCrk.value[k].fromArray(a)); pm.visible = sn.panel; pm.castShadow = sn.shadow;
+  tb.visible = sn.tube; if (sn.tube) { tb.geometry.attributes.position.array.set(sn.tpos); tb.geometry.attributes.uv.array.set(sn.tuv); tb.geometry.attributes.position.needsUpdate = true; tb.geometry.attributes.uv.needsUpdate = true; tb.geometry.computeVertexNormals(); tb.geometry.computeBoundingSphere(); }
+  const want = sn.win ? CAN.winBroken : CAN.mats[i].map; if (m.map !== want) { m.map = want; m.needsUpdate = true; } }
 function canLamp(i, state) { // 0 off, 1 green (broken through), 2 red (hit, did not break)
-  const L = CAN.lamps[i]; if (!L) return; L.state = state; L.flash = state ? 1 : 0;
+  const L = CAN.lamps[i]; if (!L) return; L.state = state; L.flash = state ? 1 : 0; if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'lamp', a: [i, state] });
   const col = state === 1 ? 0x2bff63 : state === 2 ? 0xff2a2a : 0x000000;
   L.bulbM.color.setHex(state ? col : 0x2c2f36); L.bulbM.emissive.setHex(col); L.bulbM.emissiveIntensity = state ? 4 : 0; L.haloM.color.setHex(col); L.haloM.opacity = state ? 0.55 : 0;
 }
 function cannonShow(on) {
-  if (BOLLARD) BOLLARD.visible = !on;
+  if (BOLLARD) BOLLARD.visible = !on; if (!on) stage.classList.remove('cannonrun');
   if (!on) { daggie.visible = true; rider.visible = true; }
   if (on) cannonBuild(); if (!CAN.built) return;
   CAN.group.visible = on; CAN.walls.forEach(w => { w.visible = on; }); if (!on) return;
+  if (!CAN_IN) { canInput(); CAN.hint(); } if (CAN.phase !== 'replay' && !CREC.play && LAB.phase !== 'cannon') stage.classList.remove('cannonrun');
   CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0;
   const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L;
   const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
   CAN.lamps.forEach((l, i) => canLamp(i, 0));
   CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; for (const c of CAN.wallMats[i].userData.U.uCrk.value) c.set(0, 0, 0, 0); if (CANNON_WALLS[i].draw === 'window') { CAN.wallMats[i].map = CAN.mats[i].map; CAN.wallMats[i].needsUpdate = true; } w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
+  CAN.smoke.clear(); CAN.fire.clear(); CAN.tl = null;
   CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.touch = new Array(15).fill(false);
   board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
 }
 function cannonStart(lv) {
   cannonBuild(); cannonShow(true); lv = clamp(lv, 1, 5);
+  CREC.on = false; CREC.play = null; labBars(false);
   Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0, sd: 0, lastZ: undefined, landing: false }); CAN.vmph = CAN.mph;
   LAB.phase = 'cannon'; board.visible = false; daggie.visible = false; rider.visible = false; // he is inside the barrel until the shot
-  labSpeedo(0); labDmg(true, 0, 'WALLS', ' / 15', 0);
+  CAN.sub = 'LEVEL ' + lv + ' · ' + CAN.mph + ' MPH'; stage.classList.add('cannonrun'); labSpeedo(0); labDmg(false);
 }
 function cannonFire() {
   CAN.phase = 'fly'; CAN.t = 0; CART.box.on = false; CART.cyls.length = 0; LABCART.hit = false; daggie.visible = true; rider.visible = true;
   const vis = cannonVis(CAN.mph); ragStart(new V3(0, 2.2, -vis), 0);
   const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0; c.damp = 1; c.airXZ = false; c.g = -2.2; S.hook = cannonHold; S.t = 0; // no drag and no per-step damping: at 60 m/s they took off about half of his speed in a second, so he stopped around wall 6-7
   canDive(S); for (let i = 0; i < c.n; i++) c.vel(i, 0, 2.2, -vis, 1 / 240); // head first, no spin yet: the first wall starts it
-  const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); crashSound(1); CAN.recoil = 1;
+  CREC.on = true; CREC.t = 0; CREC.frames = []; CREC.ev = []; CREC.play = null; CAN.tl = null; cannonMuzzleCloud();
+  const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); crashSound(1); CREC.ev.push({ t: 0, k: 'cs', a: [1] }); CAN.recoil = 1;
   if (!reduceMotion) { shake = 0.8; const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
   lastPop = 0; pop('BOOM!', 'lilac'); setFace('wow', 4000); slowUntil = performance.now() + 9000; slowK = 0.4;
 }
@@ -4228,9 +4238,14 @@ class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pi
   constructor(geo, mat, N) { this.N = N; this.mesh = new THREE.InstancedMesh(geo, mat, N); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh);
     this.p = new Float32Array(N * 3); this.v = new Float32Array(N * 3); this.w = new Float32Array(N * 3); this.s = new Float32Array(N * 3); this.q = Array.from({ length: N }, () => new THREE.Quaternion()); this.life = new Float32Array(N); this.rest = new Uint8Array(N); this.next = 0; this.d = new THREE.Object3D(); this.col = new THREE.Color(); this.hasCol = false; this.clear(); }
   clear() { const z = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < this.N; i++) { this.mesh.setMatrixAt(i, z); this.life[i] = 0; } this.mesh.instanceMatrix.needsUpdate = true; this.mesh.visible = false; }
-  spawn(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still) {
+  spawn(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still, euler) {
+    const q = new THREE.Quaternion().setFromEuler(euler ? new THREE.Euler(euler[0], euler[1], euler[2]) : new THREE.Euler(rand(0, 6.3), rand(0, 6.3), rand(0, 6.3))), w0 = rand(-14, 14), w1 = rand(-14, 14), w2 = rand(-14, 14);
+    this.raw(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still, q.x, q.y, q.z, q.w, w0, w1, w2);
+    if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'sp', a: [this.id, px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still ? 1 : 0, q.x, q.y, q.z, q.w, w0, w1, w2] });
+  }
+  raw(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still, qx, qy, qz, qw, w0, w1, w2) {
     const i = this.next, k = i * 3; this.next = (i + 1) % this.N; this.p[k] = px; this.p[k + 1] = py; this.p[k + 2] = pz; this.v[k] = vx; this.v[k + 1] = vy; this.v[k + 2] = vz; this.s[k] = sx; this.s[k + 1] = sy; this.s[k + 2] = sz;
-    this.w[k] = rand(-14, 14); this.w[k + 1] = rand(-14, 14); this.w[k + 2] = rand(-14, 14); this.q[i].setFromEuler(new THREE.Euler(rand(0, 6.3), rand(0, 6.3), rand(0, 6.3))); this.life[i] = life; this.rest[i] = still ? 1 : 0;
+    this.w[k] = w0; this.w[k + 1] = w1; this.w[k + 2] = w2; this.q[i].set(qx, qy, qz, qw); this.life[i] = life; this.rest[i] = still ? 1 : 0;
     if (color !== undefined) { this.mesh.setColorAt(i, this.col.setHex(color)); this.mesh.instanceColor.needsUpdate = true; this.hasCol = true; }
     this.mesh.visible = true; this.put(i);
   }
@@ -4282,7 +4297,7 @@ function canDebris(W, i, h, stuck) { // what a broken wall turns into
     const total = W.draw === 'glass' ? 420 : 340;
     for (let q = 0; q < total; q++) { const near = Math.random() < 0.6, px = near ? clamp(ix + gauss() * 0.8, -3, 3) : rand(-3, 3), py = near ? clamp(iy + gauss() * 0.8, 0.1, 3.85) : rand(0.1, 3.85), [ux, uy, d] = out(px, py), sp = (4.5 / (0.6 + d)) * rand(0.4, 1.2);
       gl.spawn(LAB_LANE + px, py, z + rand(-0.05, 0.05), ux * sp, uy * sp + rand(0, 2.5), -vis * rand(0.12, 0.55) + rand(-1, 2), rand(0.04, 0.26), rand(0.04, 0.26), 1, rand(8, 11), W.draw === 'glass' ? 0xd8f4ff : 0xa8e8dc); }
-    for (let q = 0; q < 44; q++) { const side = q % 4, x = side < 2 ? rand(-2.95, 2.95) : (side === 2 ? -2.95 : 2.95), y = side === 0 ? 0.12 : side === 1 ? 3.7 : rand(0.2, 3.7), a = Math.atan2(1.9 - y, -x) + rand(-0.5, 0.5), g = CAN.glass, sz = rand(0.1, 0.38); g.spawn(LAB_LANE + x, y, z, 0, 0, 0, sz * rand(0.5, 1), sz, 1, 999, 0xd8f4ff, true); const k = (g.next - 1 + g.N) % g.N; g.q[k].setFromEuler(new THREE.Euler(0, 0, a - 1.2)); g.put(k); } // jagged teeth left in the frame
+    for (let q = 0; q < 44; q++) { const side = q % 4, x = side < 2 ? rand(-2.95, 2.95) : (side === 2 ? -2.95 : 2.95), y = side === 0 ? 0.12 : side === 1 ? 3.7 : rand(0.2, 3.7), a = Math.atan2(1.9 - y, -x) + rand(-0.5, 0.5), g = CAN.glass, sz = rand(0.1, 0.38); g.spawn(LAB_LANE + x, y, z, 0, 0, 0, sz * rand(0.5, 1), sz, 1, 999, 0xd8f4ff, true, [0, 0, a - 1.2]); } // jagged teeth left in the frame
     return;
   }
   if (W.kind === 'glass') { for (const [cx, cy] of h.gone) for (let q = 0; q < (stuck ? 2 : 4); q++) { const [ux, uy] = out(cx, cy), sp = rand(1.5, 6); gl.spawn(LAB_LANE + cx + rand(-0.15, 0.15), cy + rand(-0.15, 0.15), z + rand(-0.05, 0.05), ux * sp, uy * sp + rand(0, 2), -vis * rand(0.12, 0.5), rand(0.04, 0.2), rand(0.04, 0.2), 1, rand(8, 11), 0x5fb0c2); } return; }
@@ -4296,7 +4311,7 @@ function canDebris(W, i, h, stuck) { // what a broken wall turns into
   if (stuck) return;
   const T = W.T, ring = (k, fn) => { for (let q = 0; q < k; q++) { const th = rand(0, 6.283), r = h.rad(th) * rand(0.92, 1.04); fn(ix + Math.cos(th) * r, iy + Math.sin(th) * r, th); } };
   if (W.kind === 'wood') ring(14, (x, y) => set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z - T / 2 - rand(0.05, 0.25), 0, 0, 0, rand(0.5, 1.2), rand(0.5, 1.2), rand(0.35, 0.9), 999, undefined, true)); // splintered teeth around the hole, pointing out the back
-  else if (W.kind === 'metal') ring(9, (x, y, th) => { const m = set.main; m.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z - T / 2 - 0.05, 0, 0, 0, 0.9, 0.9, 1, 999, undefined, true); const k = (m.next - 1 + m.N) % m.N; m.q[k].setFromEuler(new THREE.Euler(Math.sin(th) * 0.9, -Math.cos(th) * 0.9, th)); m.put(k); }); // torn petals bent outwards
+  else if (W.kind === 'metal') ring(9, (x, y, th) => { set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z - T / 2 - 0.05, 0, 0, 0, 0.9, 0.9, 1, 999, undefined, true, [Math.sin(th) * 0.9, -Math.cos(th) * 0.9, th]); }); // torn petals bent outwards
   else if (W.kind === 'brick' || W.kind === 'stone') ring(8, (x, y) => set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z + rand(-0.1, 0.1), 0, 0, 0, rand(0.08, 0.16), rand(0.08, 0.16), rand(0.08, 0.16), 999, undefined, true));
 }
 function canDive(S) { // head first, arms stretched forward, legs trailing: the standing rest pose turned to point along the flight
@@ -4313,6 +4328,7 @@ function cannonSpin(c, I, wz, wx) { // wind him up: roll about the flight line (
 }
 function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-0.7, 0.7) * amt / 240; c.o[k + 1] -= rand(-0.7, 0.7) * amt / 240; } }
 function cannonShardStep(dt) {
+  if (CAN.smoke) { CAN.smoke.step(dt); CAN.fire.step(dt); }
   for (const L of CAN.lamps) if (L.flash > 0) { L.flash = Math.max(0, L.flash - dt * 1.6); L.bulbM.emissiveIntensity = 2.6 + 3.2 * L.flash; L.haloM.opacity = 0.35 + 0.35 * L.flash; }
   CAN.glass.step(dt); for (const st of CAN.sets) { st.main.step(dt); if (st.aux) st.aux.step(dt); }
   for (const sh of CAN.paper) { if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } sh.v.y -= 2.5 * dt; sh.v.multiplyScalar(1 / (1 + 1.5 * dt)); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; if (sh.m.position.y < 0.03) { sh.m.position.y = 0.03; sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); } }
@@ -4362,7 +4378,7 @@ function cannonWalls() {
     const i = C.next, W = CANNON_WALLS[i], wz = cannonWallZ(i) + 0.25, hard = W.c >= 30000, [leadAll, who] = zmin(CAN_LEAD), [leadTorso] = zmin(['top', 'chest', 'pel']);
     if (hard && !C.touch[i] && leadAll <= wz && Math.abs(c.x[I[who] * 3]) < 3.3) { // a hand or a foot gets there first and takes the first blow: it can be torn off, the wall only cracks
       C.touch[i] = true; const k = I[who] * 3, g = CAN_LIMB[who]; burst(new V3(c.x[k], c.x[k + 1], cannonWallZ(i)), 25, CAN_PAL[W.kind] || SPARK, 5); clank(10);
-      canCracks(i, c.x[k], c.x[k + 1], 5, 0.7, true);
+      canCracks(i, c.x[k], c.x[k + 1], 5, 0.7, true); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'wall', a: canWallSnap(i) });
       if (g && !c.broken.includes(g) && Math.random() < 0.75) c.breakGroup(g); cannonKick(c, 0.6);
     }
     if ((hard ? leadTorso : leadAll) > wz) break;
@@ -4373,8 +4389,8 @@ function cannonWalls() {
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(vEff); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
       C.broken++; C.next++; canLamp(i, 1); const h = canHole(i, sx, sy); canDebris(W, i, h, false);
-      for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; canPaper(i, p, 9); burst(new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)), 10, [[4, 4, 4]], 3); }
-      const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i);
+      for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'poster', a: [CAN.posters.indexOf(p)] }); canPaper(i, p, 9); burst(new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)), 10, [[4, 4, 4]], 3); }
+      const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i); if (CREC.on) { CREC.ev.push({ t: CREC.t, k: 'ws', a: [i] }); CREC.ev.push({ t: CREC.t, k: 'wall', a: canWallSnap(i) }); }
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
       if (W.c >= 100000 && Math.random() < 0.35 && !c.broken.includes('head')) c.breakGroup('head');
       cannonKick(c, Math.min(2.4, 0.3 + W.c / 70000));
@@ -4385,40 +4401,161 @@ function cannonWalls() {
       C.stuck = i; C.vmph = 0; c.g = -9.8; C.stuckT = S.t; canLamp(i, 2); for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * 0.1; }
       canCracks(i, sx, sy, 8, 1.1 + W.R * 0.5, true);
       const h = canHole(i, sx, sy, true); canDebris(W, i, h, true); // a dent: only the front pieces chip off
-      burst(new V3(sx + LAB_LANE, sy, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
+      if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'wall', a: canWallSnap(i) }); burst(new V3(sx + LAB_LANE, sy, cannonWallZ(i)), 60, CAN_PAL[W.kind] || SPARK, 6); crashSound(0.5); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'cs', a: [0.5] }); if (!reduceMotion) shake = 0.5; hitStopUntil = performance.now() + 60;
       if (Math.random() < 0.5 && !c.broken.includes('head')) c.breakGroup('head');
       lastPop = 0; pop('STUCK IN ' + W.n + '!', 'lilac'); setFace('hit', 99999);
     }
   }
   if (C.next >= 15 && C.stuck < 0 && !C.landing) { C.landing = true; cannonLanding(c); }
 }
-function canPaper(i, p, n) { const G = canShardGeo(), z = cannonWallZ(i), pm = p.mesh.material;
-  for (let q = 0; q < n; q++) { const sh = CAN.paper.find(s => s.life <= 0); if (!sh) break; const m = sh.m; m.geometry = pick(G.paper); m.material.map = pm.map; m.material.needsUpdate = true; m.scale.setScalar(1); m.visible = true; m.position.set(LAB_LANE + p.x + rand(-0.4, 0.4), p.y + rand(-0.5, 0.5), z + 0.1); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6)); sh.v.set(rand(-2, 2), rand(0, 3), -rand(2, 9)); sh.w.set(rand(-6, 6), rand(-6, 6), rand(-6, 6)); sh.life = rand(4, 7); } }
+function canPaperRaw(gi, pi, px, py, pz, rx, ry, rz, vx, vy, vz, wx, wy, wz, life) { const sh = CAN.paper.find(q => q.life <= 0); if (!sh) return; const m = sh.m, pm = CAN.posters[pi].mesh.material;
+  m.geometry = canShardGeo().paper[gi]; m.material.map = pm.map; m.material.needsUpdate = true; m.scale.setScalar(1); m.visible = true; m.position.set(px, py, pz); m.rotation.set(rx, ry, rz); sh.v.set(vx, vy, vz); sh.w.set(wx, wy, wz); sh.life = life; }
+function canPaper(i, p, n) { const z = cannonWallZ(i), pi = CAN.posters.indexOf(p);
+  for (let q = 0; q < n; q++) { const a = [Math.floor(rand(0, 3)), pi, LAB_LANE + p.x + rand(-0.4, 0.4), p.y + rand(-0.5, 0.5), z + 0.1, rand(0, 6), rand(0, 6), rand(0, 6), rand(-2, 2), rand(0, 3), -rand(2, 9), rand(-6, 6), rand(-6, 6), rand(-6, 6), rand(4, 7)]; canPaperRaw(...a); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'paper', a }); } }
+function canFrameAt(F, t) { let i = 0; while (i < F.length - 2 && F[i + 1][0] <= t) i++; const a = F[i], b = F[i + 1] || a, k = b[0] > a[0] ? Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0]))) : 0; return { a, b, k }; }
+function cannonRecFrame(dt) { // Daggie's parts, the model speed and the wall count for this frame
+  if (!CREC.on) return; CREC.t += dt; const S = RAGSIM, k = S.I.pel * 3, f = new Float32Array(6 + parts.length * 7), q = new THREE.Quaternion(), v = new V3();
+  f[0] = CREC.t; f[1] = CAN.vmph; f[2] = CAN.broken; f[3] = S.core.x[k]; f[4] = S.core.x[k + 1]; f[5] = S.core.x[k + 2];
+  parts.forEach((p, i) => { p.getWorldPosition(v); p.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 6 + i * 7); }); CREC.frames.push(f);
+}
+function cannonReplayStart() {
+  const F = CREC.frames; if (F.length < 20) { CREC.on = false; return false; }
+  CREC.on = false; for (const p of parts) if (p.parent !== scene) scene.attach(p);
+  cannonShow(true); CAN.phase = 'replay'; board.visible = false; // the walls, lamps, pieces and posters go back to the start; Daggie and the pieces then replay from the log
+  CREC.play = { rt: 0, ei: 0, skip: false, T: F[F.length - 1][0] + 0.8, slowT: 0 }; slowUntil = 0; slowK = 1; labBars(true); labDmg(true, 0, 'WALLS', ' / 15', 0, CAN.sub); labSpeedo(CAN.mph);
+  return true;
+}
+function cannonReplayEvent(e) {
+  const a = e.a;
+  if (e.k === 'b') burst(new V3(a[0], a[1], a[2]), a[3], a[4], a[5]);
+  else if (e.k === 'sp') { const set = CAN.byId[a[0]]; if (set) set.raw(...a.slice(1)); }
+  else if (e.k === 'wall') { canWallApply(a); CREC.play.slowT = CREC.play.rt + 0.7; }
+  else if (e.k === 'lamp') canLamp(a[0], a[1]);
+  else if (e.k === 'pop') { lastPop = 0; pop(a[0], a[1] || undefined); }
+  else if (e.k === 'ws') { wallSound(CANNON_WALLS[a[0]], a[0]); if (!reduceMotion) shake = Math.max(shake, 0.18); }
+  else if (e.k === 'cs') crashSound(a[0]);
+  else if (e.k === 'rs') ripSound();
+  else if (e.k === 'face') setFace(a[0], a[1]);
+  else if (e.k === 'paper') canPaperRaw(...a);
+  else if (e.k === 'poster') { const p = CAN.posters[a[0]]; if (p) { p.alive = false; p.mesh.visible = false; } }
+}
+function cannonReplayStep(dt) {
+  const P = CREC.play; if (!P) return; const F = CREC.frames, speed = P.rt < P.slowT ? 0.14 : 0.38, h = dt * speed; P.rt += h; // the shot itself ran at 0.4: the replay is slower still around every wall that breaks
+  while (P.ei < CREC.ev.length && CREC.ev[P.ei].t <= P.rt) cannonReplayEvent(CREC.ev[P.ei++]);
+  const { a, b, k } = canFrameAt(F, Math.min(P.rt, F[F.length - 1][0])), qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
+  parts.forEach((p, j) => { const o = 6 + j * 7; p.position.set(lerp(a[o], b[o], k), lerp(a[o + 1], b[o + 1], k), lerp(a[o + 2], b[o + 2], k)); qa.set(a[o + 3], a[o + 4], a[o + 5], a[o + 6]); qb.set(b[o + 3], b[o + 4], b[o + 5], b[o + 6]); p.quaternion.copy(qa).slerp(qb, k); });
+  CAN.fx = lerp(a[3], b[3], k); CAN.fy = lerp(a[4], b[4], k); CAN.fz = lerp(a[5], b[5], k); if (lerp(a[1], b[1], k) > 15 && P.rt < F[F.length - 1][0] - 0.3) cannonTrail(CAN.fx, CAN.fy, CAN.fz + 0.9);
+  labSpeedo(lerp(a[1], b[1], k)); labDmg(true, Math.round(lerp(a[2], b[2], k)), 'WALLS', ' / 15', 0, CAN.sub);
+  cannonShardStep(h);
+  if (P.rt >= P.T || P.skip) cannonReplayEnd();
+}
+function cannonReplayEnd() {
+  const F = CREC.frames, last = F[F.length - 1]; CREC.play = null; labBars(false);
+  parts.forEach((p, j) => { const o = 6 + j * 7; p.position.set(last[o], last[o + 1], last[o + 2]); p.quaternion.set(last[o + 3], last[o + 4], last[o + 5], last[o + 6]); });
+  CAN.phase = 'end'; labFinish(LAB.text);
+}
+// the orbit camera: drag to turn, pinch (or wheel) to move closer or further, double tap to put it back. It always looks at him.
+function canOrbit(tx, ty, tz, dx0, dz0, cam) { // pure: where the camera goes for a default offset (dx0, dz0, height above the target) and the player's turn / tilt / zoom
+  const dy0 = 2.6 - ty, hd = Math.hypot(dx0, dz0), yaw = Math.atan2(dx0, dz0) + cam.yaw, el = Math.min(1.35, Math.max(0.02, Math.atan2(dy0, hd) + cam.pitch)), dist = Math.hypot(hd, dy0) * cam.zoom;
+  return [tx + dist * Math.cos(el) * Math.sin(yaw), Math.max(0.5, ty + dist * Math.sin(el)), tz + dist * Math.cos(el) * Math.cos(yaw)];
+}
+
+// ---------- the trail behind the shot: soft smoke puffs and fire, bigger and hotter with every cannon ----------
+let CAN_PUFF_TEX = null;
+function canPuff() { if (!CAN_PUFF_TEX) CAN_PUFF_TEX = tex(128, 128, (g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); for (let k = 0; k < 9; k++) { const x = w * (0.28 + Math.random() * 0.44), y = h * (0.28 + Math.random() * 0.44), r = w * (0.1 + Math.random() * 0.14), b = g.createRadialGradient(x, y, 0, x, y, r); b.addColorStop(0, 'rgba(255,255,255,0.35)'); b.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = b; g.fillRect(0, 0, w, h); } }); return CAN_PUFF_TEX; }
+class CanTrail { // camera-facing quads with their own colour and fade; one draw call per layer
+  constructor(N, additive) {
+    this.N = N; this.p = new Float32Array(N * 3); this.v = new Float32Array(N * 3); this.age = new Float32Array(N); this.life = new Float32Array(N); this.s0 = new Float32Array(N); this.s1 = new Float32Array(N); this.col = new Float32Array(N * 4); this.rot = new Float32Array(N); this.spin = new Float32Array(N); this.drag = new Float32Array(N); this.next = 0; this.any = false;
+    this.pos = new Float32Array(N * 12); this.uv = new Float32Array(N * 8); this.ac = new Float32Array(N * 16); const idx = new Uint16Array(N * 6);
+    for (let i = 0; i < N; i++) { const v = i * 4; idx.set([v, v + 1, v + 2, v + 2, v + 1, v + 3], i * 6); this.uv.set([0, 1, 1, 1, 0, 0, 1, 0], i * 8); for (let k = 0; k < 4; k++) this.pos[i * 12 + k * 3 + 1] = -99; }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(this.uv, 2)); g.setAttribute('aCol', new THREE.BufferAttribute(this.ac, 4)); g.setIndex(new THREE.BufferAttribute(idx, 1));
+    const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: canPuff() } }, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, side: THREE.DoubleSide,
+      vertexShader: 'attribute vec4 aCol; varying vec4 vC; varying vec2 vUv; void main() { vC = aCol; vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'uniform sampler2D map; varying vec4 vC; varying vec2 vUv; void main() { float a = texture2D(map, vUv).a * vC.a; gl_FragColor = vec4(vC.rgb, a); }' });
+    this.mesh = new THREE.Mesh(g, mat); this.mesh.frustumCulled = false; this.mesh.renderOrder = 4; scene.add(this.mesh);
+  }
+  clear() { this.life.fill(0); for (let i = 0; i < this.N; i++) for (let k = 0; k < 4; k++) { this.pos[i * 12 + k * 3] = 0; this.pos[i * 12 + k * 3 + 1] = -99; this.pos[i * 12 + k * 3 + 2] = 0; } this.mesh.geometry.attributes.position.needsUpdate = true; this.any = false; }
+  emit(x, y, z, vx, vy, vz, s0, s1, life, r, g, b, a, drag) { const i = this.next, k = i * 3; this.next = (i + 1) % this.N; this.p[k] = x; this.p[k + 1] = y; this.p[k + 2] = z; this.v[k] = vx; this.v[k + 1] = vy; this.v[k + 2] = vz; this.age[i] = 0; this.life[i] = life; this.s0[i] = s0; this.s1[i] = s1; this.col[i * 4] = r; this.col[i * 4 + 1] = g; this.col[i * 4 + 2] = b; this.col[i * 4 + 3] = a; this.rot[i] = Math.random() * 6.28; this.spin[i] = (Math.random() - 0.5) * 1.2; this.drag[i] = drag; this.any = true; }
+  step(dt) {
+    if (!this.any) return; const e = camera.matrixWorld.elements, rx = e[0], ry = e[1], rz = e[2], ux = e[4], uy = e[5], uz = e[6]; let alive = false;
+    for (let i = 0; i < this.N; i++) {
+      const o = i * 12, ca = i * 16; if (this.life[i] <= 0) continue; this.age[i] += dt; const t = this.age[i] / this.life[i];
+      if (t >= 1) { this.life[i] = 0; for (let k = 0; k < 4; k++) { this.pos[o + k * 3 + 1] = -99; this.ac[ca + k * 4 + 3] = 0; } continue; } alive = true;
+      const k3 = i * 3, dr = Math.exp(-this.drag[i] * dt); this.v[k3] *= dr; this.v[k3 + 1] *= dr; this.v[k3 + 2] *= dr; this.p[k3] += this.v[k3] * dt; this.p[k3 + 1] += this.v[k3 + 1] * dt; this.p[k3 + 2] += this.v[k3 + 2] * dt;
+      const size = this.s0[i] + (this.s1[i] - this.s0[i]) * Math.sqrt(t), ang = this.rot[i] + this.spin[i] * this.age[i], c = Math.cos(ang) * size, s = Math.sin(ang) * size;
+      const ax = rx * c + ux * s, ay = ry * c + uy * s, az = rz * c + uz * s, bx = -rx * s + ux * c, by = -ry * s + uy * c, bz = -rz * s + uz * c, px = this.p[k3], py = this.p[k3 + 1], pz = this.p[k3 + 2];
+      this.pos[o] = px - ax + bx; this.pos[o + 1] = py - ay + by; this.pos[o + 2] = pz - az + bz; this.pos[o + 3] = px + ax + bx; this.pos[o + 4] = py + ay + by; this.pos[o + 5] = pz + az + bz;
+      this.pos[o + 6] = px - ax - bx; this.pos[o + 7] = py - ay - by; this.pos[o + 8] = pz - az - bz; this.pos[o + 9] = px + ax - bx; this.pos[o + 10] = py + ay - by; this.pos[o + 11] = pz + az - bz;
+      const fade = (t < 0.1 ? t / 0.1 : 1) * Math.pow(1 - t, 1.4), al = this.col[i * 4 + 3] * fade;
+      for (let k = 0; k < 4; k++) { this.ac[ca + k * 4] = this.col[i * 4]; this.ac[ca + k * 4 + 1] = this.col[i * 4 + 1]; this.ac[ca + k * 4 + 2] = this.col[i * 4 + 2]; this.ac[ca + k * 4 + 3] = al; }
+    }
+    this.mesh.geometry.attributes.position.needsUpdate = true; this.mesh.geometry.attributes.aCol.needsUpdate = true; if (!alive) this.any = false;
+  }
+}
+// per cannon: how far apart the puffs are, and [r, g, b, alpha, start size, end size, life, drag] of the smoke, the fire and the hot core
+const CAN_TRAIL = [
+  { gap: 0.9, smoke: [0.88, 0.9, 0.94, 0.5, 0.35, 1.3, 1.3, 1.2] },
+  { gap: 0.75, smoke: [0.62, 0.64, 0.7, 0.6, 0.45, 1.7, 1.5, 1.1] },
+  { gap: 0.6, smoke: [0.36, 0.35, 0.37, 0.65, 0.55, 2.2, 1.8, 1.0], fire: [2.2, 0.6, 0.1, 0.55, 0.25, 0.7, 0.45, 2.0], fgap: 0.45 },
+  { gap: 0.55, smoke: [0.22, 0.22, 0.25, 0.7, 0.7, 2.8, 2.2, 0.9], fire: [2.6, 0.7, 0.12, 0.5, 0.6, 1.4, 0.5, 2.5], fgap: 0.3, core: [0.6, 1.2, 2.4, 0.5, 0.3, 0.8, 0.35, 3] },
+  { gap: 0.5, smoke: [0.13, 0.12, 0.13, 0.75, 1.0, 3.6, 2.6, 0.8], fire: [2.8, 0.8, 0.15, 0.45, 0.8, 2.2, 0.55, 3], fgap: 0.2, core: [2.8, 1.6, 0.5, 0.5, 0.35, 0.9, 0.3, 4] },
+];
+function cannonTrail(x, y, z) { // called every frame with the point behind him; puffs are laid by distance, so a fast shot leaves a continuous trail
+  const T = CAN_TRAIL[clamp(CAN.lv, 1, 5) - 1], L = CAN.tl; if (!L) { CAN.tl = [x, y, z, x, y, z]; return; }
+  const lay = (idx, gap, fn) => { const d = Math.hypot(x - L[idx], y - L[idx + 1], z - L[idx + 2]); if (d > 6) { L[idx] = x; L[idx + 1] = y; L[idx + 2] = z; return; } const n = Math.floor(d / gap); if (!n) return;
+    for (let k = 1; k <= n; k++) { const u = k * gap / d; fn(L[idx] + (x - L[idx]) * u, L[idx + 1] + (y - L[idx + 1]) * u, L[idx + 2] + (z - L[idx + 2]) * u); } const u = n * gap / d; L[idx] += (x - L[idx]) * u; L[idx + 1] += (y - L[idx + 1]) * u; L[idx + 2] += (z - L[idx + 2]) * u; };
+  const em = (sys, a, ex, ey, ez, rise) => sys.emit(ex + rand(-0.12, 0.12), ey + rand(-0.12, 0.12), ez, rand(-0.5, 0.5), rise * rand(0.2, 1.1), rand(-0.3, 0.6), a[4], a[5] * rand(0.8, 1.2), a[6] * rand(0.8, 1.2), a[0], a[1], a[2], a[3], a[7]);
+  lay(0, T.gap, (ex, ey, ez) => em(CAN.smoke, T.smoke, ex, ey, ez, 1.1));
+  if (T.fire) lay(3, T.fgap, (ex, ey, ez) => { em(CAN.fire, T.fire, ex, ey, ez, 0.2); if (T.core) em(CAN.fire, T.core, ex, ey, ez, 0); });
+}
+function cannonMuzzleCloud() { // the big puff of smoke at the muzzle, bigger with the cannon
+  const T = CAN_TRAIL[clamp(CAN.lv, 1, 5) - 1], lv = CAN.lv, sp = CAN_SPEC[lv - 1], mz = [LAB_LANE, sp.wr + 0.35, MUZZLE_Z - 0.5], n = 10 + lv * 6, a = T.smoke;
+  for (let k = 0; k < n; k++) CAN.smoke.emit(mz[0] + rand(-0.4, 0.4), mz[1] + rand(-0.3, 0.3), mz[2] - rand(0, 1.2), rand(-3, 3) * (0.6 + lv * 0.15), rand(0.2, 2.4), -rand(1, 7 + lv * 1.8), a[4] * 2.5, a[5] * 2.2 * rand(0.7, 1.3), 2.6, Math.min(1, a[0] * 1.3), Math.min(1, a[1] * 1.3), Math.min(1, a[2] * 1.3), Math.min(1, a[3] + 0.15), 1.1);
+  if (T.fire) for (let k = 0; k < 4 + lv * 2; k++) CAN.fire.emit(mz[0] + rand(-0.2, 0.2), mz[1] + rand(-0.2, 0.2), mz[2] - rand(0, 1.5), rand(-2, 2), rand(-1, 2), -rand(4, 14), 0.5 + lv * 0.25, 1.4 + lv * 0.5, 0.35 + lv * 0.06, T.fire[0], T.fire[1], T.fire[2], 1, 3);
+}
+let CAN_IN = false;
+function canInput() {
+  if (CAN_IN) return; CAN_IN = true; const pts = new Map(); let moved = 0, downT = 0, lastTap = 0; const cam = CAN.cam;
+  const on = e => MODE === 'lab' && LAB.machine === 'cannon' && e.target === canvas;
+  stage.addEventListener('pointerdown', e => { if (!on(e)) return; e.stopImmediatePropagation(); try { canvas.setPointerCapture(e.pointerId); } catch (x) { /* fine */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 1) { moved = 0; downT = performance.now(); } }, true);
+  stage.addEventListener('pointermove', e => { if (!pts.has(e.pointerId) || !on(e)) return; e.stopImmediatePropagation(); const p = pts.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y; moved += Math.abs(dx) + Math.abs(dy);
+    if (pts.size === 1) { cam.yaw -= dx * 0.008; cam.pitch = Math.min(1.2, Math.max(-0.3, cam.pitch + dy * 0.006)); }
+    else if (pts.size === 2) { const [u, w] = [...pts.values()], d0 = Math.hypot(u.x - w.x, u.y - w.y); p.x = e.clientX; p.y = e.clientY; const d1 = Math.hypot(u.x - w.x, u.y - w.y); if (d0 > 8 && d1 > 8) cam.zoom = Math.min(3.5, Math.max(0.3, cam.zoom * d0 / d1)); }
+    p.x = e.clientX; p.y = e.clientY; }, true);
+  const up = e => { if (!pts.has(e.pointerId)) return; if (on(e)) e.stopImmediatePropagation(); const alone = pts.size === 1; pts.delete(e.pointerId);
+    if (alone && moved < 12 && performance.now() - downT < 320) { const now = performance.now(); if (CREC.play) CREC.play.skip = true; else if (now - lastTap < 320) { cam.yaw = 0; cam.pitch = 0; cam.zoom = 1; } lastTap = now; } };
+  stage.addEventListener('pointerup', up, true); stage.addEventListener('pointercancel', up, true);
+  stage.addEventListener('wheel', e => { if (!on(e)) return; e.preventDefault(); cam.zoom = Math.min(3.5, Math.max(0.3, cam.zoom * (1 + e.deltaY * 0.001))); }, { passive: false });
+  canvas.style.touchAction = 'none';
+  const hint = document.createElement('div'); hint.textContent = 'Drag: turn the camera · Pinch: zoom · Double tap: reset'; hint.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:7;pointer-events:none;font:600 13px ui-monospace,Menlo,monospace;color:#fff;background:rgba(10,12,24,.55);padding:6px 12px;border-radius:14px;opacity:0;transition:opacity .5s'; stage.appendChild(hint);
+  CAN.hint = () => { hint.style.opacity = '1'; setTimeout(() => { hint.style.opacity = '0'; }, 5000); };
+}
 function cannonLanding(c) { c.g = -9.8; c.damp = 0.985; c.drag = 0.04; c.airXZ = true; slowUntil = performance.now() + 3500; slowK = 0.85; } // what is left of the shot is spent: the air stops him sideways within a few metres, and he drops like a body (this used to slow his fall too, so he floated down)
 function cannonStep(dt, now) {
-  const C = CAN; C.t += dt; cannonShardStep(dt);
+  const C = CAN; C.t += dt; if (C.phase !== 'replay') cannonShardStep(dt); // (the replay steps the pieces itself, at the replay's speed)
   if (C.recoil > 0) { C.recoil = Math.max(0, C.recoil - dt * 2.2); C.barrel.position.z = MUZZLE_Z + CAN_SPEC[clamp(C.lv, 1, 5) - 1].L + C.recoil * 0.9; }
   if (C.phase === 'load') {
     labSpeedo(0); const n = Math.floor(C.t / 0.45); if (n !== C.count && n < 4) { C.count = n; if (n >= 1 && n <= 3) { lastPop = 0; pop(String(4 - n), 'lilac'); tone(700, 700, 0.1, 'square', 0.05); } }
     if (C.t >= 1.8) cannonFire();
   } else if (C.phase === 'fly' && RAGSIM) {
-    const S = RAGSIM; ragSimStep(dt); cannonDrive(S.core, S.I, dt); cannonWalls();
-    labSpeedo(CAN.vmph); labDmg(true, CAN.broken, 'WALLS', ' / 15', 0);
+    const S = RAGSIM; ragSimStep(dt); cannonDrive(S.core, S.I, dt); cannonWalls(); cannonRecFrame(dt); if (C.vmph > 15 && !C.landing) cannonTrail(S.core.x[S.I.pel * 3], S.core.x[S.I.pel * 3 + 1], S.core.x[S.I.pel * 3 + 2] + 0.9);
+    labSpeedo(CAN.vmph); labDmg(true, CAN.broken, 'WALLS', ' / 15', 0, CAN.sub);
     const k = S.I.pel * 3, sp = Math.hypot(S.core.x[k] - S.core.o[k], S.core.x[k + 1] - S.core.o[k + 1], S.core.x[k + 2] - S.core.o[k + 2]) * 240;
     C.rest = sp < 0.6 ? C.rest + dt : 0; LAB.dist = Math.max(0, (BOLLARD_Z - S.core.x[k + 2])) * 3.28084;
     const over = C.stuck >= 0 ? S.t - C.stuckT > 2.2 : (C.next >= 15 && C.rest > 0.8) || S.t > 14;
     if (over || C.rest > 1.6) {
       C.phase = 'end'; const nm = C.stuck >= 0 ? CANNON_WALLS[C.stuck].n : '';
       LAB.text = C.broken >= 15 ? 'broke all 15 walls!' : 'broke ' + C.broken + ' wall' + (C.broken === 1 ? '' : 's') + (nm ? ' · stopped by ' + nm : '');
-      lastPop = 0; pop(C.broken >= 15 ? 'ALL 15!' : C.broken + ' / 15', 'green'); labFinish(LAB.text);
+      lastPop = 0; pop(C.broken >= 15 ? 'ALL 15!' : C.broken + ' / 15', 'green'); if (!cannonReplayStart()) labFinish(LAB.text);
     }
-  } else if (C.phase === 'end' && RAGSIM) ragSimStep(dt);
+  } else if (C.phase === 'replay') cannonReplayStep(dt);
+  else if (C.phase === 'end' && RAGSIM) ragSimStep(dt);
 }
 function cannonCam() {
-  if (!RAGSIM) { wantPos.set(LAB_LANE + 11, 2.6, MUZZLE_Z + 9); wantLook.set(LAB_LANE, 1.6, MUZZLE_Z - 4); return 6; }
-  const c = RAGSIM.core, I = RAGSIM.I; let z = 0, y = 0; for (const nm of ['pel', 'waist', 'chest']) { z += c.x[I[nm] * 3 + 2]; y += c.x[I[nm] * 3 + 1]; } z /= 3; y /= 3;
-  // locked on to him: the view is narrow in portrait (about 24 degrees wide), and looking 6 m ahead of him pushed him to the left edge
-  wantPos.set(LAB_LANE + 10.5, 2.6 + Math.max(0, y - 1.8) * 0.3, z + 4.2); wantLook.set(LAB_LANE, Math.max(1.3, y * 0.85), z - 1.4); snapCam = true; // snap: no smoothing lag at 40-60 m/s
+  let p;
+  if (!RAGSIM && !CREC.play) { p = canOrbit(LAB_LANE, 1.5, MUZZLE_Z - 3, 11, 12, CAN.cam); wantPos.set(p[0], p[1], p[2]); wantLook.set(LAB_LANE, 1.5, MUZZLE_Z - 3); snapCam = true; return 6; }
+  if (RAGSIM && !CREC.play) { const c = RAGSIM.core, I = RAGSIM.I; let z = 0, y = 0; for (const nm of ['pel', 'waist', 'chest']) { z += c.x[I[nm] * 3 + 2]; y += c.x[I[nm] * 3 + 1]; } CAN.fz = z / 3; CAN.fy = y / 3; }
+  // locked on to him: the view is narrow in portrait (about 24 degrees wide), so the target is only 1.4 m ahead of him; the player can turn, tilt and zoom (CAN.cam)
+  const ty = Math.max(1.3, CAN.fy * 0.85), tz = CAN.fz - 1.4; p = canOrbit(LAB_LANE, ty, tz, 10.5, 5.6, CAN.cam); wantPos.set(p[0], p[1], p[2]); wantLook.set(LAB_LANE, ty, tz); snapCam = true; // snap: no smoothing lag at 40-60 m/s
   return 14;
 }
 function labStep(dt, now) {
@@ -4524,7 +4661,7 @@ function labCam(now, dt) {
   wantPos.copy(face).multiplyScalar(5.2).addScaledVector(side, 1.6 + sway).setY(STAND_H + 1.7); wantLook.set(0, STAND_H + 1.15, 0); return 3;
 }
 function labDone() {
-  if (!labBuilt) return;
+  if (!labBuilt) return; stage.classList.remove('cannonrun');
   const survived = LAB.text === 'survived' || LAB.text === 'stayed in the cart' || LAB.text === 'stayed in the tub', lost = labBol() ? 0 : cause ? 15 : LAB.lost;
   $('labRes').innerHTML = '';
   const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
