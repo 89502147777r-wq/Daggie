@@ -2822,7 +2822,12 @@ class RagCore {
   contact(i, nx, ny, nz) { const k = i * 3; this.cn[k] = nx; this.cn[k + 1] = ny; this.cn[k + 2] = nz; this.cf[i] = 1; }
   collide(i) {
     const x = this.x, k = i * 3, r = this.r[i];
-    for (const c of this.cyls) { if (x[k + 1] > c.h + r) continue; const dx = x[k] - c.x, dz = x[k + 2] - c.z, d = Math.hypot(dx, dz); if (d < c.r + r) { const f = (c.r + r) / (d || 1e-6); x[k] = c.x + dx * f; x[k + 2] = c.z + dz * f; this.contact(i, dx / (d || 1), 0, dz / (d || 1)); if (this.cylFirst === undefined) this.cylFirst = this.time; } }
+    for (const c of this.cyls) { if (x[k + 1] > c.h + r) continue; const dx = x[k] - c.x, dz = x[k + 2] - c.z, d = Math.hypot(dx, dz);
+      if (c.rim && x[k + 1] > c.h - c.rim) { // a rounded top edge: the body that meets the upper part is pushed up and forward over it, and can land on top
+        const cy = c.h - c.rim, ux = d > 1e-6 ? dx / d : 1, uz = d > 1e-6 ? dz / d : 0, u = Math.max(0, d - (c.r - c.rim)), v = x[k + 1] - cy, dd = Math.hypot(u, v);
+        if (dd < c.rim + r) { const f = (c.rim + r) / (dd || 1e-6), nu = u / (dd || 1e-6), nv = v / (dd || 1e-6), nd = u > 0 ? (c.r - c.rim) + u * f : d; x[k] = c.x + ux * nd; x[k + 2] = c.z + uz * nd; x[k + 1] = cy + v * f; this.contact(i, ux * nu, nv, uz * nu); if (this.cylFirst === undefined) this.cylFirst = this.time; }
+        continue; }
+      if (d < c.r + r) { const f = (c.r + r) / (d || 1e-6); x[k] = c.x + dx * f; x[k + 2] = c.z + dz * f; this.contact(i, dx / (d || 1), 0, dz / (d || 1)); if (this.cylFirst === undefined) this.cylFirst = this.time; } }
     const B = this.box;
     if (B && B.on && !(this.skipBox && this.skipBox[i])) {
       const L = B.toLocal(x[k], x[k + 1], x[k + 2]);
@@ -2917,7 +2922,7 @@ class CartSim {
     this.cyls = [{ x: lane, z: bz, r: br, h: 1.1 }];
   }
   setSpec(sp) { Object.assign(this.box, { hw: sp.hw, y0: sp.y0, y1: sp.y1, zf: sp.zf, zb: sp.zb }); this.zf0 = sp.zf; this.zfOut = sp.zfOut; this.zbOut = sp.zbOut; this.H = sp.H; this.pl = [0, this.zfOut]; }
-  place(zFront) { this.bent = false; this.tumble = false; this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.plow = false; this.box.frontOpen = this.openFront; this.cyls.length = 0; for (const c of (this.obsCyls || [{ dx: 0, r: this.br }])) this.cyls.push({ x: this.lane + c.dx, z: this.bz + (c.dz || 0), r: c.r, h: c.h || this.obsH }); }
+  place(zFront) { this.bent = false; this.tumble = false; this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.plow = false; this.box.frontOpen = this.openFront; this.cyls.length = 0; for (const c of (this.obsCyls || [{ dx: 0, r: this.br }])) this.cyls.push({ x: this.lane + c.dx, z: this.bz + (c.dz || 0), r: c.r, h: c.h || this.obsH, rim: c.rim || 0 }); }
   toWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a), yy = y - this.pl[0], zz = z - this.pl[1]; return [x + this.lane, this.pw[0] + yy * c - zz * s, this.pw[1] + yy * s + zz * c]; }
   toLocal(X, Y, Z) { const c = Math.cos(this.a), s = Math.sin(this.a), yy = Y - this.pw[0], zz = Z - this.pw[1]; return [X - this.lane, yy * c - zz * s + this.pl[0], yy * s + zz * c + this.pl[1]]; }
   dirWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a); return [x, y * c - z * s, y * s + z * c]; }
@@ -3037,7 +3042,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   daggie.updateMatrixWorld(true);
   const now = ragPoints(true), rest = ragPoints(false), core = new RagCore(RAG_NAMES.length);
   const fw = FACE_N ? [FACE_N.x, FACE_N.y, FACE_N.z] : [0, 0, 1];
-  core.floor = floorAt; core.box = LABCART.box; core.cyls = LABCART.cyls; { const OR2 = LAB.machine === 'mix' && OBX.cur !== 'post' && OBST[OBX.cur] && OBST[OBX.cur].rider; core.crashK = (OR2 && OR2.crash) || 0; if (labBol()) core.onImpact = (i, sp, ny) => bodyHit(sp, ny > 0.7); }
+  core.floor = floorAt; core.box = LABCART.box; core.cyls = LABCART.cyls; { const OR2 = LAB.machine === 'mix' && OBX.cur !== 'post' && OBST[OBX.cur] && OBST[OBX.cur].rider; core.crashK = (OR2 && OR2.crash) || 0; if (OR2 && OR2.cap) core.capUp = OR2.cap; if (labBol()) core.onImpact = (i, sp, ny) => { bodyHit(sp, ny > 0.7); if (ny <= 0.7 && OBX.cur !== 'post') obsGlassHit(core.x[i * 3], core.x[i * 3 + 1], core.x[i * 3 + 2], sp); }; }
   const I = ragBody(core, rest, now, fw, RAG_TUNE);
   { const half = n => { const bb = byName[n].userData.mesh.geometry.boundingBox, e = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z].sort((a, b) => a - b); return e[1] * 0.5; };
     const src = { pel: 'pelvis', waist: 'torso', chest: 'torso', neck: 'head', top: 'head', shL: 'upperL', elL: 'upperL', wrL: 'foreL', haL: 'handL', shR: 'upperR', elR: 'upperR', wrR: 'foreR', haR: 'handR', hipL: 'thighL', knL: 'thighL', anL: 'shinL', toL: 'footL', hipR: 'thighR', knR: 'thighR', anR: 'shinR', toR: 'footR' };
@@ -3162,7 +3167,7 @@ function cartBreak() {
     const lp = d.c.clone().multiplyScalar(CART_S); p.copy(lp); board.localToWorld(p); d.m.position.copy(p);
     qq.copy(bq).multiply(d.q); d.m.quaternion.copy(qq); d.m.scale.setScalar(CART_S); d.m.visible = true;
     dir.subVectors(p, ip); if (dir.lengthSq() < 1e-4) dir.set(rand(-1, 1), 0.5, rand(-1, 1)); dir.normalize();
-    const pr = DEB_PROPS[d.mk] || DEB_PROPS.metal; d.v.copy(base).multiplyScalar(0.3 * rand(0.8, 1.2)).addScaledVector(dir, (3 + 0.06 * v) * rand(0.6, 1.4) * pr.fly); d.v.y += rand(1.5, 5) * pr.lift;
+    const pr = DEB_PROPS[d.mk] || DEB_PROPS.metal; d.v.copy(base).multiplyScalar(0.3 * rand(0.8, 1.2)).addScaledVector(dir, (3 + 0.06 * v) * (OBX.cur !== 'post' && OBST[OBX.cur].solid ? 1.7 : 1) * rand(0.6, 1.4) * pr.fly); d.v.y += rand(1.5, 5) * pr.lift;
     d.w.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize().multiplyScalar(rand(6, 18)); d.rest = false; d.cd = 0;
   }
   burst(new V3(LAB_LANE, 0.9, BOLLARD_Z), 90, SPARK, 9); ripSound();
@@ -3171,7 +3176,7 @@ const _dq = new THREE.Quaternion(), _da = new V3();
 const DEB_PROPS = { metal: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, chrome: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, ceramic: { b: 0.26, drag: 0.02, snd: 'stone', fly: 0.8, lift: 0.9 }, fabric: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, fabric2: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, plastic: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, accent: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, black: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, wheel: { b: 0.58, drag: 0.015, snd: 'metal', fly: 1.7, lift: 1.2 }, rubber: { b: 0.7, drag: 0.02, snd: 'soft', fly: 1.3, lift: 2.2 } };
 function cartDebrisStep(dt) {
   obsStep(dt);
-  if (CART.knocked && !CART.plow && LABCART.v >= 30 && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
+  if (((CART.knocked && !CART.plow && LABCART.v >= 30) || (OBX.cur !== 'post' && OBST[OBX.cur].solid && LABCART.hit && LABCART.v >= 20)) && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
   if (!CDEB.on) return; CDEB.cool -= dt;
   for (const d of CDEB.list) {
     if (d.rest) continue; d.cd -= dt;
@@ -3240,12 +3245,14 @@ if (!OBS_ORDER.includes(MIX.obs)) MIX.obs = 'truck'; /* a saved choice that no l
 // strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
 const OBST = {
   post: { name: 'STEEL POST', r: BOLLARD_R, h: BOLLARD_H, bend: 10, knock: 30, tumble: 10, solid: false },
-  truck: { absorb: 0, hard: 3.2, fx: 'sand', name: 'DUMP TRUCK (SAND)', r: 0.3, cyls: [-1.0, -0.5, 0, 0.5, 1.0].map(dx => ({ dx, r: 0.3 })).concat([{ dx: 0, dz: -1.0, r: 1.2, h: 3.05 }, { dx: 0, dz: -3.2, r: 1.25, h: 3.05 }, { dx: 0, dz: -5.4, r: 1.25, h: 3.05 }, { dx: 0, dz: -6.3, r: 1.0, h: 3.05 }]), h: 3.0, bend: 120, knock: 9999, tumble: 10, solid: true, kick: 0.05, lift: 0.1, sound: 'truck', pop: 'TRUCK HOLDS!', rider: { up: 0.15, om: 0.3, crash: 0.06 }, rock: { part: 'truck', slide: 0.005, tilt: 0.0006, tau: 0.7, w: 7, py: 0, pz: -3.4 },
-    dent: { part: 'truck', k: 0.012, min: 0.03, max: 1.1, cx: 0, cy: 0.95, sx: 0.6, sy: 0.85, z0: -2.0, z1: 0.3, shiftN: 6, mask: (x, y, z) => z > -2.4 && Math.abs(x) < 1.15 && !(Math.abs(x) > 0.88 && y < 1.2 && z < -0.05) },
-    layout() { return [{ t: 'truck', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
-  car: { absorb: 2200, hard: 5, fx: 'dust', name: 'CAR (SIDEWAYS)', r: 0.9, cyls: [-1.3, -0.65, 0, 0.65, 1.3].map(dx => ({ dx, r: 0.9 })), h: 1.5, bend: 55, knock: 9999, tumble: 12, solid: true, solidMax: 55, kick: 0.35, lift: 0.45, sound: 'car', pop: 'CAR SHOVED!', rider: { up: 0.6, om: 0.7, crash: 0.03 }, rock: { part: 'car', slide: 0.022, tilt: 0.0028, tau: 0.55, w: 10, py: 0, pz: 0 },
-    dent: { part: 'car', k: 0.007, min: 0.03, max: 0.55, cx: -0.1, cy: -0.2, sx: 0.95, sy: 0.45, z0: 0.0, z1: 0.9, shiftN: 5, mask: (x, y, z) => z > 0.05 && Math.abs(x) < 2.3 && !(Math.abs(x) > 1.0 && z > 0.55 && y < -0.05) },
-    layout() { return [{ t: 'car', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
+  truck: { absorb: 0, hard: 3.2, fx: 'sand', name: 'DUMP TRUCK (SAND)', r: 0.3, cyls: [-1.0, -0.5, 0, 0.5, 1.0].map(dx => ({ dx, r: 0.3 })).concat([{ dx: 0, dz: -1.0, r: 1.2, h: 3.05 }, { dx: 0, dz: -3.2, r: 1.25, h: 3.05 }, { dx: 0, dz: -5.4, r: 1.25, h: 3.05 }, { dx: 0, dz: -6.3, r: 1.0, h: 3.05 }]), h: 3.0, bend: 120, knock: 9999, tumble: 10, solid: true, kick: 0.05, lift: 0.1, sound: 'truck', pop: 'TRUCK HOLDS!', rider: { up: 0.15, om: 0.3, crash: 0.06 }, rock: { parts: ['truck', 'truckg'], slide: 0.008, tilt: 0.0009, tiltMax: 0.06, tau: 0.7, w: 7, py: 0, pz: -3.4 },
+    glass: { key: 'truckg', yoff: 0, cart: [[0, 2.3, 0.25]] },
+    dent: { parts: ['truck', 'truckg'], k: 0.016, min: 0.06, max: 1.5, cx: 0, cy: 0.95, sx: 0.6, sy: 0.85, z0: -2.0, z1: 0.3, shiftN: 6, mask: (x, y, z) => z > -2.4 && Math.abs(x) < 1.15 && !(Math.abs(x) > 0.88 && y < 1.2 && z < -0.05) },
+    layout() { return [{ t: 'truck', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }, { t: 'truckg', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
+  car: { absorb: 2200, hard: 5, fx: 'dust', name: 'CAR (SIDEWAYS)', r: 0.9, cyls: [-1.3, -0.65, 0, 0.65, 1.3].map(dx => ({ dx, r: 0.9, rim: 0.9 })), h: 1.45, bend: 9999, knock: 9999, tumble: 12, solid: true, kick: 0.35, lift: 0.45, sound: 'car', pop: 'CAR HIT!', rider: { up: 1.15, om: 0.7, crash: 0, cap: 11 }, rock: { parts: ['car', 'carg'], slide: 0.035, tilt: 0.004, tiltMax: 0.22, tau: 0.6, w: 9, py: 0, pz: 0 },
+    glass: { key: 'carg', yoff: 0.75, cart: [[-0.1, 1.05, 0.8]] },
+    dent: { parts: ['car', 'carg'], k: 0.02, min: 0.05, max: 0.95, cx: -0.1, cy: -0.2, sx: 0.95, sy: 0.45, z0: 0.0, z1: 0.9, shiftN: 5, mask: (x, y, z) => z > 0.05 && Math.abs(x) < 2.3 && !(Math.abs(x) > 1.0 && z > 0.55 && y < -0.05) },
+    layout() { return [{ t: 'car', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }, { t: 'carg', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
   tires: { absorb: 600, hard: 6, fx: 'splash', name: 'TIRE STACK', r: 0.35, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.35 })), h: 1.35, bend: 3, knock: 11, tumble: 40, solid: false, kick: 0.55, lift: 0.9, sound: 'tires', pop: 'TIRES EVERYWHERE!',
     layout() { const b = []; for (let p = 0; p < 3; p++) for (let i = 0; i < 6; i++) b.push({ t: 'tire', x: (p - 1) * 0.7 + rand(-0.015, 0.015), y: 0.11 + i * 0.22, z: rand(-0.015, 0.015), sx: 1, sy: 1, sz: 1, ry: rand(0, 6), col: 0xffffff - Math.floor(rand(0, 6)) * 0x080808 }); return b; } },
   boxes: { absorb: 40, hard: 99, fx: 'paper', name: 'CARDBOARD BOXES', r: 0.3, cyls: [-0.9, -0.3, 0.3, 0.9].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 2, knock: 4, tumble: 60, solid: false, kick: 0.85, lift: 1, sound: 'box', pop: 'BOXES EVERYWHERE!',
@@ -3321,61 +3328,102 @@ function obxSteelX(P, x, y, z, rad, w) { /* the truck's wheel: tyre, white steel
   out.push(C(rad * 0.6, w * 0.7, 0xc8cbce, x + sd * w * 0.03), C(rad * 0.4, w * 0.74, 0x8a8d92, x + sd * w * 0.05), C(rad * 0.16, w * 0.8, 0x55585d, x + sd * w * 0.06));
   for (let i = 0; i < 10; i++) { const a = i * 0.6283; out.push(P(new THREE.CylinderGeometry(rad * 0.035, rad * 0.035, rad * 0.1, 6), 0x60646a, x + sd * w * 0.4, y + Math.cos(a) * rad * 0.28, z + Math.sin(a) * rad * 0.28, 0, 0, Math.PI / 2, 0)); }
   return out; }
-function OBX_MERGE(parts, fb) { /* if the parts cannot be merged the obstacle is still there, as a plain block, and the game does not stop */ let g = null; try { g = mergeGeometries(parts); } catch (e) { g = null; } return g || fb; }
-const OBS_KIT = {
-  truck: () => { const P = OBX_PART, white = 0xe9ebec, red = 0xa8121a, black = 0x151618, dark = 0x26282b, steel = 0x62676d, silver = 0xb9bdc2, glass = 0x0e151c, orange = 0xe08a1a,
+function obxUVfill(g, pane) { /* planar texture coordinates for a glass part: its place inside the atlas of the model's glass */ const p = g.attributes.position, n = p.count, uv = new Float32Array(n * 2), r = pane.rect; for (let i = 0; i < n; i++) { const t = pane.uv(p.getX(i), p.getY(i), p.getZ(i)); uv[i * 2] = r[0] + Math.min(1, Math.max(0, t[0])) * (r[2] - r[0]); uv[i * 2 + 1] = r[1] + Math.min(1, Math.max(0, t[1])) * (r[3] - r[1]); } g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g; }
+function obxCrack(g, x, y, size, power) { /* a star of cracks with rings round the point of impact; a hard hit also knocks a ragged hole out of the glass */
+  const n = 7 + Math.round(power * 9), R = size * (0.25 + 0.55 * power), rays = []; g.save(); g.lineCap = 'round';
+  for (let i = 0; i < n; i++) { const a = (i + (Math.random() - 0.5) * 0.5) / n * 6.283, L = R * (0.5 + Math.random() * 0.8); rays.push([a, L]); g.strokeStyle = 'rgba(238,247,255,0.95)'; g.lineWidth = 1.2 + Math.random() * 1.8; g.beginPath(); g.moveTo(x, y); for (let k = 1; k <= 5; k++) { const aa = a + (Math.random() - 0.5) * 0.2; g.lineTo(x + Math.cos(aa) * L * k / 5, y + Math.sin(aa) * L * k / 5); } g.stroke(); }
+  for (const f of [0.28, 0.55, 0.85]) { g.strokeStyle = 'rgba(238,247,255,0.7)'; g.lineWidth = 1; g.beginPath(); rays.forEach(([a, L], i) => { const px = x + Math.cos(a) * L * f * (0.9 + Math.random() * 0.2), py = y + Math.sin(a) * L * f * (0.9 + Math.random() * 0.2); if (i) g.lineTo(px, py); else g.moveTo(px, py); }); g.closePath(); g.stroke(); }
+  if (power > 0.55) { g.globalCompositeOperation = 'destination-out'; g.beginPath(); const m = 11, r0 = size * (0.05 + 0.12 * power); for (let i = 0; i < m; i++) { const a = i / m * 6.283, r = r0 * (0.6 + Math.random() * 0.8); if (i) g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); else g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } g.closePath(); g.fill(); }
+  g.restore(); }
+function obxGlassBase(g, w, h) { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(32,48,62,0.42)'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(255,255,255,0.07)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(w * (0.1 + i * 0.16), 0); g.lineTo(w * (0.16 + i * 0.16), 0); g.lineTo(w * (0.02 + i * 0.16), h); g.lineTo(w * (-0.04 + i * 0.16), h); g.closePath(); g.fill(); } } // faint reflection streaks
+function obxGlassKit(m, fb, yoff) { /* the transparent half of a model: a tinted, glossy, see-through material whose map carries the cracks */
+  const geo = OBX_MERGE(m.glass, fb); if (yoff) geo.translate(0, -yoff, 0); const T = () => tex(1024, 1024, obxGlassBase);
+  m.gl = { clean: T(), crack: T() }; m.gl.mat = new THREE.MeshStandardMaterial({ map: m.gl.clean, transparent: true, roughness: 0.04, metalness: 0.0, depthWrite: false, side: THREE.DoubleSide, envMap: (() => { try { return labEnv(); } catch (e) { return null; } })(), envMapIntensity: 1.3 }); m.hits = 0;
+  return { geo, mat: m.gl.mat, fl: 0.5 }; }
+function obsGlassReset(id) { /* a new run: clean glass, no holes, no shards */ const M = OBX_MODELS[id || OBX.cur]; if (OBX.shards) OBX.shards.clear(); if (!M || !M.gl) return; M.hits = 0; M.gl.mat.map = M.gl.clean; const g = M.gl.crack.image.getContext('2d'); obxGlassBase(g, 1024, 1024); M.gl.crack.needsUpdate = true; }
+function obsGlassAt(x, y, z, power) { /* power 0..1 at the point (x, y, z) of the obstacle's own frame: cracks the pane there; a hard one punches a hole and throws shards */
+  const id = OBX.cur, spec = OBST[id], o = OBX.built[id], M = OBX_MODELS[id]; if (!spec || !spec.glass || !o || !M || !M.gl || power < 0.12) return;
+  let pn = null, best = 0.3; for (const p of M.panes) { const d = Math.hypot(Math.max(p.bb[0] - x, 0, x - p.bb[1]), Math.max(p.bb[2] - y, 0, y - p.bb[3]), Math.max(p.bb[4] - z, 0, z - p.bb[5])); if (d < best) { best = d; pn = p; } } if (!pn || M.hits > 14) return; M.hits++;
+  const t = pn.uv(x, y, z), r = pn.rect, S = 1024, px = (r[0] + clamp(t[0], 0, 1) * (r[2] - r[0])) * S, py = (1 - (r[1] + clamp(t[1], 0, 1) * (r[3] - r[1]))) * S, g = M.gl.crack.image.getContext('2d');
+  obxCrack(g, px, py, (r[2] - r[0]) * S * 0.5, power); M.gl.crack.needsUpdate = true; M.gl.mat.map = M.gl.crack;
+  if (power > 0.55) { const gm = o.kits[spec.glass.key].geo, a = gm.attributes.position.array, yl = y - spec.glass.yoff, R = 0.16 + 0.4 * power; let cut = 0; // the pane breaks out round the point
+    for (let i = 0; i + 8 < a.length; i += 9) { const cx = (a[i] + a[i + 3] + a[i + 6]) / 3, cy = (a[i + 1] + a[i + 4] + a[i + 7]) / 3, cz = (a[i + 2] + a[i + 5] + a[i + 8]) / 3; if (Math.hypot(cx - x, cy - yl, cz - z) < R) { for (let k = 0; k < 3; k++) { a[i + k * 3] = cx; a[i + k * 3 + 1] = cy; a[i + k * 3 + 2] = cz; } cut++; } }
+    gm.attributes.position.needsUpdate = true; gm.userData.dented = a.slice();
+    if (cut) { if (!OBX.shards) { const sg = new THREE.BoxGeometry(1, 1, 1), sm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.1, depthWrite: false }); OBX.shards = new CanDebris(sg, sm, 200); OBX.shards.snd = 'glass'; OBX.shards.bnc = 0.2; OBX.shards.dragK = 0.4; OBX.shards.mesh.castShadow = false; }
+      const nr = pn.nrm || [0, 0, 1], N = Math.round(14 + 50 * power), wx = LAB_LANE + x, wz = BOLLARD_Z + z; for (let i = 0; i < N; i++) { const sp = rand(0.5, 4 + 6 * power); OBX.shards.spawn(wx + rand(-R, R) * 0.6, y + rand(-R, R) * 0.6, wz + rand(-R, R) * 0.4, nr[0] * sp + rand(-2, 2), rand(0.5, 3 + 4 * power) + nr[1] * sp, nr[2] * sp + rand(-2, 2), rand(0.04, 0.16), 0.004, rand(0.03, 0.12), 4, 0xc4dde8, false); }
+      glassSound(1.15 - 0.3 * power); } }
+}
+function obsGlassHit(wx, wy, wz, sp) { /* Daggie's body meets the obstacle at a world point */ const spec = OBST[OBX.cur]; if (!spec || !spec.glass || sp < 6) return; obsGlassAt(wx - LAB_LANE, wy, wz - BOLLARD_Z, clamp((sp - 4) / 26, 0.15, 1)); }
+function obsGlassCart(v) { /* the cart's hit flexes the body: the glass above it cracks, the harder the more */ const spec = OBST[OBX.cur]; if (!spec || !spec.glass || !spec.glass.cart) return; const p = clamp((v - 10) / 55, 0, 1); for (const c of spec.glass.cart) obsGlassAt(c[0], c[1], c[2], p); }
+const OBX_MODELS = {};
+function obxModel(id) { return OBX_MODELS[id] || (OBX_MODELS[id] = OBX_MAKE[id]()); }
+const OBX_MAKE = {
+  truck: () => { const P = OBX_PART, white = 0xe9ebec, red = 0xa8121a, black = 0x151618, dark = 0x26282b, steel = 0x62676d, silver = 0xb9bdc2, orange = 0xe08a1a, seat = 0x4f5359,
       BX = (w, h, d, c, x, y, z, r, sx, sy, sz, gr) => P(obxBox(w, h, d, r === undefined ? 0 : r, sx, sy, sz), c, x, y, z, 0, 0, 0, gr),
       CZ = (r, l, c, x, y, z) => P(new THREE.CylinderGeometry(r, r, l, 14), c, x, y, z, Math.PI / 2, 0, 0, 0.08), CX = (r, l, c, x, y, z) => P(new THREE.CylinderGeometry(r, r, l, 12), c, x, y, z, 0, 0, Math.PI / 2, 0.06), CV = (r, l, c, x, y, z) => P(new THREE.CylinderGeometry(r, r, l, 12), c, x, y, z, 0, 0, 0, 0.06),
       hh = (a, b, c) => { const t = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return t - Math.floor(t); },
       sand = (det, sx, sy, sz, c, x, y, z) => { const g = new THREE.IcosahedronGeometry(1, det), pp = g.attributes.position; for (let i = 0; i < pp.count; i++) { const a = pp.getX(i), b = pp.getY(i), d = pp.getZ(i), n = 1 + 0.12 * (hh(a * 3, b * 3, d * 3) - 0.5) + 0.07 * Math.sin(d * 5 + a * 3); pp.setXYZ(i, a * sx * n, Math.max(b, 0) * sy * n, d * sz * n); } g.computeVertexNormals(); return P(g, c, x, y, z, 0, 0, 0, 0.16); },
-      FX = [0.18, 0.18, 0.6], parts = [];
+      panes = [{ bb: [-1.06, 1.06, 2.04, 2.96, 0.05, 0.4], rect: [0, 0, 1, 0.5], nrm: [0, 0.2, 1], uv: (x, y) => [(x + 1.06) / 2.12, (y - 2.04) / 0.92] }, { bb: [-1.35, -1.05, 2.15, 2.95, -1.05, -0.1], rect: [0, 0.5, 0.5, 1], nrm: [-1, 0.1, 0], uv: (x, y, z) => [(-0.12 - z) / 0.88, (y - 2.15) / 0.8] }, { bb: [1.05, 1.35, 2.15, 2.95, -1.05, -0.1], rect: [0.5, 0.5, 1, 1], nrm: [1, 0.1, 0], uv: (x, y, z) => [(-0.12 - z) / 0.88, (y - 2.15) / 0.8] }],
+      GL = (w, h, d, x, y, z, pane) => { const g = obxBox(w, h, d, 0, 0.25, 0.25, 0.25); g.translate(x, y, z); obxUVfill(g, panes[pane]); return P(g, 0xffffff, 0, 0, 0, 0, 0, 0, 0); },
+      FX = [0.18, 0.18, 0.6], parts = [], glass = [];
     // chassis: ladder frame, cross members, axles, springs, drive shaft
     for (const sd of [-1, 1]) parts.push(BX(0.2, 0.32, 7.2, black, sd * 0.62, 0.9, -3.45), BX(0.14, 0.1, 1.3, dark, sd * 0.85, 0.78, -5.55));
     for (const z of [-1.2, -2.6, -3.8, -5.2, -6.6]) parts.push(BX(1.3, 0.16, 0.14, dark, 0, 0.9, z));
     parts.push(CX(0.08, 2.2, dark, 0, 0.55, -0.55), CX(0.09, 2.0, dark, 0, 0.55, -4.9), CX(0.09, 2.0, dark, 0, 0.55, -6.2), CZ(0.06, 3.2, dark, 0, 0.8, -2.9));
-    // cab (cab-over, white), finely gridded in front so it can crumple
-    parts.push(BX(2.4, 1.2, 1.88, white, 0, 2.45, -0.76, 0.1, ...FX, 0.08), BX(2.4, 0.9, 1.88, white, 0, 1.4, -0.76, 0.06, ...FX, 0.08), BX(2.22, 1.02, 0.05, black, 0, 2.5, 0.185, 0, ...FX, 0.04), BX(2.12, 0.92, 0.07, glass, 0, 2.5, 0.2, 0, ...FX, 0.0),
+    // the cab is hollow: lower body, sill, roof, pillars, door sills and a rear wall frame the glass; a dash, seats and a wheel show through it. The front is finely gridded so it can crumple
+    parts.push(BX(2.4, 0.9, 1.88, white, 0, 1.4, -0.76, 0.06, ...FX, 0.08), BX(2.4, 0.19, 0.3, white, 0, 1.945, 0.03, 0.03, ...FX, 0.08), BX(2.4, 0.12, 1.88, white, 0, 3.0, -0.76, 0.05, ...FX, 0.08), BX(2.4, 1.1, 0.1, white, 0, 2.4, -1.65, 0.02),
       BX(1.25, 0.5, 0.05, black, 0, 1.62, 0.2, 0, ...FX, 0.04), BX(1.0, 0.22, 0.05, black, 0, 1.1, 0.2, 0, 0.2, 0.2, 0.6, 0.04), BX(2.5, 0.42, 0.3, black, 0, 0.62, 0.17, 0.06, ...FX, 0.05), BX(0.9, 0.05, 0.22, silver, 0, 0.86, 0.15), BX(0.5, 0.14, 0.02, 0xf2f2ea, 0, 0.62, 0.325),
-      BX(0.22, 0.06, 0.02, silver, 0, 1.94, 0.2), BX(1.25, 0.02, 0.03, silver, 0, 1.62, 0.23), BX(2.3, 0.06, 1.8, white, 0, 3.07, -0.8, 0.03), BX(2.5, 0.12, 1.4, red, 0, 3.47, -1.25, 0.04), BX(2.5, 0.9, 0.14, red, 0, 3.0, -1.93, 0.05));
+      BX(0.22, 0.06, 0.02, silver, 0, 1.94, 0.2), BX(1.25, 0.02, 0.03, silver, 0, 1.62, 0.23), BX(2.5, 0.12, 1.4, red, 0, 3.47, -1.25, 0.04), BX(2.5, 0.9, 0.14, red, 0, 3.0, -1.93, 0.05),
+      BX(2.14, 0.03, 0.05, black, 0, 2.045, 0.2), BX(2.14, 0.03, 0.05, black, 0, 2.955, 0.2), BX(2.0, 0.4, 0.5, 0x232426, 0, 2.05, -0.15), BX(2.2, 0.03, 1.7, 0x40444a, 0, 2.93, -0.8), P(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 18), 0x151515, 0.55, 2.28, -0.5, 0, 0, 1.0, 0));
+    for (const sd of [-1, 1]) parts.push(BX(0.16, 1.1, 0.3, white, sd * 1.12, 2.4, 0.03, 0.03, ...FX, 0.08), BX(0.1, 0.3, 1.88, white, sd * 1.15, 2.0, -0.76, 0.02), BX(0.1, 0.8, 0.7, white, sd * 1.15, 2.55, -1.35, 0.02), BX(0.03, 0.9, 0.05, black, sd * 1.06, 2.5, 0.2), BX(0.7, 0.15, 0.6, seat, sd * 0.5, 2.05, -1.15), BX(0.7, 0.85, 0.12, seat, sd * 0.5, 2.5, -1.5), BX(0.025, 0.86, 1.03, black, sd * 1.19, 2.55, -0.55));
     for (let i = -2; i <= 2; i++) parts.push(BX(0.02, 0.46, 0.03, silver, i * 0.25, 1.62, 0.23), BX(0.14, 0.08, 0.08, orange, i * 0.35, 3.1, 0.15), BX(0.9, 0.02, 0.03, silver, 0, 1.04 + (i + 2) * 0.06, 0.23));
     for (const sd of [-1, 1]) { parts.push(BX(0.5, 0.3, 0.08, black, sd * 0.82, 1.12, 0.2, 0.03), BX(0.42, 0.22, 0.03, 0xf3f5f7, sd * 0.82, 1.12, 0.245), BX(0.2, 0.1, 0.04, orange, sd * 0.82, 0.93, 0.23), BX(0.16, 0.12, 0.04, 0xf0eac0, sd * 0.7, 0.62, 0.325), BX(0.46, 0.14, 1.3, black, sd * 1.15, 1.15, -0.55, 0.05),
-        BX(0.02, 1.7, 0.02, dark, sd * 1.205, 1.95, -0.05), BX(0.02, 1.7, 0.02, dark, sd * 1.205, 1.95, -1.15), BX(0.025, 0.86, 1.03, black, sd * 1.2, 2.55, -0.55), BX(0.03, 0.78, 0.95, glass, sd * 1.205, 2.55, -0.55), BX(0.05, 0.04, 0.2, silver, sd * 1.22, 2.05, -0.95),
+        BX(0.02, 1.7, 0.02, dark, sd * 1.205, 1.95, -0.05), BX(0.02, 1.7, 0.02, dark, sd * 1.205, 1.95, -1.15), BX(0.05, 0.04, 0.2, silver, sd * 1.22, 2.05, -0.95),
         BX(0.4, 0.04, 0.04, black, sd * 1.4, 2.7, 0.1), BX(0.14, 0.5, 0.26, black, sd * 1.6, 2.65, 0.1, 0.04), BX(0.02, 0.42, 0.2, 0x1a2a38, sd * 1.53, 2.65, 0.1), BX(0.1, 0.2, 0.12, black, sd * 1.6, 2.28, 0.12, 0.03), BX(0.22, 0.05, 0.5, silver, sd * 1.28, 0.95, -0.45), BX(0.22, 0.05, 0.5, silver, sd * 1.28, 1.4, -0.45), BX(0.04, 0.8, 0.04, silver, sd * 1.24, 1.7, -1.05),
-        // the dump body: red steel with silver stiffeners, orange stripe, rails
-        BX(0.5, 0.1, 2.0, dark, sd * 1.2, 1.12, -5.55, 0.03), BX(0.55, 0.5, 0.03, black, sd * 1.15, 0.55, -6.95), BX(0.25, 0.2, 0.05, 0xc01818, sd * 1.0, 1.3, -7.07), BX(0.04, 0.68, 0.12, black, sd * 0.0 + 1.15, 0.9, sd * 0.4 - 2.7), P(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 12), steel, sd * 0.5, 1.55, -2.5, 0.7, 0, 0, 0.05), BX(0.4, 0.04, 0.3, silver, sd * 1.05, 1.0, -2.9));
+        BX(0.5, 0.1, 2.0, dark, sd * 1.2, 1.12, -5.55, 0.03), BX(0.55, 0.5, 0.03, black, sd * 1.15, 0.55, -6.95), BX(0.25, 0.2, 0.05, 0xc01818, sd * 1.0, 1.3, -7.07), BX(0.04, 0.68, 0.12, black, 1.15, 0.9, sd * 0.4 - 2.7), P(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 12), steel, sd * 0.5, 1.55, -2.5, 0.7, 0, 0, 0.05), BX(0.4, 0.04, 0.3, silver, sd * 1.05, 1.0, -2.9));
       for (let z = -2.5; z > -6.9; z -= 0.82) parts.push(BX(0.05, 1.25, 0.14, silver, sd * 1.275, 1.85, z)); }
     parts.push(BX(2.5, 1.5, 5.15, red, 0, 1.85, -4.43, 0.06, 0.6, 0.6, 1.0, 0.1), BX(2.5, 0.2, 5.2, black, 0, 1.05, -4.43), BX(2.6, 0.12, 5.25, steel, 0, 2.62, -4.43, 0.03), BX(2.52, 0.12, 5.1, orange, 0, 1.25, -4.43, 0), BX(2.4, 0.12, 0.12, steel, 0, 2.55, -7.03), BX(2.2, 0.15, 0.1, black, 0, 0.72, -7.1),
       CZ(0.32, 1.4, silver, 1.15, 0.9, -2.7), BX(0.5, 0.4, 0.9, dark, -1.1, 0.85, -2.2), BX(0.52, 0.04, 0.92, steel, -1.1, 1.07, -2.2), CV(0.07, 2.2, silver, 1.3, 2.6, -1.85), BX(0.1, 0.04, 0.2, dark, 1.3, 1.9, -1.75), BX(0.16, 0.04, 0.16, dark, 1.3, 3.72, -1.85));
     parts.push(sand(3, 1.15, 0.55, 2.45, 0xcaa86c, 0, 2.58, -4.43), sand(2, 0.5, 0.25, 0.7, 0xb7955a, -0.45, 3.02, -3.5), sand(2, 0.55, 0.28, 0.8, 0xd3b377, 0.4, 3.02, -5.3));
     for (const [x, z] of [[-1.12, -0.55], [1.12, -0.55], [-0.95, -4.9], [0.95, -4.9], [-1.4, -4.9], [1.4, -4.9], [-0.95, -6.2], [0.95, -6.2], [-1.4, -6.2], [1.4, -6.2]]) parts.push(...obxSteelX(P, x, 0.55, z, 0.55, 0.3));
-    return { geo: OBX_MERGE(parts, new THREE.BoxGeometry(2.5, 3, 7).translate(0, 1.5, -3.4)), mat: obxMat(0.6, 0.28), fl: 0.5 }; },
-  car: () => { const P = OBX_PART, paint = 0x15171b, glass = 0x0b1117, plastic = 0x0b0b0c, chrome = 0xa3a7ad, red = 0xb0121a, ctr = [0, 0.7, 0],
+    glass.push(GL(2.1, 0.9, 0.04, 0, 2.5, 0.2, 0), GL(0.04, 0.82, 0.88, -1.205, 2.55, -0.56, 1), GL(0.04, 0.82, 0.88, 1.205, 2.55, -0.56, 2));
+    return { body: parts, glass, panes }; },
+  car: () => { const P = OBX_PART, paint = 0x15171b, plastic = 0x0b0b0c, chrome = 0xa3a7ad, red = 0xb0121a, ctr = [0, 0.7, 0], cloth = 0x6e7378,
       BX = (w, h, d, c, x, y, z, r, sx, sy, sz, gr) => P(obxBox(w, h, d, r === undefined ? 0 : r, sx, sy, sz), c, x, y, z, 0, 0, 0, gr),
       X = [-2.35, -2.32, -2.2, -1.8, -1.2, -0.85, -0.45, -0.05, 0.5, 1.0, 1.5, 2.0, 2.25, 2.35], T = [0.5, 0.7, 0.78, 0.85, 0.92, 0.96, 1.18, 1.4, 1.43, 1.4, 1.19, 0.99, 0.95, 0.6], YB = [0.3, 0.26, 0.24, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.24, 0.26, 0.3], WS = [0.7, 0.78, 0.85, 0.885, 0.885, 0.885, 0.88, 0.875, 0.87, 0.87, 0.87, 0.87, 0.85, 0.78],
       sec = x => { const t = obxLin(X, T, x), yb = obxLin(X, YB, x), ws = obxLin(X, WS, x), ys = Math.min(0.9, t - 0.04), g = Math.min(1, Math.max(0, (t - 0.96) / 0.46)); return { t, yb, ws, ys, wr: ws - 0.05 - 0.19 * g, cr: 0.015 + 0.01 * g, wb: ws - 0.1, yl: yb + 0.18 }; },
+      sideUV = (x, y) => [(x + 0.85) / 2.85, (y - 0.9) / 0.55],
+      panes = [{ bb: [-0.85, 2.0, 0.9, 1.45, 0.6, 0.95], rect: [0, 0, 0.5, 0.5], nrm: [0, 0.1, 1], uv: sideUV }, { bb: [-0.85, 2.0, 0.9, 1.45, -0.95, -0.6], rect: [0.5, 0, 1, 0.5], nrm: [0, 0.1, -1], uv: sideUV }, { bb: [-0.85, -0.05, 0.9, 1.45, -0.8, 0.8], rect: [0, 0.5, 0.5, 1], nrm: [-1, 0.3, 0], uv: (x, y, z) => [(x + 0.85) / 0.8, (z + 0.8) / 1.6] }, { bb: [1.0, 2.0, 0.9, 1.45, -0.8, 0.8], rect: [0.5, 0.5, 1, 1], nrm: [1, 0.3, 0], uv: (x, y, z) => [(x - 1.0) / 1.0, (z + 0.8) / 1.6] }],
       strip = (x0, x1, fn, col, gr, dx) => P(obxLoft(obxRange(x0, x1, dx || 0.1), fn, 2, ctr), col, 0, 0, 0, 0, 0, 0, gr === undefined ? 0.05 : gr),
-      parts = [];
+      gstrip = (x0, x1, fn, pane) => P(obxUVfill(obxLoft(obxRange(x0, x1, 0.1), fn, 2, ctr), panes[pane]), 0xffffff, 0, 0, 0, 0, 0, 0, 0),
+      parts = [], glass = [];
     const sideLo = sd => x => { const s = sec(x); return [[sd * s.wb, s.yb], [sd * s.ws * 1.004, s.yl], [sd * s.ws, s.ys]]; }, deck = x => { const s = sec(x); return [[-s.ws, s.ys], [-s.wr, s.t], [0, s.t + s.cr], [s.wr, s.t], [s.ws, s.ys]]; }, top = x => { const s = sec(x); return [[-s.wr, s.t], [0, s.t + s.cr], [s.wr, s.t]]; },
-      sideGl = (sd, o) => x => { const s = sec(x), e = o || 0; return [[sd * (s.ws + e), s.ys], [sd * (s.wr + e), s.t]]; }, rail = (sd) => x => { const s = sec(x); return [[sd * (s.wr + 0.012), s.t - 0.1], [sd * (s.wr + 0.004), s.t + 0.004]]; };
-    // the skin: lower sides, bonnet, boot lid, windows, windscreen, roof, tailgate glass, window frames
-    for (const sd of [-1, 1]) { parts.push(strip(-2.35, 2.35, sideLo(sd), paint, 0.05, 0.1), strip(-0.85, 2.0, sideGl(sd), glass, 0.0, 0.1), strip(-0.85, 2.0, rail(sd), plastic, 0, 0.1), strip(0.2, 0.32, sideGl(sd, 0.007), plastic, 0, 0.06), strip(-0.85, -0.6, sideGl(sd, 0.007), plastic, 0, 0.06), strip(1.55, 1.95, sideGl(sd, 0.007), paint, 0.05, 0.1)); }
-    parts.push(strip(-2.35, -0.85, deck, paint, 0.05, 0.1), strip(2.0, 2.35, deck, paint, 0.05, 0.08), strip(-0.85, -0.05, top, glass, 0, 0.08), strip(-0.05, 1.0, top, paint, 0.05, 0.1), strip(1.0, 2.0, top, glass, 0, 0.1));
+      sideGl = (sd, o) => x => { const s = sec(x), e = o || 0; return [[sd * (s.ws + e), s.ys], [sd * (s.wr + e), s.t]]; }, rail = sd => x => { const s = sec(x); return [[sd * (s.wr + 0.012), s.t - 0.1], [sd * (s.wr + 0.004), s.t + 0.004]]; };
+    for (const sd of [-1, 1]) { parts.push(strip(-2.35, 2.35, sideLo(sd), paint, 0.05, 0.1), strip(-0.85, 2.0, rail(sd), plastic, 0, 0.1), strip(0.2, 0.32, sideGl(sd, 0.007), plastic, 0, 0.06), strip(-0.85, -0.6, sideGl(sd, 0.007), plastic, 0, 0.06), strip(1.55, 1.95, sideGl(sd, 0.007), paint, 0.05, 0.1)); glass.push(gstrip(-0.85, 2.0, sideGl(sd), sd > 0 ? 0 : 1)); }
+    parts.push(strip(-2.35, -0.85, deck, paint, 0.05, 0.1), strip(2.0, 2.35, deck, paint, 0.05, 0.08), strip(-0.05, 1.0, top, paint, 0.05, 0.1)); glass.push(gstrip(-0.85, -0.05, top, 2), gstrip(1.0, 2.0, top, 3));
     const ring = x => { const s = sec(x); return [[-s.wb, s.yb], [-s.ws, s.yl], [-s.ws, s.ys], [-s.wr, s.t], [0, s.t + s.cr], [s.wr, s.t], [s.ws, s.ys], [s.ws, s.yl], [s.wb, s.yb], [-s.wb, s.yb]]; };
     parts.push(P(obxCap(ring(-2.35), -2.35, ctr), plastic, 0, 0, 0, 0, 0, 0, 0), P(obxCap(ring(2.35), 2.35, ctr), plastic, 0, 0, 0, 0, 0, 0, 0));
-    // bumpers, grille, lamps, number plates
+    // the inside, seen through the glass: floor, door cards, roof lining, dash, steering wheel, seats
+    parts.push(BX(3.0, 0.03, 1.55, 0x1b1c1e, 0.1, 0.4, 0), BX(1.05, 0.03, 1.15, 0x3a3d41, 0.45, 1.36, 0), BX(0.35, 0.2, 1.5, 0x1d1e20, -0.85, 0.85, 0, 0.02), P(new THREE.CylinderGeometry(0.17, 0.17, 0.025, 18), 0x151515, -0.62, 0.97, 0.4, 0, 0, 1.2, 0), BX(0.7, 0.18, 0.2, 0x2b2d30, 0.1, 0.55, 0), BX(0.5, 0.12, 1.4, cloth, 0.85, 0.52, 0), BX(0.12, 0.5, 1.4, cloth, 1.15, 0.82, 0));
+    for (const sd of [-1, 1]) parts.push(BX(2.9, 0.5, 0.04, 0x2b2d30, 0.2, 0.65, sd * 0.8), BX(0.5, 0.12, 0.46, cloth, -0.35, 0.52, sd * 0.4), BX(0.12, 0.55, 0.46, cloth, -0.08, 0.85, sd * 0.4), BX(0.1, 0.18, 0.28, cloth, -0.04, 1.18, sd * 0.4));
     parts.push(BX(0.3, 0.34, 1.72, plastic, -2.2, 0.45, 0, 0.08, 9, 9, 9, 0.04), BX(0.3, 0.34, 1.72, plastic, 2.2, 0.47, 0, 0.08, 9, 9, 9, 0.04), BX(0.22, 0.07, 1.5, plastic, -2.28, 0.26, 0, 0.03, 9, 9, 9, 0.04),
-      BX(0.06, 0.15, 0.56, plastic, -2.33, 0.7, 0, 0.012, 9, 9, 9, 0.04), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.73, 0, 0.003), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.69, 0, 0.003), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.65, 0, 0.003),
-      BX(0.02, 0.14, 0.34, 0xe9eef2, -2.34, 0.45, 0, 0.01), BX(0.02, 0.14, 0.34, 0xe9eef2, 2.34, 0.47, 0, 0.01));
-    for (const sd of [-1, 1]) { parts.push(BX(0.13, 0.17, 0.4, plastic, -2.27, 0.72, sd * 0.58, 0.04), BX(0.03, 0.14, 0.36, 0xe4ebef, -2.325, 0.72, sd * 0.58, 0.02), BX(0.03, 0.05, 0.14, 0xe08a1a, -2.33, 0.62, sd * 0.78, 0.01), BX(0.1, 0.17, 0.4, red, 2.3, 0.8, sd * 0.6, 0.03), BX(0.03, 0.05, 0.12, 0xf3f3f3, 2.35, 0.74, sd * 0.78, 0.01), BX(0.14, 0.03, 0.12, 0xb5b9be, 2.3, 0.62, sd * 0.65, 0.01));
-      // the sides: sill, rubbing strip, door lines, handles, mirror, fuel flap, arches, chrome belt line
-      parts.push(BX(3.9, 0.06, 0.03, plastic, -0.1, 0.34, sd * 0.89, 0.01, 9, 9, 9, 0.04), BX(4.1, 0.07, 0.02, plastic, -0.1, 0.55, sd * 0.89, 0.008, 9, 9, 9, 0.04), BX(2.8, 0.012, 0.012, chrome, 0.5, 0.905, sd * 0.875, 0.003));
-      for (const dx of [-0.85, -0.45, 0.3, 1.05, 1.9]) parts.push(BX(0.012, dx === 0.3 ? 0.62 : 0.56, 0.012, 0x050506, dx, dx === 0.3 ? 0.6 : 0.6, sd * 0.887, 0.003));
-      for (const dx of [-0.1, 0.9]) parts.push(BX(0.15, 0.025, 0.035, chrome, dx, 0.78, sd * 0.89, 0.008));
-      parts.push(BX(0.17, 0.05, 0.05, paint, -0.75, 0.98, sd * 0.97, 0.02), BX(0.09, 0.14, 0.2, paint, -0.8, 1.04, sd * 1.06, 0.04), BX(0.05, 0.12, 0.16, 0x1a2430, -0.8, 1.04, sd * 1.075, 0.01), BX(0.1, 0.1, 0.012, 0xb3b6bb, 1.78, 0.86, sd * 0.865, 0.01));
+      BX(0.06, 0.15, 0.56, plastic, -2.33, 0.7, 0, 0.03, 9, 9, 9, 0.04), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.73, 0), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.69, 0), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.65, 0),
+      BX(0.02, 0.14, 0.34, 0xe9eef2, -2.34, 0.45, 0), BX(0.02, 0.14, 0.34, 0xe9eef2, 2.34, 0.47, 0));
+    for (const sd of [-1, 1]) { parts.push(BX(0.13, 0.17, 0.4, plastic, -2.27, 0.72, sd * 0.58, 0.04), BX(0.03, 0.14, 0.36, 0xe4ebef, -2.325, 0.72, sd * 0.58), BX(0.03, 0.05, 0.14, 0xe08a1a, -2.33, 0.62, sd * 0.78), BX(0.1, 0.17, 0.4, red, 2.3, 0.8, sd * 0.6, 0.03), BX(0.03, 0.05, 0.12, 0xf3f3f3, 2.35, 0.74, sd * 0.78), BX(0.14, 0.03, 0.12, 0xb5b9be, 2.3, 0.62, sd * 0.65));
+      parts.push(BX(3.9, 0.06, 0.03, plastic, -0.1, 0.34, sd * 0.89, 0, 9, 9, 9, 0.04), BX(4.1, 0.07, 0.02, plastic, -0.1, 0.55, sd * 0.89, 0, 9, 9, 9, 0.04), BX(2.8, 0.012, 0.012, chrome, 0.5, 0.905, sd * 0.875));
+      for (const dx of [-0.85, -0.45, 0.3, 1.05, 1.9]) parts.push(BX(0.012, dx === 0.3 ? 0.62 : 0.56, 0.012, 0x050506, dx, 0.6, sd * 0.887));
+      for (const dx of [-0.1, 0.9]) parts.push(BX(0.15, 0.025, 0.035, chrome, dx, 0.78, sd * 0.89));
+      parts.push(BX(0.17, 0.05, 0.05, paint, -0.75, 0.98, sd * 0.97), BX(0.09, 0.14, 0.2, paint, -0.8, 1.04, sd * 1.06, 0.04), BX(0.05, 0.12, 0.16, 0x1a2430, -0.8, 1.04, sd * 1.075), BX(0.1, 0.1, 0.012, 0xb3b6bb, 1.78, 0.86, sd * 0.865));
       for (const wx of [-1.4, 1.27]) { parts.push(P(new THREE.CylinderGeometry(0.41, 0.41, 0.03, 28), 0x050506, wx, 0.33, sd * 0.888, Math.PI / 2, 0, 0, 0), ...obxAlloyZ(P, wx, 0.33, sd * 0.84, 0.31, 0.21)); } }
-    parts.push(BX(0.02, 0.12, 0.5, 0xf1f1ec, -2.37, 0.38, 0, 0.005), BX(0.02, 0.12, 0.5, 0xf1f1ec, 2.37, 0.5, 0, 0.005));
-    const geo = OBX_MERGE(parts, new THREE.BoxGeometry(4.7, 1.45, 1.77).translate(0, 0.72, 0)); geo.translate(0, -0.75, 0);
-    return { geo, mat: obxMat(0.22, 0.55), fl: 0.45 }; },
+    parts.push(BX(0.02, 0.12, 0.5, 0xf1f1ec, -2.37, 0.38, 0), BX(0.02, 0.12, 0.5, 0xf1f1ec, 2.37, 0.5, 0));
+    return { body: parts, glass, panes }; }
+};
+function OBX_MERGE(parts, fb) { /* if the parts cannot be merged the obstacle is still there, as a plain block, and the game does not stop */ let g = null; try { g = mergeGeometries(parts); } catch (e) { g = null; } return g || fb; }
+const OBS_KIT = {
+  truck: () => ({ geo: OBX_MERGE(obxModel('truck').body, new THREE.BoxGeometry(2.5, 3, 7).translate(0, 1.5, -3.4)), mat: obxMat(0.6, 0.28), fl: 0.5 }),
+  truckg: () => obxGlassKit(obxModel('truck'), new THREE.BoxGeometry(0.1, 0.1, 0.1), 0),
+  car: () => { const geo = OBX_MERGE(obxModel('car').body, new THREE.BoxGeometry(4.5, 1.5, 1.8).translate(0, 0.75, 0)); geo.translate(0, -0.75, 0); return { geo, mat: obxMat(0.22, 0.55), fl: 0.45 }; },
+  carg: () => obxGlassKit(obxModel('car'), new THREE.BoxGeometry(0.1, 0.1, 0.1), 0.75),
   tire: () => { const prof = [[0.2, -0.11], [0.26, -0.11], [0.32, -0.1], [0.35, -0.07], [0.355, 0], [0.35, 0.07], [0.32, 0.1], [0.26, 0.11], [0.2, 0.11], [0.19, 0], [0.2, -0.11]].map(([r, y]) => new THREE.Vector2(r, y)), geo = new THREE.LatheGeometry(prof, 28),
       map = tex(128, 128, (g, w, h) => { g.fillStyle = '#1c1c1c'; g.fillRect(0, 0, w, h); for (let i = 0; i < 500; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '70,70,70' : '0,0,0') + ',0.25)'; g.fillRect(Math.random() * w, Math.random() * h, 3, 2); } g.fillStyle = '#0c0c0c'; for (let x = 0; x < w; x += 8) g.fillRect(x, h * 0.3, 4, h * 0.4); g.fillStyle = 'rgba(200,200,200,0.55)'; g.fillRect(0, h * 0.14, w * 0.5, 3); });
     return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.92, metalness: 0.0, side: THREE.DoubleSide }), fl: 0.11 }; },
@@ -3389,47 +3437,47 @@ const OBS_KIT = {
 function obsBuild(id) {
   if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
   for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
-  for (const t in by) { const kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box' }[t]; set.dragK = { box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1 }[t]; set.bnc = { box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55 }[t]; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
+  for (const t in by) { const kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass' }[t]; set.dragK = { box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02 }[t]; set.bnc = { box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15 }[t]; if (t === 'truckg' || t === 'carg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
   return (OBX.built[id] = out);
 }
 function obsPlace(id) { // every block back in its place, still
   if (OBX.dust) OBX.dust.clear(); OBX.cool = {}; OBX.psp = {};
   const o = obsBuild(id), sp = OBST[id], q = new THREE.Quaternion(), up = new V3(0, 1, 0), jit = sp.layout; 
   for (const t in o.kits) { const gm = o.kits[t].geo; if (gm.userData.orig) { gm.attributes.position.array.set(gm.userData.orig); gm.attributes.normal.array.set(gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; gm.userData.shown = false; } } // a new run: the dent is hammered out
-  OBX_ROCK.on = false; OBX_ROCK.id = ''; for (const t in o.sets) { o.sets[t].mesh.position.set(0, 0, 0); o.sets[t].mesh.quaternion.set(0, 0, 0, 1); } // a new run: the vehicle is back in place
+  obsGlassReset(id); OBX_ROCK.on = false; OBX_ROCK.id = ''; for (const t in o.sets) { o.sets[t].mesh.position.set(0, 0, 0); o.sets[t].mesh.quaternion.set(0, 0, 0, 1); } // a new run: the vehicle is back in place
   for (const t in o.sets) o.sets[t].clear();
   for (const b of o.blocks) { const i = b.set.next; q.setFromAxisAngle(up, b.ry || 0); b.set.raw(LAB_LANE + b.x, b.y, BOLLARD_Z + b.z, 0, 0, 0, b.sx, b.sy, b.sz, 99999, b.col, true, q.x, q.y, q.z, q.w, 0, 0, 0); b.i = i; b.set.fl[i] = b.kit.fl; }
   for (const t in o.sets) { o.sets[t].mesh.visible = true; o.sets[t].mesh.instanceMatrix.needsUpdate = true; }
 }
-function obsDeform(v) { // a heavy obstacle is not a rock: the front of the truck / the side of the car crumples, deeper the faster the hit; the vehicle and the cylinders sink into the dent by the same depth
-  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], A = sp && sp.dent; if (!A || !o || !o.kits[A.part]) return 0;
-  const geo = o.kits[A.part].geo, pos = geo.attributes.position, nor = geo.attributes.normal, a = pos.array, na = nor.array;
-  if (!geo.userData.orig) { geo.userData.orig = a.slice(); geo.userData.origN = na.slice(); }
-  const D = clamp(A.min + v * A.k, 0, A.max), n = pos.count, hit = new Uint8Array(n);
-  for (let i = 0; i < n; i++) { const k = i * 3, x = a[k], y = a[k + 1], z = a[k + 2]; if (!A.mask(x, y, z)) continue; const dx = (x - A.cx) / A.sx, dy = (y - A.cy) / A.sy, w = Math.exp(-(dx * dx + dy * dy) * 0.5); if (w < 0.02) continue;
-    const f = Math.pow(clamp((z - A.z0) / (A.z1 - A.z0), 0, 1), 1.3), t = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453, nz = 0.8 + 0.3 * (t - Math.floor(t)) + 0.15 * Math.sin(x * 9 + z * 4) * Math.sin(y * 7 + x * 3);
-    a[k + 2] = z - D * w * f * nz; hit[i] = 1; }
-  for (let i = 0; i + 2 < n; i += 3) if (hit[i] || hit[i + 1] || hit[i + 2]) { // crumpled metal is faceted: a flat normal on every triangle that moved
-    const p = i * 3, ux = a[p + 3] - a[p], uy = a[p + 4] - a[p + 1], uz = a[p + 5] - a[p + 2], vx = a[p + 6] - a[p], vy = a[p + 7] - a[p + 1], vz = a[p + 8] - a[p + 2];
-    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nzz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nzz) || 1; nx /= l; ny /= l; nzz /= l; for (let q = 0; q < 3; q++) { na[p + q * 3] = nx; na[p + q * 3 + 1] = ny; na[p + q * 3 + 2] = nzz; } }
-  pos.needsUpdate = true; nor.needsUpdate = true; geo.userData.dented = a.slice(); geo.userData.dentedN = na.slice(); geo.userData.shown = true;
+function obsDeform(v) { // a heavy obstacle is not a rock: the front of the truck / the side of the car (and its glass) crumples, deeper the faster the hit; the vehicle and the cylinders sink into the dent by the same depth
+  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], A = sp && sp.dent; if (!A || !o) return 0; const D = clamp(A.min + v * A.k, 0, A.max);
+  for (const part of A.parts) { const kit = o.kits[part]; if (!kit) continue; const geo = kit.geo, pos = geo.attributes.position, nor = geo.attributes.normal, a = pos.array, na = nor.array;
+    if (!geo.userData.orig) { geo.userData.orig = a.slice(); geo.userData.origN = na.slice(); }
+    const n = pos.count, hit = new Uint8Array(n);
+    for (let i = 0; i < n; i++) { const k = i * 3, x = a[k], y = a[k + 1], z = a[k + 2]; if (!A.mask(x, y, z)) continue; const dx = (x - A.cx) / A.sx, dy = (y - A.cy) / A.sy, w = Math.exp(-(dx * dx + dy * dy) * 0.5); if (w < 0.02) continue;
+      const f = Math.pow(clamp((z - A.z0) / (A.z1 - A.z0), 0, 1), 1.3), t = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453, nz = 0.8 + 0.3 * (t - Math.floor(t)) + 0.15 * Math.sin(x * 9 + z * 4) * Math.sin(y * 7 + x * 3);
+      a[k + 2] = z - D * w * f * nz; hit[i] = 1; }
+    for (let i = 0; i + 2 < n; i += 3) if (hit[i] || hit[i + 1] || hit[i + 2]) { // crumpled metal is faceted: a flat normal on every triangle that moved
+      const p = i * 3, ux = a[p + 3] - a[p], uy = a[p + 4] - a[p + 1], uz = a[p + 5] - a[p + 2], vx = a[p + 6] - a[p], vy = a[p + 7] - a[p + 1], vz = a[p + 8] - a[p + 2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nzz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nzz) || 1; nx /= l; ny /= l; nzz /= l; for (let q = 0; q < 3; q++) { na[p + q * 3] = nx; na[p + q * 3 + 1] = ny; na[p + q * 3 + 2] = nzz; } }
+    pos.needsUpdate = true; nor.needsUpdate = true; geo.userData.dented = a.slice(); geo.userData.dentedN = na.slice(); geo.userData.shown = true; }
   for (let j = 0; j < (A.shiftN || 0); j++) if (CART.cyls[j]) CART.cyls[j].z -= D;
   CART.pw[1] -= D * 0.9; labCartPlace(); board.updateMatrixWorld(true);
-  if (v >= 8) obsFx(sp, v, 1);
+  obsGlassCart(v); if (v >= 8) obsFx(sp, v, 1);
   return D;
 }
 const OBX_ROCK = { on: false, t: 0, id: '', S: 0, A: 0, T: 0.7, cz: [], q: null, ax: null, c: null };
 function obsRockStart(v) { // the struck vehicle is shoved and rocks on its suspension: the lighter it is, the more (the truck a little, the car clearly); a hit hard enough to throw it is handled by the debris physics instead
-  const sp = OBST[OBX.cur], k = sp && sp.rock, o = OBX.built[OBX.cur]; OBX_ROCK.on = false; OBX_ROCK.id = ''; if (!k || !o || !o.sets[k.part] || v >= sp.bend) return;
-  Object.assign(OBX_ROCK, { on: true, t: 0, id: OBX.cur, S: k.slide * v, A: k.tilt * v, cz: CART.cyls.map(c => c.z) });
+  const sp = OBST[OBX.cur], k = sp && sp.rock, o = OBX.built[OBX.cur]; OBX_ROCK.on = false; OBX_ROCK.id = ''; if (!k || !o || !k.parts.every(p => o.sets[p]) || v >= sp.bend) return;
+  Object.assign(OBX_ROCK, { on: true, t: 0, id: OBX.cur, S: k.slide * v, A: Math.min(k.tiltMax || 9, k.tilt * v), cz: CART.cyls.map(c => c.z) });
   if (AC && v >= 6 && !sfxPlay('creak', 0.5, k.part === 'truck' ? 0.7 : 1, 0.2)) { OUT(); const t = AC.currentTime, big = k.part === 'truck', g = clamp(v / 45, 0.2, 1); // metal groan on the springs, then two soft settling thumps
     noise(t + 0.1, 0.5, 0.05 * g, 'bandpass', big ? 300 : 460, big ? 190 : 300, 12); noise(t + 0.3, 0.12, 0.1 * g, 'lowpass', 300, 100, 0.8); noise(t + 0.62, 0.1, 0.06 * g, 'lowpass', 260, 90, 0.8); }
 }
 function obsRockAt(t) { // the vehicle's pose t seconds after the hit (t < 0: untouched): shoved back, tilting away and rocking back on its springs, with a little bounce
-  const R = OBX_ROCK; if (!R.id) return; const sp = OBST[R.id], k = sp.rock, o = OBX.built[R.id], m = o && o.sets[k.part] && o.sets[k.part].mesh; if (!m) return;
+  const R = OBX_ROCK; if (!R.id) return; const sp = OBST[R.id], k = sp.rock, o = OBX.built[R.id], ms = o && k.parts.map(p => o.sets[p] && o.sets[p].mesh).filter(Boolean); if (!ms || !ms.length) return;
   if (!R.q) { R.q = new THREE.Quaternion(); R.ax = new V3(1, 0, 0); R.c = new V3(); }
   const tt = Math.max(0, t), u = Math.min(1, tt / R.T), slide = R.S * (1 - (1 - u) * (1 - u)), ang = -R.A * Math.exp(-tt / k.tau) * Math.sin(k.w * tt), heave = 0.6 * R.A * Math.exp(-tt / k.tau) * Math.abs(Math.sin(k.w * tt));
-  R.q.setFromAxisAngle(R.ax, ang); R.c.set(LAB_LANE, k.py, BOLLARD_Z + k.pz); const rx = R.c.clone().applyQuaternion(R.q); m.quaternion.copy(R.q); m.position.set(R.c.x - rx.x, R.c.y - rx.y + heave, R.c.z - rx.z - slide);
+  R.q.setFromAxisAngle(R.ax, ang); R.c.set(LAB_LANE, k.py, BOLLARD_Z + k.pz); const rx = R.c.clone().applyQuaternion(R.q); for (const m of ms) { m.quaternion.copy(R.q); m.position.set(R.c.x - rx.x, R.c.y - rx.y + heave, R.c.z - rx.z - slide); }
   return slide;
 }
 function obsRockStep(dt) {
@@ -3437,9 +3485,11 @@ function obsRockStep(dt) {
   const n = Math.min(CART.cyls.length, sp.dent ? sp.dent.shiftN : 0); for (let j = 0; j < n; j++) if (R.cz[j] !== undefined) CART.cyls[j].z = R.cz[j] - slide; // what the body collides with moves with the vehicle
   if (R.t > R.T + 3) R.on = false;
 }
-function obsDentShow(dented) { // the replay: the front is whole before the hit and crumpled after it
-  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], gm = sp && sp.dent && o && o.kits[sp.dent.part] && o.kits[sp.dent.part].geo; if (!gm || !gm.userData.dented || gm.userData.shown === dented) return; gm.userData.shown = dented;
-  gm.attributes.position.array.set(dented ? gm.userData.dented : gm.userData.orig); gm.attributes.normal.array.set(dented ? gm.userData.dentedN : gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true;
+function obsDentShow(dented) { // the replay: the vehicle is whole before the hit, crumpled (glass cracked) after it
+  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], A = sp && sp.dent; if (!A || !o) return;
+  for (const part of A.parts) { const gm = o.kits[part] && o.kits[part].geo; if (!gm || !gm.userData.dented || gm.userData.shown === dented) continue; gm.userData.shown = dented;
+    gm.attributes.position.array.set(dented ? gm.userData.dented : gm.userData.orig); gm.attributes.normal.array.set(dented ? gm.userData.dentedN : gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; }
+  const M = OBX_MODELS[OBX.cur]; if (M && M.gl) M.gl.mat.map = dented && M.hits ? M.gl.crack : M.gl.clean;
 }
 function obsApply() { // choose the obstacle for this machine, give the vehicle's physics its strengths, show it and hide the rest
   const id = LAB.machine === 'mix' && OBST[MIX.obs] ? MIX.obs : 'post', sp = OBST[id]; OBX.cur = id;
@@ -3448,7 +3498,7 @@ function obsApply() { // choose the obstacle for this machine, give the vehicle'
   for (const k in OBX.built) for (const t in OBX.built[k].sets) OBX.built[k].sets[t].mesh.visible = false;
   if (labBol() && id !== 'post') obsPlace(id);
 }
-function obsStep(dt) { obsRockStep(dt); if (OBX.dust) OBX.dust.step(dt); const o = OBX.built[OBX.cur]; if (o && OBX.cur !== 'post') for (const t in o.sets) o.sets[t].step(dt); }
+function obsStep(dt) { obsRockStep(dt); if (OBX.shards) OBX.shards.step(dt); if (OBX.dust) OBX.dust.step(dt); const o = OBX.built[OBX.cur]; if (o && OBX.cur !== 'post') for (const t in o.sets) o.sets[t].step(dt); }
 function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds, gives, or is destroyed
   const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], st = v >= sp.knock ? 2 : v >= sp.bend ? 1 : 0, p = clamp((v - sp.bend) / Math.max(1, sp.knock - sp.bend) * 0.8 + 0.2, 0.2, 0.95); if (!o) return;
   obsFx(sp, v, st);
