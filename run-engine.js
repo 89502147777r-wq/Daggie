@@ -4113,7 +4113,7 @@ function labRec(dt) {
   LREC.frames.push(f); if (LREC.frames.length > 700) LREC.frames.shift();
 }
 function labBars(on) { // the replay used to draw black bars over 24% of the screen and a blinking REPLAY label: gone, so a replay cut into a video looks like the rest of it
-  if (!document.getElementById('labBarsCss')) { const css = document.createElement('style'); css.id = 'labBarsCss'; css.textContent = '.labmode.replaying .labgauge{opacity:0}#labBars{display:none!important}'; document.head.appendChild(css); }
+  if (!document.getElementById('labBarsCss')) { const css = document.createElement('style'); css.id = 'labBarsCss'; css.textContent = '.labmode.replaying .labgauge,.labmode.replaying .lablvl{opacity:0}#labBars{display:none!important}'; document.head.appendChild(css); }
   stage.classList.toggle('replaying', on);
 }
 function labReplayStart() {
@@ -4157,12 +4157,12 @@ function buildLabUI() {
   const css = document.createElement('style');
   css.textContent = `.labmode .hud,.labmode .meters,.labmode .bar,.labmode .hint{display:none!important}
 .labgauge{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 14px);transform:translateX(-50%);width:min(92%,440px);z-index:6;text-align:center;pointer-events:none}
-.labgauge b{display:block;font:700 26px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;-webkit-text-stroke:1.5px #16112a;text-shadow:0 3px 0 #16112a;letter-spacing:1px}
+.labgauge b{display:block;font:700 22px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;-webkit-text-stroke:1.5px #16112a;text-shadow:0 3px 0 #16112a;letter-spacing:1px}
 .labgauge .row{display:flex;align-items:center;gap:8px;margin-top:4px}
 .labgauge .pm{flex:none;width:30px;height:30px;border-radius:50%;background:#1c1838;border:3px solid #fff;color:#fff;font:700 20px/22px "Chakra Petch",sans-serif}
 .labgauge .track{position:relative;flex:1;height:18px;border-radius:10px;border:3px solid #fff;background:linear-gradient(90deg,#3dff9a,#ffe23d 50%,#ff8a1f 75%,#ff2a3a)}
 .labgauge .knob{position:absolute;top:50%;width:22px;height:30px;margin:-15px 0 0 -11px;background:#fff;border:3px solid #16112a;border-radius:8px 8px 12px 12px;transition:left .25s}
-.labgauge .lvl{display:block;margin-top:4px;font:700 20px "Chakra Petch",sans-serif;color:#ffc41f;-webkit-text-stroke:1px #16112a}
+.lablvl{position:absolute;left:12px;top:calc(env(safe-area-inset-top,0px) + 14px);z-index:6;pointer-events:none;white-space:pre-line;text-align:left;font:700 20px/1.15 "Chakra Petch",sans-serif;color:#ffc41f;-webkit-text-stroke:1px #16112a;text-shadow:0 2px 0 #16112a}
 .labpanel{position:absolute;left:0;right:0;bottom:0;z-index:7;padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(11,7,32,.92);border-top:1px solid rgba(170,120,255,.35);font-family:"Chakra Petch",ui-sans-serif,sans-serif;color:#efeaff}
 .labpanel .chips{display:flex;gap:6px;margin-bottom:8px}
 .labpanel .chips button{flex:1;appearance:none;border:1px solid rgba(170,120,255,.4);background:rgba(255,255,255,.06);color:#efeaff;border-radius:10px;padding:8px 4px;font:700 13px "Chakra Petch",sans-serif}
@@ -4179,8 +4179,9 @@ function buildLabUI() {
   document.head.appendChild(css);
   stage.classList.add('labmode');
   const g = document.createElement('div'); g.className = 'labgauge'; g.id = 'labGauge';
-  g.innerHTML = '<b id="labTitle"></b><div class="row"><span class="pm">−</span><div class="track"><i class="knob" id="labKnob"></i></div><span class="pm">+</span></div><span class="lvl" id="labLvl"></span>';
+  g.innerHTML = '<b id="labTitle"></b>';
   stage.appendChild(g);
+  const lv = document.createElement('div'); lv.className = 'lablvl'; lv.id = 'labLvl'; stage.appendChild(lv);
   const p = document.createElement('div'); p.className = 'labpanel'; p.id = 'labPanel';
   p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div>';
   stage.appendChild(p);
@@ -4203,8 +4204,8 @@ function labUI() {
   cannonShow(LAB.machine === 'cannon'); stairsShow(LAB.machine === 'stairs');
   if (labBol()) { const was = LAB_VEH; labVehicle(labVehKind()); obsApply(); if (was !== LAB_VEH) { board.visible = true; labCartReset(); } mixPickVis(true); } else mixPickVis(false);
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
-  $('labKnob').style.left = ((LAB.level - 1) / (LAB_MAX() - 1) * 100) + '%'; $('labRange').max = String(LAB_MAX());
-  $('labLvl').textContent = labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : LAB.machine === 'stairs' ? 'LEVEL ' + LAB.level + ' · ' + STAIRS_STEPS[LAB.level - 1] + ' STEPS' : 'LEVEL ' + LAB.level;
+  $('labRange').max = String(LAB_MAX());
+  $('labLvl').textContent = (labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : LAB.machine === 'stairs' ? 'LEVEL ' + LAB.level + ' · ' + STAIRS_STEPS[LAB.level - 1] + ' STEPS' : 'LEVEL ' + LAB.level).replace(' · ', '\n');
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labRec').setAttribute('aria-pressed', String(REC_MODE));
