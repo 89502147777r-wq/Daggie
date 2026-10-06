@@ -1563,8 +1563,8 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
-// names: cannon glass window wood hay brick stone ice metal vault rip thud
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud'], started: false };
+// names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak'], started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
 function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
@@ -2895,7 +2895,7 @@ class RagCore {
     for (let i = 0; i < n; i++) if (this.cf[i]) {
       const k = i * 3, nx = this.cn[k], ny = this.cn[k + 1], nz = this.cn[k + 2];
       let vx = x[k] - o[k], vy = x[k + 1] - o[k + 1], vz = x[k + 2] - o[k + 2]; const vn = vx * nx + vy * ny + vz * nz;
-      if (vn < 0) { vx -= nx * vn; vy -= ny * vn; vz -= nz * vn; if (this.limbOf && this.tearSpeed && -vn / this.dt > this.tearSpeed) { const g = this.limbOf[i]; if (g && Math.random() < 0.6) this.breakGroup(g); } }
+      if (vn < 0) { if (this.onImpact && -vn / this.dt > 2.5) this.onImpact(i, -vn / this.dt, ny); vx -= nx * vn; vy -= ny * vn; vz -= nz * vn; if (this.limbOf && this.tearSpeed && -vn / this.dt > this.tearSpeed) { const g = this.limbOf[i]; if (g && Math.random() < 0.6) this.breakGroup(g); } }
       if (this.cf[i] === 1) { const f = this.friction ?? 0.75; vx *= f; vz *= f; if (Math.abs(ny) < 0.7) vy *= f; }
       o[k] = x[k] - vx; o[k + 1] = x[k + 1] - vy; o[k + 2] = x[k + 2] - vz;
     }
@@ -3037,7 +3037,7 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   daggie.updateMatrixWorld(true);
   const now = ragPoints(true), rest = ragPoints(false), core = new RagCore(RAG_NAMES.length);
   const fw = FACE_N ? [FACE_N.x, FACE_N.y, FACE_N.z] : [0, 0, 1];
-  core.floor = floorAt; core.box = LABCART.box; core.cyls = LABCART.cyls; { const OR2 = LAB.machine === 'mix' && OBX.cur !== 'post' && OBST[OBX.cur] && OBST[OBX.cur].rider; core.crashK = (OR2 && OR2.crash) || 0; }
+  core.floor = floorAt; core.box = LABCART.box; core.cyls = LABCART.cyls; { const OR2 = LAB.machine === 'mix' && OBX.cur !== 'post' && OBST[OBX.cur] && OBST[OBX.cur].rider; core.crashK = (OR2 && OR2.crash) || 0; if (labBol()) core.onImpact = (i, sp, ny) => bodyHit(sp, ny > 0.7); }
   const I = ragBody(core, rest, now, fw, RAG_TUNE);
   { const half = n => { const bb = byName[n].userData.mesh.geometry.boundingBox, e = [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z].sort((a, b) => a - b); return e[1] * 0.5; };
     const src = { pel: 'pelvis', waist: 'torso', chest: 'torso', neck: 'head', top: 'head', shL: 'upperL', elL: 'upperL', wrL: 'foreL', haL: 'handL', shR: 'upperR', elR: 'upperR', wrR: 'foreR', haR: 'handR', hipL: 'thighL', knL: 'thighL', anL: 'shinL', toL: 'footL', hipR: 'thighR', knR: 'thighR', anR: 'shinR', toR: 'footR' };
@@ -3365,6 +3365,8 @@ const OBX_ROCK = { on: false, t: 0, id: '', S: 0, A: 0, T: 0.7, cz: [], q: null,
 function obsRockStart(v) { // the struck vehicle is shoved and rocks on its suspension: the lighter it is, the more (the truck barely, the car clearly); a hit hard enough to throw it is handled by the debris physics instead
   const sp = OBST[OBX.cur], k = sp && sp.rock, o = OBX.built[OBX.cur]; OBX_ROCK.on = false; if (!k || !o || !o.sets[k.part] || v >= sp.bend) return;
   Object.assign(OBX_ROCK, { on: true, t: 0, id: OBX.cur, S: k.slide * v, A: k.tilt * v, cz: CART.cyls.map(c => c.z) });
+  if (AC && v >= 6 && !sfxPlay('creak', 0.5, k.part === 'truck' ? 0.7 : 1, 0.2)) { OUT(); const t = AC.currentTime, big = k.part === 'truck', g = clamp(v / 45, 0.2, 1); // metal groan on the springs, then two soft settling thumps
+    noise(t + 0.1, 0.5, 0.05 * g, 'bandpass', big ? 300 : 460, big ? 190 : 300, 12); noise(t + 0.3, 0.12, 0.1 * g, 'lowpass', 300, 100, 0.8); noise(t + 0.62, 0.1, 0.06 * g, 'lowpass', 260, 90, 0.8); }
 }
 function obsRockStep(dt) {
   const R = OBX_ROCK; if (!R.on) return; R.t += dt; const sp = OBST[R.id], k = sp.rock, o = OBX.built[R.id], m = o && o.sets[k.part] && o.sets[k.part].mesh; if (!m) { R.on = false; return; }
@@ -3410,13 +3412,20 @@ function obsTear(dt) { // a hard obstacle tears limbs off on hard knocks, a soft
   for (const nm in STR_LIMB) { const g = STR_LIMB[nm]; OBX.cool[g] = (OBX.cool[g] || 0) - dt; const k = I[nm] * 3, sv = Math.hypot(c.x[k] - c.o[k], c.x[k + 1] - c.o[k + 1], c.x[k + 2] - c.o[k + 2]) * 240, drop = (OBX.psp[nm] ?? sv) - sv; OBX.psp[nm] = sv;
     if (drop > sp.hard && OBX.cool[g] <= 0 && !c.broken.includes(g)) { OBX.cool[g] = 0.3; if (Math.random() < Math.min(0.75, (drop - sp.hard) / 14)) c.breakGroup(g); } }
 }
+function bodyHit(speed, floor) { // Daggie's body meeting the floor or the obstacle: a dull thud, with a metal clank on a truck or a car (at most ~14 a second)
+  if (!AC || speed < 2.5) return; const t = AC.currentTime; if (t - (bodyHit.t || 0) < 0.07) return; bodyHit.t = t;
+  const p = clamp(speed / 40, 0.1, 1), mt = OBX.cur !== 'post' && OBST[OBX.cur] ? OBST[OBX.cur].sound : '', metal = !floor && (mt === 'truck' || mt === 'car' || mt === 'barrel' || mt === 'concrete'); OUT(); SND_WIDE = 0.5;
+  try { if (sfxPlay(floor ? 'thud' : 'body', 0.35 + 0.65 * p, floor ? 0.85 : 1, 0.2)) return; sweep(t, 140 + 60 * p, 45, 0.1 + 0.12 * p, 0.12 + 0.3 * p, 'sine'); noise(t, 0.06 + 0.06 * p, 0.1 + 0.25 * p, 'lowpass', 600 + 900 * p, 150, 0.8);
+    if (metal) { ping(t, rand(320, 760), 0.25, 0.02 + 0.05 * p); noise(t, 0.015, 0.08 * p, 'highpass', 4000, 2500, 0.7); } } finally { SND_WIDE = 0; }
+}
 function obsSound(kind, st, v) {
   const p = clamp(v / 45, 0.15, 1); if (!AC) return; OUT(); const t = AC.currentTime;
   if (kind === 'box') { if (sfxPlay('thud', 0.8, 1.1, 0.2)) return; noise(t, 0.2, 0.3, 'lowpass', 900, 150, 0.7); for (let i = 0; i < 10; i++) noise(t + Math.random() * 0.5, 0.05, 0.1, 'bandpass', rand(500, 1400), 400, 2); sweep(t, 110, 50, 0.2, 0.3, 'sine'); }
   else if (kind === 'melon') { noise(t, 0.25, 0.35, 'bandpass', 700, 250, 1.2); noise(t, 0.12, 0.25, 'lowpass', 1500, 300, 0.8); sweep(t, 160, 60, 0.18, 0.3, 'sine'); for (let i = 0; i < 6; i++) noise(t + 0.05 + Math.random() * 0.3, 0.07, 0.12, 'bandpass', rand(300, 900), 200, 1.5); }
-  else if (kind === 'truck') { matSound('metal', 1, 0.6); sweep(t, 55, 24, 0.7, 0.45, 'sine'); noise(t, 0.3, 0.4, 'lowpass', 400, 100, 0.8); }
-  else if (kind === 'car') { matSound('metal', 1, 0.8); if (v > 20) glassSound(1.3); }
-  else if (kind === 'tires') { noise(t, 0.25, 0.4, 'lowpass', 500, 120, 0.9); sweep(t, 95, 40, 0.28, 0.35, 'sine'); for (let i = 0; i < 5; i++) noise(t + Math.random() * 0.5, 0.07, 0.12, 'bandpass', rand(200, 600), 200, 1.5); }
+  else if (kind === 'truck') { if (!sfxPlay(['truck', 'metal'], 0.9, 0.65, 0.25)) { matSound('metal', 1, 0.6); sweep(t, 55, 24, 0.7, 0.45, 'sine'); noise(t, 0.3, 0.4, 'lowpass', 400, 100, 0.8); noiseDist(t, 0.25, 0.3, 1800, 200, 1.1); }
+    if (v > 12 && !sfxPlay('sand', 0.7, 1, 0.1)) { noise(t + 0.12, 1.2 + p, 0.16 * p + 0.04, 'bandpass', 3800, 1400, 0.9); for (let i = 0; i < 14; i++) noise(t + 0.3 + Math.random() * 1.2, 0.04, 0.05, 'highpass', 5000, 3000, 0.7); } } // the sand shifting and pouring over the edge
+  else if (kind === 'car') { if (!sfxPlay(['car', 'metal'], 0.9, 0.8, 0.25)) { matSound('metal', 1, 0.8); noiseDist(t, 0.2, 0.3, 2200, 260, 1.1); sweep(t, 90, 40, 0.25, 0.3, 'sine'); } if (v > 12) glassSound(1.3); for (let i = 0; i < 6; i++) noise(t + 0.1 + Math.random() * 0.6, 0.05, 0.1, 'bandpass', rand(1500, 4000), 800, 3); }
+  else if (kind === 'tires') { if (!sfxPlay('tires', 0.9, 1, 0.2)) { noise(t, 0.25, 0.4, 'lowpass', 500, 120, 0.9); sweep(t, 95, 40, 0.28, 0.35, 'sine'); for (let i = 0; i < 5; i++) noise(t + Math.random() * 0.5, 0.07, 0.12, 'bandpass', rand(200, 600), 200, 1.5); } if (v > 8) noise(t, 0.35, 0.08, 'bandpass', 1900, 900, 4); } // and the squeak of rubber on rubber
   else if (kind === 'barrel') matSound('metal', 1, 0.55); else if (kind === 'brick') matSound('brick', p, 1); else if (kind === 'concrete') { matSound('stone', 1, 0.8); sweep(t, 70, 28, 0.5, 0.4, 'sine'); }
   else if (kind === 'pins') for (let i = 0; i < 12; i++) { const tt = t + Math.pow(Math.random(), 1.4) * 0.7, f = rand(700, 1400); noise(tt, 0.04, 0.2, 'bandpass', f, f * 0.6, 3); ping(tt, f * 1.3, 0.05, 0.04); }
 }
