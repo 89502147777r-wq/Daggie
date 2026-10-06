@@ -3993,6 +3993,7 @@ function labReset() {
   setFace('idle', 0); snapCam = true;
 }
 function labStart() {
+  if (labBol()) { CAN.cam.yaw = 0; CAN.cam.pitch = 0; CAN.cam.zoom = 1; }
   resetRun(); // fresh Daggie on the stand
   LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
@@ -4731,7 +4732,7 @@ function cannonMuzzleCloud() { // the big puff of smoke at the muzzle, bigger wi
 let CAN_IN = false;
 function canInput() {
   if (CAN_IN) return; CAN_IN = true; const pts = new Map(); let moved = 0, downT = 0, lastTap = 0; const cam = CAN.cam;
-  const on = e => MODE === 'lab' && (LAB.machine === 'cannon' || LAB.machine === 'stairs') && e.target === canvas;
+  const on = e => MODE === 'lab' && (LAB.machine === 'cannon' || LAB.machine === 'stairs' || (labBol() && !LAB.replay)) && e.target === canvas;
   stage.addEventListener('pointerdown', e => { if (!on(e)) return; e.stopImmediatePropagation(); try { canvas.setPointerCapture(e.pointerId); } catch (x) { /* fine */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 1) { moved = 0; downT = performance.now(); } }, true);
   stage.addEventListener('pointermove', e => { if (!pts.has(e.pointerId) || !on(e)) return; e.stopImmediatePropagation(); const p = pts.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y; moved += Math.abs(dx) + Math.abs(dy);
     if (pts.size === 1) { cam.yaw -= dx * 0.008; cam.pitch = Math.min(1.2, Math.max(-0.3, cam.pitch + dy * 0.006)); }
@@ -4948,7 +4949,12 @@ function labPose(t) {
   }
   rootPos.set(0, -Math.max(0, crouch - 0.3) * 0.25, 0); runFK(P); applyFK();
 }
-function labCam(now, dt) {
+function labCam(now, dt) { /* crash-hall machines: the automatic camera, then the player's turn / tilt / zoom on top of it */
+  const r = labCamBase(now, dt);
+  if (labBol() && !LAB.replay) { if (!CAN_IN) { canInput(); CAN.hint(); } const c = CAN.cam; if (c.yaw || c.pitch || c.zoom !== 1) { const dx = wantPos.x - wantLook.x, dy = wantPos.y - wantLook.y, dz = wantPos.z - wantLook.z, hd = Math.hypot(dx, dz), yaw = Math.atan2(dx, dz) + c.yaw, el = clamp(Math.atan2(dy, hd) + c.pitch, 0.02, 1.35), dist = Math.hypot(hd, dy) * c.zoom; wantPos.set(wantLook.x + dist * Math.cos(el) * Math.sin(yaw), Math.max(0.5, wantLook.y + dist * Math.sin(el)), wantLook.z + dist * Math.cos(el) * Math.cos(yaw)); } }
+  return r;
+}
+function labCamBase(now, dt) {
   if (LAB.replay) return labReplayCam();
   const T = torso.getWorldPosition(new V3()), m = LAB.machine;
   if (m === 'cannon') return cannonCam();
