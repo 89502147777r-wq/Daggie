@@ -1512,10 +1512,11 @@ function OUT() {
   }
   return MASTER;
 }
-function sendOut(node, rev) { node.connect(OUT()); if (REVERB_IN && rev) { const g = AC.createGain(); g.gain.value = rev; node.connect(g); g.connect(REVERB_IN); } }
+let SND_GAIN = 1;
+function sendOut(node, rev) { if (SND_GAIN !== 1) { const m = AC.createGain(); m.gain.value = SND_GAIN; node.connect(m); node = m; } node.connect(OUT()); if (REVERB_IN && rev) { const g = AC.createGain(); g.gain.value = rev; node.connect(g); g.connect(REVERB_IN); } }
 // filtered noise burst: thuds, scrapes, whooshes
 function noise(t, dur, vol, type, f0, f1, q) { const src = AC.createBufferSource(); src.buffer = NOISE; const f = AC.createBiquadFilter(); f.type = type; f.Q.value = q || 0.8; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur); const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f); f.connect(g); sendOut(g, 0.25); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05); }
-function initAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } else if (AC.state === 'suspended') AC.resume(); }
+function initAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } else if (AC.state === 'suspended') AC.resume(); if (AC) sfxPreload(); }
 function tone(f0, f1, dur, type, vol, delay) {
   recEvt('t', [f0, f1, dur, type, vol, delay || 0]);
   if (!AC) return; OUT();
@@ -1550,8 +1551,43 @@ function crashSound(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
   if (p > 0.3) { sweep(t, 70, 22, 0.9 + p * 0.6, 0.55 * p, 'sine'); noise(t, 0.8 + p * 0.5, 0.35 * p, 'lowpass', 500, 60, 0.7); } // deep boom
   if (p > 0.6) { noise(t + 0.05, 0.5, 0.18, 'highpass', 6000, 2500, 0.7); } // glass-like air shatter
 }
+
+// ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
+// Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
+// names: cannon glass window wood hay brick stone ice metal vault rip thud
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud'], started: false };
+function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
+function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
+function sfxPlay(names, vol, rate, wet) { // true if a recording was played
+  if (!AC) return false; for (const n of [].concat(names)) { const L = SFX.buf[n]; if (!L || !L.length) continue; OUT(); const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = pick(L); src.playbackRate.value = (rate || 1) * rand(0.96, 1.04); g.gain.value = vol === undefined ? 1 : vol; src.connect(g); sendOut(g, wet === undefined ? 0.2 : wet); src.start(); return true; } return false;
+}
+function ping(t, f, dur, vol) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o2.type = 'sine'; o.frequency.value = f; o2.frequency.value = f * 2.76; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); const g2 = AC.createGain(); g2.gain.value = 0.35; o.connect(g); o2.connect(g2); g2.connect(g); sendOut(g, 0.35); o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02); }
+function cannonBoom(lv) { SND_GAIN = 0.65; try { cannonBoom0(lv); } finally { SND_GAIN = 1; } }
+function cannonBoom0(lv) { // a cannon firing: the crack of the pressure wave, the blast, the body, a deep sub, the ringing barrel, the echo through the hall
+  lv = clamp(lv, 1, 5); if (sfxPlay('cannon', 0.95, [1.15, 1.05, 0.95, 0.85, 0.75][lv - 1], 0.45)) return; if (!AC) return; OUT(); const t = AC.currentTime, p = lv / 5;
+  noise(t, 0.03, 0.55, 'highpass', 5000, 2000, 0.7); noise(t, 0.07, 0.45, 'bandpass', 2400, 1100, 1);
+  noiseDist(t, 0.28 + 0.4 * p, 0.55 + 0.25 * p, 3200, 140, 0.9);
+  sweep(t, 115 - 25 * p, 28, 0.5 + 0.8 * p, 0.7 + 0.3 * p, 'sine'); if (lv >= 3) sweep(t + 0.01, 55, 20, 1.1 + p, 0.2 + 0.5 * p, 'sine');
+  const f = 230 - 30 * lv; for (const [r, a2, d] of [[1, 1, 1.4], [2.32, 0.5, 0.9], [4.1, 0.3, 0.5]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f * r; g.gain.setValueAtTime(0.0001, t + 0.02); g.gain.exponentialRampToValueAtTime(0.025 * a2 * (0.6 + p), t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); sendOut(g, 0.4); o.start(t); o.stop(t + d + 0.05); }
+  noise(t + 0.12, 1.2 + p * 1.2, 0.2 + 0.1 * p, 'lowpass', 420, 50, 0.6); noise(t + 0.03, 0.5, 0.1, 'bandpass', 600, 2400, 0.8);
+}
+function glassSound(f) { SND_GAIN = 2.6; try { glassSound0(f); } finally { SND_GAIN = 1; } }
+function glassSound0(f) { // f: pitch, 1 for thin glass, lower for thick: the first crack, the burst, a body, a cascade of tinkles that thins out, the frame's thud
+  if (!AC) return; OUT(); const t = AC.currentTime;
+  noise(t, 0.012, 0.5, 'highpass', 6000 * f, 3000, 0.7); noise(t, 0.35, 0.28, 'highpass', 4500 * f, 1800 * f, 0.6); noise(t + 0.01, 0.12, 0.3, 'bandpass', 2800 * f, 1500 * f, 2);
+  for (let i = 0, n = 38 + Math.round(30 / f); i < n; i++) ping(t + 0.02 + Math.pow(Math.random(), 1.8) * 1.0, rand(2200, 9000) * f, rand(0.015, 0.05), rand(0.02, 0.06));
+  sweep(t, 160, 70, 0.16, 0.18, 'sine');
+}
+function matSound(kind, p, f) { SND_GAIN = { wood: 3.4, brick: 2.3, stone: 2.3, metal: 2.5, ice: 2.1 }[kind] || 1; try { matSound0(kind, p, f); } finally { SND_GAIN = 1; } }
+function matSound0(kind, p, f) { // wood, brick, stone, metal, ice: each its own layers (f: pitch factor)
+  if (!AC) return; OUT(); const t = AC.currentTime;
+  if (kind === 'wood') { for (const d of [0, 0.03, 0.07]) noise(t + d, 0.05, 0.4, 'bandpass', 1800 * f, 700 * f, 3); sweep(t, 190 * f, 70, 0.2, 0.3, 'sine'); for (let i = 0; i < 6; i++) noise(t + 0.05 + Math.random() * 0.3, 0.02, 0.1, 'highpass', rand(2500, 5000), 2000, 1); }
+  else if (kind === 'brick' || kind === 'stone') { sweep(t, (kind === 'brick' ? 140 : 110) * f, 38, 0.35, 0.55, 'sine'); noiseDist(t, 0.12, 0.3, 1800, 300, 1); noise(t, 0.6, 0.18, 'lowpass', 500, 120, 0.7); for (let i = 0; i < 12; i++) noise(t + 0.04 + Math.pow(Math.random(), 1.5) * 0.6, rand(0.02, 0.06), rand(0.05, 0.12), 'bandpass', rand(800, 2500), rand(400, 1200), 2.5); }
+  else if (kind === 'metal') { noise(t, 0.012, 0.4, 'highpass', 4000, 2500, 0.7); const base = rand(300, 460) * f; for (const [r, a, d] of [[1, 1, 1.3], [2.43, 0.6, 0.9], [3.87, 0.4, 0.6], [5.5, 0.25, 0.4], [7.7, 0.15, 0.3]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = base * r; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.045 * a * p, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + d * (0.6 + f * 0.4)); o.connect(g); sendOut(g, 0.35); o.start(t); o.stop(t + d + 0.05); } sweep(t, 90 * f, 35, 0.25, 0.3 * p, 'sine'); }
+  else if (kind === 'ice') { noise(t, 0.015, 0.45, 'highpass', 5000, 3000, 0.7); noise(t, 0.3, 0.2, 'highpass', 3800, 1600, 0.6); for (let i = 0; i < 24; i++) ping(t + 0.02 + Math.pow(Math.random(), 1.8) * 0.8, rand(1800, 6000) * f, rand(0.02, 0.07), rand(0.015, 0.04)); sweep(t, 140, 60, 0.15, 0.15, 'sine'); }
+}
 function ripSound() { // a limb tearing off: metal screech, snap, sizzle
-  recEvt('r', []); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'rs', a: [] }); if (!AC) return; OUT(); const t = AC.currentTime;
+  recEvt('r', []); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'rs', a: [] }); if (!AC) return; if (sfxPlay('rip', 0.9, 1, 0.25)) return; OUT(); const t = AC.currentTime;
   noiseDist(t, 0.22, 0.3, 3200, 500, 3); noise(t, 0.04, 0.3, 'highpass', 4500, 2000, 0.7); sweep(t, 900, 260, 0.2, 0.06, 'sawtooth'); noise(t + 0.05, 0.3, 0.1, 'highpass', 7000, 3500, 0.6);
 }
 function scrapeSound(v) { if (!AC) return; OUT(); const t = AC.currentTime; noise(t, 0.12, Math.min(0.12, 0.02 + v * 0.004), 'bandpass', 2600 + v * 30, 1400, 2.5); }
@@ -2009,6 +2045,7 @@ const TITLES = {
   fart: ['HOW HIGH CAN|HE FLY?', 'FART POWER {lv}|HOW HIGH?', 'POWERED BY|PURE GAS', 'ROCKET FART|TEST', 'TOO MUCH|BEANS?', 'NO FUEL|JUST FARTS', 'WILL HE REACH|THE SKY?', 'ONE FART|TO THE MOON?', 'HOW MUCH GAS|DOES HE NEED?'],
   sock: ['HOW BIG A|STINKY SOCK?', 'SOCK SIZE {lv}|TOO STINKY?', 'THE STINKIEST|SOCK EVER', 'SMELLY SOCK|VS DAGGIE', 'WHO WINS?|HIM OR SOCK', 'CAN HE TAKE|THIS SMELL?', 'THE SOCK|IS GETTING BIGGER'],
   press: ['HYDRAULIC PRESS|VS DAGGIE', 'HOW MANY TONS|CAN HE TAKE?', '{t} TONS|ON ONE ROBOT', 'WILL HE SURVIVE|{t} TONS?', 'SLOWLY CRUSHED|{t} TONS', "THE PRESS|DOESN'T STOP", "DON'T BLINK|THE PRESS IS COMING", 'WHAT HAPPENS AT|{t} TONS?'],
+  mix: ['{veh} VS|{obs}', '{veh} AT {mph} MPH|HITS {obs}', 'WHO WINS?|{veh} OR {obs}', 'CAN {obs}|STOP A {veh}?', '{mph} MPH.|{obs}.', 'HE TRIED THE|{veh}'],
   stairs: ['{n} STEPS|CAN HE SURVIVE?', 'DOWN {n} STEPS|HOW MANY PARTS LEFT?', 'PUSHED OFF|THE TOP', 'ONE ROBOT.|{n} STEPS.', 'STEP BY STEP|HE FALLS APART', 'WILL HE REACH|THE BOTTOM?', 'THE LONGEST|FALL YET', 'NO RAILING.|NO MERCY.'],
   cannon: ['HOW MANY WALLS|CAN HE BREAK?', '{mph} MPH|15 WALLS', 'CANNON VS|15 WALLS', 'GLASS, BRICK, STEEL...|HOW FAR?', 'WILL HE BREAK|THE VAULT DOOR?', 'FROM PAPER-THIN|TO VAULT STEEL', 'ONE SHOT|15 WALLS', 'STUCK OR|THROUGH ALL 15?'],
   anvil: ['ANVIL FROM|{lv} METERS', 'HOW HIGH TO|BREAK HIM?', '1000 KG|FROM THE SKY', 'LOOK UP|DAGGIE!', 'CAN HE|TAKE THIS?', "THE ANVIL|DOESN'T MISS"],
@@ -2018,7 +2055,7 @@ function rollTitle() {
   try {
     let pools = ['any'], v = {};
     if (MODE === 'lab') { const m = LAB.machine, lv = LAB.level; v.lv = lv; v.m = m; v.t = PRESS_TONS[clamp(lv, 1, 5) - 1]; v.mph = CANNON_MPH[clamp(lv, 1, 5) - 1]; v.n = STAIRS_STEPS[clamp(lv, 1, STAIRS_STEPS.length) - 1];
-      if (m === 'bollard' || m === 'tub') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; pools = [m === 'tub' ? 'tub' : 'bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
+      if (m === 'bollard' || m === 'tub' || m === 'mix') { const mph = LAB_SPEEDS[lv - 1] || 15; v.mph = mph; if (m === 'mix') { v.veh = VEH_DEFS[MIX.veh].name; v.obs = OBST[MIX.obs].name; } pools = [m === 'tub' ? 'tub' : m === 'mix' ? 'mix' : 'bollard_any', mph <= 15 ? 'bollard_low' : mph <= 50 ? 'bollard_mid' : 'bollard_high']; if (mph >= 130) pools.push('bollard_far'); if (mph >= 200) pools.push('bollard_top'); } else pools = [TITLES[m] ? m : 'any']; }
     else if (DLV) pools = ['delivery'];
     else if (VEH === 'cart') pools = ['cart'];
     else if (TH === 'city') pools = ['city', 'skate'];
@@ -2833,30 +2870,31 @@ class RagCore {
 // knocks the bollard down, bursts its front and tumbles forward. Its basket is the collision box for the body.
 class CartSim {
   constructor(S, lane, bz, br) {
-    Object.assign(this, { S, lane, bz, br, zfOut: -0.47 * S - 0.012, zbOut: 0.72 * S, H: 1.12 * S, mode: 'roll', a: 0, w: 0, vy: 0, vz: 0, pl: [0, -0.47 * S - 0.012], pw: [0, 0], knocked: false, burst: false });
+    Object.assign(this, { S, lane, bz, br, zfOut: -0.47 * S - 0.012, zbOut: 0.72 * S, H: 1.12 * S, mode: 'roll', a: 0, w: 0, vy: 0, vz: 0, pl: [0, -0.47 * S - 0.012], pw: [0, 0], knocked: false, burst: false, knockV: 30, bendV: 10, tumbleV: 10, solid: false, solidMax: Infinity, plow: false, obsH: 1.1, obsCyls: null, openFront: false });
     const me = this;
     this.box = { on: true, toLocalPrev: (x, y, z) => me.toLocalPrev(x, y, z), hw: 0.32 * S, y0: 0.4 * S, y1: 1.02 * S, zf: -0.45 * S, zb: 0.45 * S, frontOpen: false, toWorld: (x, y, z) => me.toWorld(x, y, z), toLocal: (x, y, z) => me.toLocal(x, y, z), dirWorld: (x, y, z) => me.dirWorld(x, y, z) };
     this.cyls = [{ x: lane, z: bz, r: br, h: 1.1 }];
   }
   setSpec(sp) { Object.assign(this.box, { hw: sp.hw, y0: sp.y0, y1: sp.y1, zf: sp.zf, zb: sp.zb }); this.zf0 = sp.zf; this.zfOut = sp.zfOut; this.zbOut = sp.zbOut; this.H = sp.H; this.pl = [0, this.zfOut]; }
-  place(zFront) { this.bent = false; this.tumble = false; this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.box.frontOpen = false; this.cyls.length = 0; this.cyls.push({ x: this.lane, z: this.bz, r: this.br, h: 1.1 }); }
+  place(zFront) { this.bent = false; this.tumble = false; this.mode = 'roll'; this.a = 0; this.w = 0; this.vy = 0; this.pl = [0, this.zfOut]; this.pw = [0, zFront]; this.knocked = false; this.burst = false; this.plow = false; this.box.frontOpen = this.openFront; this.cyls.length = 0; for (const c of (this.obsCyls || [{ dx: 0, r: this.br }])) this.cyls.push({ x: this.lane + c.dx, z: this.bz, r: c.r, h: this.obsH }); }
   toWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a), yy = y - this.pl[0], zz = z - this.pl[1]; return [x + this.lane, this.pw[0] + yy * c - zz * s, this.pw[1] + yy * s + zz * c]; }
   toLocal(X, Y, Z) { const c = Math.cos(this.a), s = Math.sin(this.a), yy = Y - this.pw[0], zz = Z - this.pw[1]; return [X - this.lane, yy * c - zz * s + this.pl[0], yy * s + zz * c + this.pl[1]]; }
   dirWorld(x, y, z) { const c = Math.cos(-this.a), s = Math.sin(-this.a); return [x, y * c - z * s, y * s + z * c]; }
   impact(v) { // v: speed at the moment the front touches the bollard
     // the cart is stopped at its front edge and its back end swings up over the nose. 15 mph: it noses up and drops back. 50 mph and more: it tips over the front and tumbles ahead.
+    if (v >= this.knockV && v < this.tumbleV) { this.knocked = true; this.plow = true; this.tumble = false; this.cyls.length = 0; this.mode = 'roll'; this.vz = -v * 0.85; return; } // a soft obstacle: the vehicle ploughs through it, slowed, without tipping over
     this.mode = 'pivot'; this.pw = [0, this.knockedAt(v) ? this.pw[1] : this.bz + this.br]; this.pl = [0, this.zfOut];
-    this.tumble = v >= 10; this.pdamp = 0.05; this.burst = this.tumble; this.box.frontOpen = this.tumble; // 50 mph and up: the rider's weight bends the front wires open and he goes out over them
-    if (v < 30) { this.vz = v * 0.1; this.w = v < 10 ? v * 0.2 : Math.min(9, v * 0.34); if (this.tumble) { this.cyls.length = 0; this.bent = true; } return; } // the bent post no longer stops the rider (it leans over, see labImpact)
+    this.tumble = v >= this.tumbleV; this.pdamp = 0.05; this.burst = this.tumble; this.box.frontOpen = this.tumble || this.openFront; // 50 mph and up: the rider's weight bends the front wires open and he goes out over them
+    if (!this.knockedAt(v)) { this.vz = v * 0.1; this.w = v < this.tumbleV ? v * 0.2 : Math.min(9, v * 0.34); if (this.tumble) { if (!(this.solid && v < this.solidMax)) this.cyls.length = 0; this.bent = true; } return; } // (a solid obstacle stops him until it is hit too hard: then it is shoved aside) // the bent post no longer stops the rider (it leans over, see labImpact)
     this.knocked = true; this.cyls.length = 0;
     this.vz = -0.5 * v; this.w = Math.min(12, v * 0.3); this.pdamp = 0.6; // the snapped post barely slows it: it rolls on and goes over
   }
-  knockedAt(v) { return v >= 30; }
+  knockedAt(v) { return v >= this.knockV || (this.solid && v >= this.solidMax); }
   savePrev() { this.prev = { a: this.a, pw: this.pw.slice(), pl: this.pl.slice() }; }
   toLocalPrev(X, Y, Z) { const p = this.prev || this, c = Math.cos(p.a), s = Math.sin(p.a), yy = Y - p.pw[0], zz = Z - p.pw[1]; return [X - this.lane, yy * c - zz * s + p.pl[0], yy * s + zz * c + p.pl[1]]; }
   step(dt) {
     this.savePrev();
-    if (this.mode === 'roll') { this.pw[1] += this.vz * dt; return this.pw[1] <= this.bz + this.br; } // true = touching the bollard
+    if (this.mode === 'roll') { if (this.plow) this.vz *= Math.pow(0.3, dt); this.pw[1] += this.vz * dt; return this.pw[1] <= this.bz + this.br; } // true = touching the bollard
     if (this.mode === 'pivot') {
       this.pw[1] += this.vz * dt; this.vz *= Math.pow(this.pdamp ?? 0.05, dt); this.w -= 20 * Math.cos(this.a) * dt; this.a += this.w * dt;
       if (this.a < 0) { this.a = 0; this.w = -this.w * 0.25; }
@@ -3031,7 +3069,7 @@ const CART = new CartSim(CART_S, LAB_LANE, BOLLARD_Z, BOLLARD_R);
 CART.zf0 = CART.box.zf;
 CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); clank(Math.min(12, v)); };
 function labDentAt(y, z, v) {
-  if (LAB_VEH === 'tub') return; // crush the wires around a corner that slammed into the floor, toward the middle of the basket
+  if (LAB_VEH !== 'cart') return; // crush the wires around a corner that slammed into the floor, toward the middle of the basket
   const cage = board.getObjectByName('cage'); if (!cage) return;
   const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 40, 0.02, 0.12), R = 0.22;
   for (let i = 0; i < a.length; i += 3) {
@@ -3044,7 +3082,7 @@ const LABCART = { get box() { return CART.box; }, get cyls() { return CART.cyls;
 function labCartPlace() { const w = CART.toWorld(0, 0, 0); board.position.set(w[0], w[1], w[2]); board.rotation.set(-CART.a, 0, 0); }
 function labCartStep(dt) { if (LABCART.hit) CART.step(dt); labCartPlace(); }
 function labDent(v) { // crumple the front of the basket: deeper, wider and higher the faster it hit
-  if (LAB_VEH === 'tub') return 0; // the enamel tub does not bend: it holds, or it shatters (cartBreak)
+  if (LAB_VEH !== 'cart') return 0; // the rigid vehicles do not bend: they hold, or they shatter (cartBreak)
   const cage = board.getObjectByName('cage'); if (!cage) return;
   const pos = cage.geometry.attributes.position, a = pos.array, depth = clamp(v / 40, 0.05, 0.3), R = 0.16 + Math.min(0.3, v / 60);
   for (let i = 0; i < a.length; i += 3) {
@@ -3089,7 +3127,8 @@ function cartBreak() {
 }
 const _dq = new THREE.Quaternion(), _da = new V3();
 function cartDebrisStep(dt) {
-  if (CART.knocked && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
+  obsStep(dt);
+  if (CART.knocked && !CART.plow && LABCART.v >= 30 && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
   if (!CDEB.on) return; CDEB.cool -= dt;
   for (const d of CDEB.list) {
     if (d.rest) continue; d.cd -= dt;
@@ -3106,43 +3145,148 @@ function cartDebrisStep(dt) {
 function cartDebrisReset() { for (const d of CDEB.list) { d.m.visible = false; d.rest = true; } CDEB.on = false; CDEB.timer = 0; if (CART_ROOT) CART_ROOT.visible = true; CART.box.on = true; }
 
 // ---------- the vehicle in the crash hall: the shopping cart or a bathtub on a trolley ----------
-let LAB_VEH = 'cart', TUB_ROOT = null, CART_ROOT0 = null, CART_WHEELS0 = null, TUB_WHEELS = [], CART_SPEC0 = null;
-const TUB_BOX = { hw: 0.34, y0: 0.3, y1: 0.84, zf: -0.7, zb: 0.7, zfOut: -0.9, zbOut: 0.9, H: 0.85 };
-function labVehicle(kind) {
-  if (kind === 'tub' && VEH !== 'cart') return; // the lab hall is a cart level: both vehicles live on the same board
-  if (!CART_ROOT0) { CART_ROOT0 = CART_ROOT; CART_WHEELS0 = wheels.slice(); CART_SPEC0 = { hw: CART.box.hw, y0: CART.box.y0, y1: CART.box.y1, zf: CART.box.zf, zb: CART.box.zb, zfOut: CART.zfOut, zbOut: CART.zbOut, H: CART.H }; }
-  if (kind === LAB_VEH) return;
-  if (kind === 'tub' && !TUB_ROOT) { TUB_ROOT = makeTubMesh(TUB_WHEELS); board.add(TUB_ROOT); }
-  LAB_VEH = kind; const tub = kind === 'tub';
-  CART_ROOT0.visible = !tub; if (TUB_ROOT) TUB_ROOT.visible = tub; CART_ROOT = tub ? TUB_ROOT : CART_ROOT0;
-  wheels.length = 0; wheels.push(...(tub ? TUB_WHEELS : CART_WHEELS0));
-  CART.setSpec(tub ? TUB_BOX : CART_SPEC0);
-  CART_SEAT.set(0, tub ? 0.14 : 0.17, tub ? 0.22 : 0.32); CART_RIM_Y = tub ? 0.54 : (1.02 - 0.4) * CART_S; CART_RIM_X = tub ? 0.36 : (0.32 + 0.03) * CART_S;
-  daggie.position.y = (tub ? 0.3 : 0.4 * CART_S) + 0.012; // he sits on the floor of whichever vehicle it is
-  for (const d of CDEB.list) scene.remove(d.m); CDEB.list.length = 0; CDEB.built = false; CDEB.on = false; // pieces are rebuilt from the new vehicle
+const VEH_SPECS = {"chair":{"prims":[{"t":"box","s":[0.5,0.09,0.5],"p":[0,0.455,0.02],"m":"fabric","r":0.04,"rot":[0,0,0],"g":null,"n":"seat"},{"t":"box","s":[0.44,0.03,0.44],"p":[0,0.395,0.02],"m":"plastic","r":0.012,"rot":[0,0,0],"g":"under","n":null},{"t":"box","s":[0.46,0.56,0.075],"p":[0,0.865,0.28],"m":"fabric","r":0.04,"rot":[0.13,0,0],"g":null,"n":"back"},{"t":"box","s":[0.4,0.14,0.02],"p":[0,0.76,0.325],"m":"accent","r":0.01,"rot":[0.13,0,0],"g":"backstripe","n":null},{"t":"box","s":[0.06,0.3,0.035],"p":[0,0.56,0.285],"m":"plastic","r":0.012,"rot":[0.13,0,0],"g":"under","n":null},{"t":"box","s":[0.04,0.2,0.04],"p":[-0.27,0.57,0.06],"m":"plastic","r":0.012,"rot":[0,0,0],"g":"armL","n":null},{"t":"box","s":[0.075,0.035,0.3],"p":[-0.27,0.675,0.04],"m":"plastic","r":0.015,"rot":[0,0,0],"g":"armL","n":null},{"t":"box","s":[0.04,0.2,0.04],"p":[0.27,0.57,0.06],"m":"plastic","r":0.012,"rot":[0,0,0],"g":"armR","n":null},{"t":"box","s":[0.075,0.035,0.3],"p":[0.27,0.675,0.04],"m":"plastic","r":0.015,"rot":[0,0,0],"g":"armR","n":null},{"t":"cyl","rt":0.022,"rb":0.022,"h":0.26,"ax":"y","p":[0,0.27,0.02],"m":"chrome","g":"lift","n":null,"rot":[0,0,0]},{"t":"cyl","rt":0.04,"rb":0.045,"h":0.12,"ax":"y","p":[0,0.34,0.02],"m":"plastic","g":"lift","n":null,"rot":[0,0,0]},{"t":"cyl","rt":0.055,"rb":0.065,"h":0.06,"ax":"y","p":[0,0.13,0.02],"m":"plastic","g":"base","n":null,"rot":[0,0,0]},{"t":"box","s":[0.04,0.035,0.3],"p":[0.04635254915624211,0.115,0.162658477444273],"m":"plastic","r":0.012,"rot":[0,0.3141592653589793,0],"g":"base","n":null},{"t":"box","s":[0.04,0.035,0.3],"p":[0.15,0.115,0.02000000000000001],"m":"plastic","r":0.012,"rot":[0,1.5707963267948966,0],"g":"base","n":null},{"t":"box","s":[0.04,0.035,0.3],"p":[0.04635254915624212,0.115,-0.12265847744427301],"m":"plastic","r":0.012,"rot":[0,2.827433388230814,0],"g":"base","n":null},{"t":"box","s":[0.04,0.035,0.3],"p":[-0.12135254915624209,0.115,-0.06816778784387098],"m":"plastic","r":0.012,"rot":[0,4.084070449666731,0],"g":"base","n":null},{"t":"box","s":[0.04,0.035,0.3],"p":[-0.12135254915624213,0.115,0.10816778784387093],"m":"plastic","r":0.012,"rot":[0,5.340707511102648,0],"g":"base","n":null}],"wheels":[[0.09270509831248422,0.04,0.30531695488854604,0.04,0.03],[0.3,0.04,0.020000000000000018,0.04,0.03],[0.09270509831248425,0.04,-0.265316954888546,0.04,0.03],[-0.24270509831248419,0.04,-0.15633557568774198,0.04,0.03],[-0.24270509831248427,0.04,0.19633557568774185,0.04,0.03]],"fabric":1842724,"accent":2976991},"sofa":{"prims":[{"t":"box","s":[1.5,0.18,0.84],"p":[0,0.26,0],"m":"fabric","r":0.035,"rot":[0,0,0],"g":"frame","n":null},{"t":"box","s":[0.7,0.14,0.7],"p":[-0.365,0.42,-0.04],"m":"fabric","r":0.05,"rot":[0,0,0],"g":null,"n":"seatL"},{"t":"box","s":[0.7,0.42,0.18],"p":[-0.365,0.72,0.26],"m":"fabric","r":0.06,"rot":[0.12,0,0],"g":null,"n":"backL"},{"t":"box","s":[0.14,0.4,0.82],"p":[-0.73,0.5,0],"m":"fabric","r":0.05,"rot":[0,0,0],"g":null,"n":"armL"},{"t":"box","s":[0.7,0.14,0.7],"p":[0.365,0.42,-0.04],"m":"fabric","r":0.05,"rot":[0,0,0],"g":null,"n":"seatR"},{"t":"box","s":[0.7,0.42,0.18],"p":[0.365,0.72,0.26],"m":"fabric","r":0.06,"rot":[0.12,0,0],"g":null,"n":"backR"},{"t":"box","s":[0.14,0.4,0.82],"p":[0.73,0.5,0],"m":"fabric","r":0.05,"rot":[0,0,0],"g":null,"n":"armR"},{"t":"box","s":[1.5,0.62,0.12],"p":[0,0.62,0.37],"m":"fabric2","r":0.03,"rot":[0,0,0],"g":"frame","n":null},{"t":"cyl","rt":0.012,"rb":0.012,"h":0.08,"ax":"y","p":[-0.65,0.085,-0.34],"m":"chrome","g":"stem","n":null,"rot":[0,0,0]},{"t":"cyl","rt":0.012,"rb":0.012,"h":0.08,"ax":"y","p":[-0.65,0.085,0.34],"m":"chrome","g":"stem","n":null,"rot":[0,0,0]},{"t":"cyl","rt":0.012,"rb":0.012,"h":0.08,"ax":"y","p":[0.65,0.085,-0.34],"m":"chrome","g":"stem","n":null,"rot":[0,0,0]},{"t":"cyl","rt":0.012,"rb":0.012,"h":0.08,"ax":"y","p":[0.65,0.085,0.34],"m":"chrome","g":"stem","n":null,"rot":[0,0,0]}],"wheels":[[-0.65,0.045,-0.34,0.045,0.03],[-0.65,0.045,0.34,0.045,0.03],[0.65,0.045,-0.34,0.045,0.03],[0.65,0.045,0.34,0.045,0.03]],"fabric":2781043,"accent":16777215}};
+let FABRIC_TEX = null;
+function fabricTex() { if (!FABRIC_TEX) { FABRIC_TEX = tex(128, 128, (g, w, h) => { g.fillStyle = '#808080'; g.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '255,255,255' : '0,0,0') + ',' + (0.12 + Math.random() * 0.2) + ')'; g.fillRect(x, y, 2, 2); } }); FABRIC_TEX.wrapS = FABRIC_TEX.wrapT = THREE.RepeatWrapping; FABRIC_TEX.repeat.set(3, 3); } return FABRIC_TEX; }
+function makeSpecMesh(spec, wheelsOut) { // origin on the floor, front faces -z; every part flies off separately when the vehicle breaks
+  const S = CART_S, root = new THREE.Group(), g = new THREE.Group(); g.scale.setScalar(S); root.add(g);
+  const fab = new THREE.Color(spec.fabric), MAT = { fabric: new THREE.MeshStandardMaterial({ color: fab, roughness: 0.95, bumpMap: fabricTex(), bumpScale: 0.8 }), fabric2: new THREE.MeshStandardMaterial({ color: fab.clone().multiplyScalar(0.7), roughness: 0.95, bumpMap: fabricTex(), bumpScale: 0.8 }),
+    plastic: new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.45, metalness: 0.1 }), chrome: new THREE.MeshStandardMaterial({ color: 0xeef1f5, metalness: 1, roughness: 0.12 }), accent: new THREE.MeshStandardMaterial({ color: spec.accent, roughness: 0.6 }), black: new THREE.MeshStandardMaterial({ color: 0x0f1013, roughness: 0.4 }) };
+  try { const env = labEnv(); MAT.chrome.envMap = env; MAT.chrome.envMapIntensity = 1.2; } catch (e) { /* no reflections, still fine */ }
+  const flat = ge => (ge.index ? ge.toNonIndexed() : ge), extras = [], groups = {};
+  const extra = (geo, mat, name) => { geo.scale(1 / S, 1 / S, 1 / S); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z); const m = new THREE.Mesh(geo, mat); m.position.copy(c); m.castShadow = true; m.receiveShadow = true; m.name = name; g.add(m); extras.push(m); };
+  for (const p of spec.prims) {
+    let ge; if (p.t === 'box') ge = new RoundedBoxGeometry(p.s[0], p.s[1], p.s[2], 3, p.r); else if (p.t === 'cyl') { ge = new THREE.CylinderGeometry(p.rt, p.rb, p.h, 18); if (p.ax === 'x') ge.rotateZ(Math.PI / 2); else if (p.ax === 'z') ge.rotateX(Math.PI / 2); } else { ge = new THREE.SphereGeometry(p.r, 16, 12); ge.scale(p.sc[0], p.sc[1], p.sc[2]); }
+    if (p.rot && (p.rot[0] || p.rot[1] || p.rot[2])) ge.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(p.rot[0], p.rot[1], p.rot[2], 'XYZ'))); ge.translate(p.p[0], p.p[1], p.p[2]);
+    if (p.g) (groups[p.g + '|' + p.m] = groups[p.g + '|' + p.m] || []).push(ge); else extra(ge, MAT[p.m], p.n || 'part');
+  }
+  for (const key in groups) extra(mergeGeometries(groups[key].map(flat)), MAT[key.split('|')[1]], 'x:' + key.split('|')[0]);
+  for (const [x, y, z, r, wd] of spec.wheels) { const w = new THREE.Group(); w.position.set(x / S, y / S, z / S); const wm = new THREE.Mesh(new THREE.CylinderGeometry(r / S, r / S, wd / S, 18), MAT.black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.45 / S, r * 0.45 / S, (wd + 0.006) / S, 12), MAT.chrome); hub.rotation.z = Math.PI / 2; w.add(hub); g.add(w); extras.push(w); if (wheelsOut) wheelsOut.push(w); }
+  root.userData.pieces = []; root.userData.extras = extras; root.userData.g = g; root.userData.bigPieces = true;
+  return root;
 }
-const labBol = () => LAB.machine === 'bollard' || LAB.machine === 'tub'; // both crash-hall machines
+// kind -> name, the word for 'stayed in the ...', the box of its seat (the physics), where he sits and where his hands rest, the height of its floor above the ground
+const VEH_ORDER = ['cart', 'tub', 'chair', 'sofa'];
+const VEH_DEFS = {
+  cart: { name: 'SHOPPING CART', noun: 'cart' },
+  tub: { name: 'BATHTUB', noun: 'tub', box: { hw: 0.34, y0: 0.3, y1: 0.84, zf: -0.7, zb: 0.7, zfOut: -0.9, zbOut: 0.9, H: 0.85 }, seat: [0.14, 0.22], rimY: 0.54, rimX: 0.36, floorY: 0.3, build: makeTubMesh },
+  chair: { name: 'OFFICE CHAIR', noun: 'chair', box: { hw: 0.26, y0: 0.5, y1: 1.2, zf: -0.27, zb: 0.3, zfOut: -0.3, zbOut: 0.34, H: 1.2 }, seat: [0.6, 0.1], rimY: 0.675, rimX: 0.3, floorY: 0, open: true, build: w => makeSpecMesh(VEH_SPECS.chair, w) },
+  sofa: { name: 'SOFA ON WHEELS', noun: 'sofa', box: { hw: 0.69, y0: 0.43, y1: 1.0, zf: -0.42, zb: 0.4, zfOut: -0.45, zbOut: 0.5, H: 1.05 }, seat: [0.53, 0.1], rimY: 0.72, rimX: 0.73, floorY: 0, open: true, build: w => makeSpecMesh(VEH_SPECS.sofa, w) },
+};
+let LAB_VEH = 'cart', CART_SPEC0 = null; const VEHS = {};
+function labVehicle(kind) {
+  if (VEH !== 'cart') return; // the lab hall is a cart level: every vehicle lives on the same board
+  if (!VEHS.cart) { VEHS.cart = { root: CART_ROOT, wheels: wheels.slice() }; CART_SPEC0 = { hw: CART.box.hw, y0: CART.box.y0, y1: CART.box.y1, zf: CART.box.zf, zb: CART.box.zb, zfOut: CART.zfOut, zbOut: CART.zbOut, H: CART.H }; }
+  if (!VEH_DEFS[kind]) kind = 'cart'; if (kind === LAB_VEH) return;
+  const d = VEH_DEFS[kind]; if (!VEHS[kind]) { const w = [], root = d.build(w); board.add(root); VEHS[kind] = { root, wheels: w }; }
+  LAB_VEH = kind; for (const k in VEHS) VEHS[k].root.visible = k === kind; CART_ROOT = VEHS[kind].root;
+  wheels.length = 0; wheels.push(...VEHS[kind].wheels); CART.setSpec(d.box || CART_SPEC0); CART.openFront = !!d.open; CART.box.frontOpen = !!d.open;
+  const cart = kind === 'cart'; CART_SEAT.set(0, cart ? 0.17 : d.seat[0], cart ? 0.32 : d.seat[1]); CART_RIM_Y = cart ? (1.02 - 0.4) * CART_S : d.rimY; CART_RIM_X = cart ? (0.32 + 0.03) * CART_S : d.rimX;
+  daggie.position.y = (cart ? 0.4 * CART_S : d.floorY) + 0.012; // he sits on the floor of whichever vehicle it is
+  for (const dd of CDEB.list) scene.remove(dd.m); CDEB.list.length = 0; CDEB.built = false; CDEB.on = false; // pieces are rebuilt from the new vehicle
+}
+
+// ---------- obstacles for the crash hall: the steel post, or anything that can be hit (blocks that fly apart) ----------
+const labBol = () => LAB.machine === 'bollard' || LAB.machine === 'tub' || LAB.machine === 'mix'; // all the crash-hall machines
+const labVehKind = () => (LAB.machine === 'tub' ? 'tub' : LAB.machine === 'mix' ? MIX.veh : 'cart');
+const MIX = { veh: 'cart', obs: 'post', el: null };
+try { const sv = JSON.parse(localStorage.getItem('daggie-mix') || '{}'); if (VEH_DEFS[sv.veh]) MIX.veh = sv.veh; if (sv.obs) MIX.obs = sv.obs; } catch (e) { /* the first time */ }
+const OBS_ORDER = ['post', 'boxes', 'melons', 'barrels', 'bricks', 'barrier', 'pins'];
+// strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
+const OBST = {
+  post: { name: 'STEEL POST', r: BOLLARD_R, h: BOLLARD_H, bend: 10, knock: 30, tumble: 10, solid: false },
+  boxes: { name: 'CARDBOARD BOXES', r: 0.3, cyls: [-0.9, -0.3, 0.3, 0.9].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 2, knock: 4, tumble: 60, solid: false, kick: 0.85, lift: 1, sound: 'box', pop: 'BOXES EVERYWHERE!',
+    layout() { const b = []; for (let row = 0; row < 3; row++) for (let i = 0; i < 4; i++) b.push({ t: 'box', x: (i - 1.5) * 0.6 + rand(-0.02, 0.02), y: 0.29 + row * 0.59, z: rand(-0.02, 0.02), sx: 0.58, sy: 0.57, sz: 0.58, ry: rand(-0.08, 0.08), col: 0xc99a62 + Math.floor(rand(0, 5)) * 0x040302 }); b.push({ t: 'box', x: -0.3, y: 2.06, z: 0, sx: 0.5, sy: 0.4, sz: 0.5, ry: 0.2, col: 0xd2a56c }, { t: 'box', x: 0.35, y: 2.0, z: 0, sx: 0.4, sy: 0.3, sz: 0.4, ry: -0.3, col: 0xb98c58 }); return b; } },
+  melons: { name: 'WATERMELONS', r: 0.25, cyls: [-0.4, 0, 0.4].map(dx => ({ dx, r: 0.25 })), h: 1.0, bend: 2, knock: 5, tumble: 50, solid: false, kick: 0.8, lift: 1.2, sound: 'melon', pop: 'WATERMELON SPLAT!', splash: [[3, 0.2, 0.3], [2.4, 0.5, 0.35], [0.4, 1.4, 0.4]],
+    layout() { const b = [], c = () => [0x2f7d32, 0x3e9142, 0x276a2b][Math.floor(rand(0, 3))]; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) b.push({ t: 'melon', x: (i - 1) * 0.42, y: 0.21, z: (j - 1) * 0.1 - 0.0, sx: 0.46, sy: 0.4, sz: 0.4, ry: rand(0, 6), col: c() }); for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) b.push({ t: 'melon', x: (i - 0.5) * 0.42, y: 0.55, z: (j - 0.5) * 0.2, sx: 0.46, sy: 0.4, sz: 0.4, ry: rand(0, 6), col: c() }); b.push({ t: 'melon', x: 0, y: 0.88, z: 0, sx: 0.46, sy: 0.4, sz: 0.4, ry: rand(0, 6), col: c() }); return b; } },
+  barrels: { name: 'OIL BARRELS', r: 0.3, cyls: [-0.62, 0, 0.62].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 8, knock: 20, tumble: 18, solid: false, kick: 0.7, lift: 0.8, sound: 'barrel', pop: 'BARRELS DOWN!',
+    layout() { const b = [], c = [0xc0392b, 0x2c6fbb, 0xc0392b, 0xd9a21b, 0x2f7d4f]; let n = 0; for (let i = 0; i < 3; i++) b.push({ t: 'barrel', x: (i - 1) * 0.62, y: 0.45, z: 0, sx: 0.58, sy: 0.9, sz: 0.58, ry: rand(0, 6), col: c[n++ % 5] }); for (let i = 0; i < 2; i++) b.push({ t: 'barrel', x: (i - 0.5) * 0.62, y: 1.35, z: 0, sx: 0.58, sy: 0.9, sz: 0.58, ry: rand(0, 6), col: c[n++ % 5] }); return b; } },
+  bricks: { name: 'BRICK WALL', r: 0.14, cyls: [-1, -0.5, 0, 0.5, 1].map(dx => ({ dx, r: 0.14 })), h: 1.6, bend: 12, knock: 50, tumble: 12, solid: true, kick: 0.5, lift: 0.8, sound: 'brick', pop: 'THE WALL FALLS!',
+    layout() { const b = []; for (let row = 0; row < 8; row++) { const odd = row % 2; const xs = odd ? [-1.125, -0.75, -0.25, 0.25, 0.75, 1.125] : [-1, -0.5, 0, 0.5, 1]; for (const x of xs) { const half = odd && Math.abs(x) > 1; b.push({ t: 'brick', x: half ? Math.sign(x) * 1.125 : x, y: 0.1 + row * 0.2, z: 0, sx: half ? 0.24 : 0.49, sy: 0.19, sz: 0.25, ry: 0, col: 0xa8442c + Math.floor(rand(-5, 6)) * 0x030201 }); } } return b; } },
+  barrier: { name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, solidMax: 55, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
+    layout() { return [{ t: 'barrier', x: 0, y: 0, z: 0, sx: 2.2, sy: 1, sz: 1, ry: 0, col: 0xb9b9b3 }]; } },
+  pins: { name: 'BOWLING PINS', r: 0.15, cyls: [{ dx: 0, r: 0.15 }], h: 0.6, bend: 1, knock: 2.5, tumble: 80, solid: false, kick: 1.0, lift: 1.4, sound: 'pins', pop: 'STRIKE!',
+    layout() { const b = []; for (let k = 0; k < 4; k++) for (let j = 0; j <= k; j++) b.push({ t: 'pin', x: (j - k / 2) * 0.3, y: 0, z: -k * 0.27, sx: 0.55, sy: 0.55, sz: 0.55, ry: 0, col: 0xffffff }); return b; } },
+};
+const OBX = { cur: 'post', built: {} };
+const OBS_KIT = {
+  box: () => { const map = tex(256, 256, (g, w, h) => { g.fillStyle = '#c99a62'; g.fillRect(0, 0, w, h); for (let i = 0; i < 400; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '120,80,40' : '255,230,180') + ',0.08)'; g.fillRect(Math.random() * w, Math.random() * h, 22, 1); } g.fillStyle = 'rgba(214,190,130,0.85)'; g.fillRect(0, h * 0.46, w, h * 0.08); g.fillStyle = 'rgba(60,40,20,0.7)'; g.font = '700 22px Arial'; g.fillText('FRAGILE', 18, 44); g.fillRect(w - 80, h - 70, 56, 40); g.strokeStyle = 'rgba(80,50,20,0.6)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); }); return { geo: new RoundedBoxGeometry(1, 1, 1, 2, 0.03), mat: new THREE.MeshStandardMaterial({ map, roughness: 0.9 }), fl: 0.22 }; },
+  melon: () => { const map = tex(128, 128, (g, w, h) => { g.fillStyle = '#4a9a47'; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 12) { g.fillStyle = 'rgba(20,70,25,0.55)'; g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + 8, h * 0.3, x - 6, h * 0.6, x + 4, h); g.lineTo(x + 9, h); g.bezierCurveTo(x, h * 0.6, x + 14, h * 0.3, x + 6, 0); g.fill(); } }); return { geo: new THREE.SphereGeometry(0.5, 16, 12), mat: new THREE.MeshStandardMaterial({ map, roughness: 0.4, metalness: 0.05 }), fl: 0.19 }; },
+  barrel: () => { const pts = []; const prof = [[0, -0.5], [0.46, -0.5], [0.5, -0.46], [0.5, -0.38], [0.46, -0.34], [0.5, -0.3], [0.5, -0.02], [0.46, 0.02], [0.5, 0.06], [0.5, 0.3], [0.46, 0.34], [0.5, 0.38], [0.5, 0.46], [0.46, 0.5], [0, 0.5]]; for (const [r, y] of prof) pts.push(new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 24); return { geo, mat: new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.55, color: 0xffffff, envMap: (() => { try { return labEnv(); } catch (e) { return null; } })(), envMapIntensity: 0.7 }), fl: 0.29 }; },
+  brick: () => ({ geo: new RoundedBoxGeometry(1, 1, 1, 1, 0.04), mat: new THREE.MeshStandardMaterial({ roughness: 0.95, color: 0xffffff }), fl: 0.1 }),
+  barrier: () => { const sh = new THREE.Shape(); sh.moveTo(-0.25, 0); sh.lineTo(0.25, 0); sh.lineTo(0.25, 0.1); sh.lineTo(0.12, 0.45); sh.lineTo(0.08, 0.8); sh.lineTo(-0.08, 0.8); sh.lineTo(-0.12, 0.45); sh.lineTo(-0.25, 0.1); sh.closePath(); const ge = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false }); ge.translate(0, 0, -0.5); ge.rotateY(Math.PI / 2); const map = tex(256, 160, (c, w, h) => CAN_DRAW.concrete(c, w, h)); map.wrapS = map.wrapT = THREE.RepeatWrapping; map.repeat.set(1.5, 1); return { geo: ge, mat: new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: 1.2, roughness: 0.9 }), fl: 0.25 }; },
+  pin: () => { const pts = [[0, 0], [0.17, 0], [0.2, 0.03], [0.31, 0.2], [0.35, 0.34], [0.3, 0.52], [0.2, 0.64], [0.15, 0.74], [0.17, 0.82], [0.2, 0.9], [0.17, 0.97], [0, 1]].map(([r, y]) => new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 18); const map = tex(16, 128, (g, w, h) => { g.fillStyle = '#f7f7f4'; g.fillRect(0, 0, w, h); g.fillStyle = '#c1272d'; g.fillRect(0, h * 0.53, w, h * 0.06); g.fillRect(0, h * 0.66, w, h * 0.06); }); return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.15, metalness: 0.0 }), fl: 0.1 }; },
+};
+function obsBuild(id) {
+  if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
+  for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
+  for (const t in by) { const kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
+  return (OBX.built[id] = out);
+}
+function obsPlace(id) { // every block back in its place, still
+  const o = obsBuild(id), sp = OBST[id], q = new THREE.Quaternion(), up = new V3(0, 1, 0), jit = sp.layout; 
+  for (const t in o.sets) o.sets[t].clear();
+  for (const b of o.blocks) { const i = b.set.next; q.setFromAxisAngle(up, b.ry || 0); b.set.raw(LAB_LANE + b.x, b.y, BOLLARD_Z + b.z, 0, 0, 0, b.sx, b.sy, b.sz, 99999, b.col, true, q.x, q.y, q.z, q.w, 0, 0, 0); b.i = i; b.set.fl[i] = b.kit.fl; }
+  for (const t in o.sets) { o.sets[t].mesh.visible = true; o.sets[t].mesh.instanceMatrix.needsUpdate = true; }
+}
+function obsApply() { // choose the obstacle for this machine, give the vehicle's physics its strengths, show it and hide the rest
+  const id = LAB.machine === 'mix' && OBST[MIX.obs] ? MIX.obs : 'post', sp = OBST[id]; OBX.cur = id;
+  CART.br = sp.r; CART.knockV = sp.knock; CART.bendV = sp.bend; CART.tumbleV = sp.tumble; CART.solid = !!sp.solid; CART.solidMax = sp.solidMax || Infinity; CART.obsH = sp.h; CART.obsCyls = sp.cyls || null;
+  if (BOLLARD) BOLLARD.visible = labBol() && id === 'post';
+  for (const k in OBX.built) for (const t in OBX.built[k].sets) OBX.built[k].sets[t].mesh.visible = false;
+  if (labBol() && id !== 'post') obsPlace(id);
+}
+function obsStep(dt) { const o = OBX.built[OBX.cur]; if (o && OBX.cur !== 'post') for (const t in o.sets) o.sets[t].step(dt); }
+function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds, gives, or is destroyed
+  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], st = v >= sp.knock ? 2 : v >= sp.bend ? 1 : 0, p = clamp((v - sp.bend) / Math.max(1, sp.knock - sp.bend) * 0.8 + 0.2, 0.2, 0.95); if (!o) return;
+  let flown = 0; for (const b of o.blocks) {
+    if (st === 0 || (st === 1 && Math.random() > p && o.blocks.length > 1)) continue; flown++;
+    const k = sp.kick * (st === 1 ? 0.55 : 1) * rand(0.6, 1.1), dx = b.x, near = 1 - clamp((b.z + 0.5) / 1.5, 0, 1) * 0.2;
+    b.set.launch(b.i, dx * rand(0.8, 3) * (0.4 + v * 0.03) + rand(-1, 1), (rand(1.2, 3.5) + v * 0.12 * sp.lift) * near, -v * k, rand(-1, 1) * (5 + v * 0.3), rand(-1, 1) * (5 + v * 0.3), rand(-1, 1) * (5 + v * 0.3));
+  }
+  const at = new V3(LAB_LANE, 0.6, BOLLARD_Z); if (flown) { burst(at, 30 + flown * 2, sp.splash || [[1.4, 1.2, 1.0], [2, 1.7, 1.2]], 4 + v * 0.1); lastPop = 0; pop(st === 2 || flown > o.blocks.length * 0.6 ? sp.pop : 'SOMETHING GIVES!', 'lilac'); } else { lastPop = 0; pop(sp.pop.indexOf('HOLDS') >= 0 ? sp.pop : 'IT HOLDS!', 'lilac'); }
+  obsSound(sp.sound, st, v);
+}
+function obsSound(kind, st, v) {
+  const p = clamp(v / 45, 0.15, 1); if (!AC) return; OUT(); const t = AC.currentTime;
+  if (kind === 'box') { if (sfxPlay('thud', 0.8, 1.1, 0.2)) return; noise(t, 0.2, 0.3, 'lowpass', 900, 150, 0.7); for (let i = 0; i < 10; i++) noise(t + Math.random() * 0.5, 0.05, 0.1, 'bandpass', rand(500, 1400), 400, 2); sweep(t, 110, 50, 0.2, 0.3, 'sine'); }
+  else if (kind === 'melon') { noise(t, 0.25, 0.35, 'bandpass', 700, 250, 1.2); noise(t, 0.12, 0.25, 'lowpass', 1500, 300, 0.8); sweep(t, 160, 60, 0.18, 0.3, 'sine'); for (let i = 0; i < 6; i++) noise(t + 0.05 + Math.random() * 0.3, 0.07, 0.12, 'bandpass', rand(300, 900), 200, 1.5); }
+  else if (kind === 'barrel') matSound('metal', 1, 0.55); else if (kind === 'brick') matSound('brick', p, 1); else if (kind === 'concrete') { matSound('stone', 1, 0.8); sweep(t, 70, 28, 0.5, 0.4, 'sine'); }
+  else if (kind === 'pins') for (let i = 0; i < 12; i++) { const tt = t + Math.pow(Math.random(), 1.4) * 0.7, f = rand(700, 1400); noise(tt, 0.04, 0.2, 'bandpass', f, f * 0.6, 3); ping(tt, f * 1.3, 0.05, 0.04); }
+}
+
+function mixPickVis(on) { const el = MIX.el; if (!el) { if (!on || LAB.machine !== 'mix') return; mixPickUI(); } MIX.el.style.display = on && LAB.machine === 'mix' ? 'flex' : 'none'; }
+function mixPickUI() {
+  const el = document.createElement('div'); el.id = 'mixPick'; el.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 200px);z-index:8;display:none;flex-direction:column;gap:8px;width:min(86vw,340px);font:700 15px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;pointer-events:auto';
+  const mk = (key, cap, list, names) => { const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:8px;background:rgba(14,16,30,.74);border:2px solid rgba(255,255,255,.55);border-radius:14px;padding:6px 8px'; const mid = document.createElement('div'); mid.style.cssText = 'flex:1;text-align:center;line-height:1.1;letter-spacing:1px'; const b = d => { const x = document.createElement('div'); x.textContent = d < 0 ? '‹' : '›'; x.style.cssText = 'width:42px;height:38px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;user-select:none;-webkit-user-select:none'; x.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); const i = (list.indexOf(MIX[key]) + d + list.length) % list.length; MIX[key] = list[i]; try { localStorage.setItem('daggie-mix', JSON.stringify({ veh: MIX.veh, obs: MIX.obs })); } catch (x2) { /* private mode */ } mixApply(); }); return x; };
+    row.append(b(-1), mid, b(1)); el.appendChild(row); return () => { mid.innerHTML = '<span style="font-size:11px;opacity:.75;letter-spacing:2px">' + cap + '</span><br>' + names(MIX[key]); }; };
+  MIX.upd = [mk('veh', 'VEHICLE', VEH_ORDER, k => VEH_DEFS[k].name), mk('obs', 'OBSTACLE', OBS_ORDER, k => OBST[k].name)];
+  stage.appendChild(el); MIX.el = el; MIX.upd.forEach(f => f());
+}
+function mixApply() { MIX.upd && MIX.upd.forEach(f => f()); if (LAB.machine !== 'mix') return; labVehicle(MIX.veh); obsApply(); board.visible = true; labCartReset(); }
 function labCartReset() {
   cartDebrisBuild(); cartDebrisReset();
   const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
   for (const w of wheels) w.visible = true; { const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
-  CART.box.zf = CART.zf0; LABCART.hit = false; CART.place(BOLLARD_Z + BOLLARD_R + 14); CART.vz = 0; labCartPlace();
+  CART.box.zf = CART.zf0; LABCART.hit = false; CART.place(BOLLARD_Z + CART.br + 14); CART.vz = 0; labCartPlace(); if (OBX.cur !== 'post' && labBol()) obsPlace(OBX.cur);
   bollardFall(0); LAB.bollardTip = 0;
 }
 function labImpact() {
   const v = LABCART.v; LABCART.hit = true; CART.impact(v);
-  const dd = labDent(v); CART.box.zf = CART.zf0 + dd * CART_S * 0.75; // the crumpled front wires are a wall further back now
-  ragStart(new V3(0, 0, -v), v);
-  if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.25, 0.25); lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
+  const dd = OBX.cur === 'post' || OBST[OBX.cur].solid ? labDent(v) : 0; CART.box.zf = CART.zf0 + dd * CART_S * 0.75; /* a soft obstacle does not crumple the cart */ // the crumpled front wires are a wall further back now
+  ragStart(new V3(0, 0, -v), CART.plow ? Math.min(v, 9) : v); // ploughing through something soft is not a crash: he keeps sitting and lurches
+  const post = OBX.cur === 'post';
+  if (!post) obsHit(v);
+  else if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.25, 0.25); lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
   else if (CART.bent) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.1, 0.1); lastPop = 0; pop('POST BENT!', 'lilac'); }
-  const bp = new V3(LAB_LANE, 0.8, BOLLARD_Z); burst(bp, 60 + v * 2, SPARK, 6 + v * 0.1); crashSound(clamp(v / 89, 0.1, 1)); if (v >= 22) hitStopUntil = performance.now() + 70;
+  const bp = new V3(LAB_LANE, 0.8, BOLLARD_Z); if (post || OBST[OBX.cur].sound === 'barrel' || OBST[OBX.cur].sound === 'concrete') burst(bp, 60 + v * 2, SPARK, 6 + v * 0.1); crashSound(clamp(v / 89 * (post ? 1 : 0.6), 0.1, 1)); if (v >= 22) hitStopUntil = performance.now() + 70;
   if (!reduceMotion) shake = Math.min(0.9, 0.2 + v * 0.012);
   if (!reduceMotion && v >= 22) { const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); } // white flash on a hard hit
-  slowUntil = performance.now() + 1200; slowK = 0.3; setFace('hit', 99999); if (!CART.knocked && !CART.bent) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
+  slowUntil = performance.now() + 1200; slowK = 0.3; setFace('hit', 99999); if (post && !CART.knocked && !CART.bent) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
 }
 function labBollardOutcome() {
   const S = RAGSIM, c = S.core, torn = c.broken.length, inCart = c.inCart[S.I.pel], held = c.pins.some(p => p.on);
-  const txt = inCart ? (S.maxY - S.seatY > 0.3 ? 'almost flew out' : (LAB_VEH === 'tub' ? 'stayed in the tub' : 'stayed in the cart')) : held ? 'flew out but held on' : 'was thrown out';
+  const txt = inCart ? (S.maxY - S.seatY > 0.3 ? 'almost flew out' : 'stayed in the ' + VEH_DEFS[LAB_VEH].noun) : held ? 'flew out but held on' : 'was thrown out';
   LAB.lost = torn; return txt + (torn ? ', ' + torn + ' limb' + (torn > 1 ? 's' : '') + ' torn off' : '');
 }
 
@@ -3424,10 +3568,11 @@ const LAB_INFO = {
   press: { title: 'HYDRAULIC PRESS', ask: 'How many tons can he take?' },
   cannon: { title: 'WALL CANNON', ask: 'How many walls can he break?' },
   stairs: { title: 'STAIRS', ask: 'How many steps can he survive?' },
+  mix: { title: 'CRASH MIX', ask: 'Pick a vehicle and an obstacle' },
 };
 if (Array.isArray(L.machines) && !L.machines.includes('press') && !L.machines.every(m => m === 'bollard')) L.machines.push('press'); // the press joins the stand lab
 if (Array.isArray(L.machines) && L.machines.length && L.machines.every(m => m === 'bollard') && !L.machines.includes('cannon')) { L.machines.push('cannon'); L.machines.push('stairs'); } // the wall cannon and the stairs join the cart hall
-if (Array.isArray(L.machines) && L.machines.includes('bollard') && !L.machines.includes('tub') && VEH === 'cart') L.machines.splice(L.machines.indexOf('bollard') + 1, 0, 'tub'); // and so does the bathtub
+if (Array.isArray(L.machines) && L.machines.includes('bollard') && !L.machines.includes('tub') && VEH === 'cart') L.machines.splice(L.machines.indexOf('bollard') + 1, 0, 'tub', 'mix'); // and so do the bathtub and the pick-anything mode
 const LAB = { machine: (L.machines || ['fart'])[0], level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
 try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m]) LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press' || LAB.machine === 'cannon') LAB.level = Math.min(LAB.level, 5); if (LAB.machine === 'stairs') LAB.level = Math.min(LAB.level, 3); } catch (e) {} // (3 = the number of stair levels; the table is defined further down)
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
@@ -3455,7 +3600,7 @@ function brrt(power) { // the fart sound: a wobbling low buzz, longer and deeper
   for (let i = 0; i < n; i++) tone(rand(60, 115) - power * 20, rand(40, 60), 0.09, i % 2 ? 'square' : 'sawtooth', 0.06 + power * 0.05, i * 0.055);
 }
 function buildLab() {
-  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub' || m === 'stairs');
+  labBuilt = true; LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub' || m === 'stairs' || m === 'mix');
   for (const o of TRACK_OBJS) o.visible = false; // the lab has no track
   BIG.visible = false; board.visible = labBol();
   { const bm = new THREE.Group(), post = new THREE.Group(); post.rotation.order = 'YXZ'; post.position.y = 0.12; bm.add(post); const st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2 - 0.12; st.castShadow = true; post.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H - 0.12; post.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = post; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
@@ -3479,7 +3624,7 @@ function buildLab() {
   const warn = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('DO NOT TRY THIS', '#e0322b', '#ffffff', 768, 192)); warn.position.set(-10, 5, HZ + 0.15); scene.add(warn);
   const warn2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), sign('LEVEL 1 - 100', '#16141c', '#3dff9a', 768, 192)); warn2.position.set(10, 5, HZ + 0.15); scene.add(warn2);
   for (let i = 0; i < 5; i++) { const lamp = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 0.6), new THREE.MeshBasicMaterial({ color: glowColor(0xfff3dc, 2.2) })); lamp.position.set(-12 + i * 6, 13.6, -8); scene.add(lamp); }
-  LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub' || m === 'stairs');
+  LABNOSTAND = (L.machines || []).every(m => m === 'bollard' || m === 'cannon' || m === 'tub' || m === 'stairs' || m === 'mix');
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R, STAND_R + 0.2, STAND_H, 40), new THREE.MeshStandardMaterial({ color: 0x9aa0aa, metalness: 0.8, roughness: 0.35 })); stand.position.y = STAND_H / 2; stand.castShadow = stand.receiveShadow = true; stand.visible = !LABNOSTAND; scene.add(stand);
   const band = new THREE.Mesh(new THREE.CylinderGeometry(STAND_R + 0.01, STAND_R + 0.01, 0.16, 40, 1, true), stripeMat(8)); band.position.y = STAND_H - 0.1; band.visible = !LABNOSTAND; scene.add(band);
   const gt = gasTex();
@@ -3763,7 +3908,7 @@ function labUI() {
   if (!labBol() && daggie.position.y !== BOARD_TOP) daggie.position.y = BOARD_TOP;
   PRESS.visible = LAB.machine === 'press'; if (PRESS.visible && PRESS.mode === 'idle') { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
   cannonShow(LAB.machine === 'cannon'); stairsShow(LAB.machine === 'stairs');
-  if (labBol()) { const was = LAB_VEH; labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); if (was !== LAB_VEH) { board.visible = true; labCartReset(); } }
+  if (labBol()) { const was = LAB_VEH; labVehicle(labVehKind()); obsApply(); if (was !== LAB_VEH) { board.visible = true; labCartReset(); } mixPickVis(true); } else mixPickVis(false);
   $('labTitle').textContent = LAB_INFO[LAB.machine].title;
   $('labKnob').style.left = ((LAB.level - 1) / (LAB_MAX() - 1) * 100) + '%'; $('labRange').max = String(LAB_MAX());
   $('labLvl').textContent = labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : LAB.machine === 'stairs' ? 'LEVEL ' + LAB.level + ' · ' + STAIRS_STEPS[LAB.level - 1] + ' STEPS' : 'LEVEL ' + LAB.level;
@@ -3777,7 +3922,7 @@ function labReset() {
   if (!labBuilt) buildLab();
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
   drone.visible = false; BB.free = false; RAGSIM = null;
-  if (labBol()) { labVehicle(LAB.machine === 'tub' ? 'tub' : 'cart'); board.visible = true; labCartReset(); } else { board.visible = false; board.position.set(0, -50, 0); daggie.position.y = BOARD_TOP; }
+  if (labBol()) { labVehicle(labVehKind()); obsApply(); board.visible = true; labCartReset(); mixPickVis(true); } else { mixPickVis(false); board.visible = false; board.position.set(0, -50, 0); daggie.position.y = BOARD_TOP; }
   state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dist = 0; labDmg(false);
   if (LEG) { LEG.visible = false; }
   PRESS.mode = 'idle'; PRESS.visible = LAB.machine === 'press'; if (PRESS.visible) { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }
@@ -3790,7 +3935,7 @@ function labStart() {
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
-  if (labBol()) { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + BOLLARD_R + Math.max(10, LABCART.v * 1.4)); CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
+  if (labBol()) { LAB.phase = 'roll'; LABCART.v = LAB_SPEEDS[Math.min(lv, LAB_SPEEDS.length) - 1] * 0.447; CART.place(BOLLARD_Z + CART.br + Math.max(10, LABCART.v * 1.4)); mixPickVis(false); if (OBX.cur !== 'post' && (LABCART.v >= CART.solidMax || LABCART.v >= CART.knockV)) CART.cyls.length = 0; /* it will be shoved aside or destroyed anyway: his legs must not bounce off it before the vehicle even touches it */ CART.vz = -LABCART.v; labCartPlace(); R.speed = LABCART.v; R.grounded = true; setFace('happy', 1000); }
   else if (LAB.machine === 'fart') { LAB.phase = 'charge'; setFace('worried', 900); }
   else if (LAB.machine === 'sock') { LAB.phase = 'drop'; LEG.visible = true; LEG.scale.setScalar(0.55 + lv * 0.035); LEG.position.set(0, HEAD_TOP + 26, 0.1); LEG.rotation.set(0, LAB_YAW + Math.PI * 0.08, 0); LAB.v = 5 + lv * 0.3; setFace('scared', 5000); }
   else if (LAB.machine === 'stairs') stairsStart(lv);
@@ -4229,7 +4374,7 @@ function cannonFire() {
   const S = RAGSIM, c = S.core, I = S.I; S.fast = true; c.friction = 0.995; c.drag = 0; c.damp = 1; c.airXZ = false; c.g = -2.2; S.hook = cannonHold; S.t = 0; // no drag and no per-step damping: at 60 m/s they took off about half of his speed in a second, so he stopped around wall 6-7
   canDive(S); for (let i = 0; i < c.n; i++) c.vel(i, 0, 2.2, -vis, 1 / 240); // head first, no spin yet: the first wall starts it
   CREC.on = true; CREC.t = 0; CREC.frames = []; CREC.ev = []; CREC.play = null; CAN.tl = null; cannonMuzzleCloud();
-  const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); crashSound(1); CREC.ev.push({ t: 0, k: 'cs', a: [1] }); CAN.recoil = 1;
+  const mz = new V3(LAB_LANE, CAN_SPEC[CAN.lv - 1].wr + 0.35, MUZZLE_Z); burst(mz, 160, SPARK, 11); burst(new V3(mz.x, mz.y, mz.z - 0.6), 70, CONF, 6); cannonBoom(CAN.lv); CREC.ev.push({ t: 0, k: 'cb', a: [CAN.lv] }); CAN.recoil = 1;
   if (!reduceMotion) { shake = 0.8; const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); }
   lastPop = 0; pop('BOOM!', 'lilac'); setFace('wow', 4000); slowUntil = performance.now() + 9000; slowK = 0.4;
 }
@@ -4239,13 +4384,14 @@ function cannonHold(core) { // the wall that stopped him: nothing gets through i
 }
 class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pieces
   constructor(geo, mat, N) { this.N = N; this.mesh = new THREE.InstancedMesh(geo, mat, N); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh);
-    this.p = new Float32Array(N * 3); this.v = new Float32Array(N * 3); this.w = new Float32Array(N * 3); this.s = new Float32Array(N * 3); this.q = Array.from({ length: N }, () => new THREE.Quaternion()); this.life = new Float32Array(N); this.rest = new Uint8Array(N); this.next = 0; this.d = new THREE.Object3D(); this.col = new THREE.Color(); this.hasCol = false; this.clear(); }
+    this.p = new Float32Array(N * 3); this.v = new Float32Array(N * 3); this.w = new Float32Array(N * 3); this.s = new Float32Array(N * 3); this.q = Array.from({ length: N }, () => new THREE.Quaternion()); this.life = new Float32Array(N); this.rest = new Uint8Array(N); this.fl = new Float32Array(N).fill(0.04); this.next = 0; this.d = new THREE.Object3D(); this.col = new THREE.Color(); this.hasCol = false; this.clear(); }
   clear() { const z = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < this.N; i++) { this.mesh.setMatrixAt(i, z); this.life[i] = 0; } this.mesh.instanceMatrix.needsUpdate = true; this.mesh.visible = false; }
   spawn(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still, euler) {
     const q = new THREE.Quaternion().setFromEuler(euler ? new THREE.Euler(euler[0], euler[1], euler[2]) : new THREE.Euler(rand(0, 6.3), rand(0, 6.3), rand(0, 6.3))), w0 = rand(-14, 14), w1 = rand(-14, 14), w2 = rand(-14, 14);
     this.raw(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still, q.x, q.y, q.z, q.w, w0, w1, w2);
     if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'sp', a: [this.id, px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still ? 1 : 0, q.x, q.y, q.z, q.w, w0, w1, w2] });
   }
+  launch(i, vx, vy, vz, wx, wy, wz) { const k = i * 3; this.v[k] = vx; this.v[k + 1] = vy; this.v[k + 2] = vz; this.w[k] = wx; this.w[k + 1] = wy; this.w[k + 2] = wz; this.rest[i] = 0; this.life[i] = 16; this.mesh.visible = true; }
   raw(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still, qx, qy, qz, qw, w0, w1, w2) {
     const i = this.next, k = i * 3; this.next = (i + 1) % this.N; this.p[k] = px; this.p[k + 1] = py; this.p[k + 2] = pz; this.v[k] = vx; this.v[k + 1] = vy; this.v[k + 2] = vz; this.s[k] = sx; this.s[k + 1] = sy; this.s[k + 2] = sz;
     this.w[k] = w0; this.w[k + 1] = w1; this.w[k + 2] = w2; this.q[i].set(qx, qy, qz, qw); this.life[i] = life; this.rest[i] = still ? 1 : 0;
@@ -4261,7 +4407,7 @@ class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pi
       this.v[k + 1] -= 9.8 * dt; const dr = 1 / (1 + 0.05 * dt * Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2])); this.v[k] *= dr; this.v[k + 1] *= dr; this.v[k + 2] *= dr;
       this.p[k] += this.v[k] * dt; this.p[k + 1] += this.v[k + 1] * dt; this.p[k + 2] += this.v[k + 2] * dt;
       const wl = Math.hypot(this.w[k], this.w[k + 1], this.w[k + 2]); if (wl > 1e-3) { ax.set(this.w[k] / wl, this.w[k + 1] / wl, this.w[k + 2] / wl); dq.setFromAxisAngle(ax, wl * dt); this.q[i].premultiply(dq); }
-      if (this.p[k + 1] < 0.04) { this.p[k + 1] = 0.04; this.v[k + 1] *= -0.3; const f = Math.exp(-4 * dt); this.v[k] *= f; this.v[k + 2] *= Math.exp(-3 * dt); this.w[k] *= f; this.w[k + 1] *= f; this.w[k + 2] *= f; if (Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2]) < 0.5) { this.rest[i] = 1; this.w[k] = this.w[k + 1] = this.w[k + 2] = 0; } }
+      if (this.p[k + 1] < this.fl[i]) { this.p[k + 1] = this.fl[i]; this.v[k + 1] *= -0.3; const f = Math.exp(-4 * dt); this.v[k] *= f; this.v[k + 2] *= Math.exp(-3 * dt); this.w[k] *= f; this.w[k + 1] *= f; this.w[k + 2] *= f; if (Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2]) < 0.5) { this.rest[i] = 1; this.w[k] = this.w[k + 1] = this.w[k + 2] = 0; } }
       this.put(i);
     }
     this.mesh.instanceMatrix.needsUpdate = true; if (!any) this.mesh.visible = false;
@@ -4338,14 +4484,15 @@ function cannonShardStep(dt) {
 }
 function wallSound(W, i) {
   tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
-  if (!AC) return; OUT(); const t = AC.currentTime;
-  if (W.draw === 'hay') { noise(t, 0.35, 0.22, 'bandpass', 1400, 500, 0.8); noise(t, 0.2, 0.15, 'highpass', 4500, 2500, 0.7); sweep(t, 140, 55, 0.22, 0.25, 'sine'); }
-  else if (W.kind === 'window') { noise(t, 0.45, 0.3, 'highpass', 5200, 2400, 0.7); noise(t, 0.08, 0.25, 'bandpass', 3600, 2800, 2); noiseDist(t, 0.12, 0.2, 1800, 300, 1.2); sweep(t, 2600, 1200, 0.22, 0.04, 'sine'); }
-  else if (W.draw === 'tires') { sweep(t, 150, 48, 0.3, 0.45, 'sine'); sweep(t, 190, 340, 0.18, 0.1, 'triangle'); noise(t, 0.25, 0.2, 'lowpass', 700, 150, 0.7); }
-  else if (W.kind === 'glass' || W.kind === 'ice') { noise(t, 0.4, 0.3, 'highpass', 5500, 2500, 0.7); noise(t, 0.08, 0.25, 'bandpass', 3800, 3000, 2); sweep(t, 2400 + i * 60, 1300, 0.25, 0.04, 'sine'); }
-  else if (W.kind === 'jelly') { sweep(t, 320, 80, 0.3, 0.3, 'sine'); noise(t, 0.2, 0.18, 'lowpass', 700, 200, 0.7); }
-  else if (W.kind === 'cake') { sweep(t, 260, 110, 0.25, 0.3, 'sine'); noise(t, 0.25, 0.14, 'bandpass', 1600, 700, 1.2); }
-  else if (W.kind === 'wood') { noiseDist(t, 0.14, 0.3, 2000, 280, 1.2); sweep(t, 190, 60, 0.2, 0.3, 'sine'); }
+  const d = W.draw, S = { glass: [['glass'], 1, 1], window: [['window', 'glass'], 1, 1.05], glass2: [['glass'], 1, 0.85], armor: [['glass'], 1, 0.7], hay: [['hay', 'wood'], 0.7, 0.8], ply: [['wood'], 1, 1.1], oak: [['wood'], 1, 0.85], brick: [['brick'], 1, 1], stone: [['stone'], 1, 1], concrete: [['stone'], 1, 0.8], ice: [['ice'], 1, 1], diamond: [['ice'], 1, 1.25], steel: [['metal'], 1, 1], gold: [['metal'], 1, 0.85], vault: [['vault', 'metal'], 1, 0.6] }[d];
+  if (S && sfxPlay(S[0], S[1], S[2], 0.25)) return; if (!AC) return; OUT(); const t = AC.currentTime;
+  if (d === 'glass' || d === 'window') { glassSound(d === 'window' ? 1.05 : 1); if (d === 'window') matSound('wood', 0.5, 1.4); }
+  else if (d === 'glass2') glassSound(0.8); else if (d === 'armor') { glassSound(0.65); matSound('metal', 0.5, 0.8); }
+  else if (d === 'hay') { noise(t, 0.35, 0.22, 'bandpass', 1400, 500, 0.8); noise(t, 0.2, 0.15, 'highpass', 4500, 2500, 0.7); sweep(t, 140, 55, 0.22, 0.25, 'sine'); }
+  else if (d === 'ply') matSound('wood', 1, 1.1); else if (d === 'oak') matSound('wood', 1, 0.85);
+  else if (d === 'brick') matSound('brick', 1, 1); else if (d === 'stone') matSound('stone', 1, 1); else if (d === 'concrete') matSound('stone', 1, 0.8);
+  else if (d === 'ice') matSound('ice', 1, 1); else if (d === 'diamond') matSound('ice', 1, 1.3);
+  else if (d === 'steel') matSound('metal', 1, 1); else if (d === 'gold') matSound('metal', 1, 0.85); else if (d === 'vault') { matSound('metal', 1.4, 0.6); crashSound(0.7); }
   else crashSound(clamp(0.12 + W.c / 220000 * 0.7, 0.12, 0.85));
 }
 const CAN_GRP = { top: 'head', haL: 'armL', haR: 'armR', toL: 'legL', knL: 'legL', toR: 'legR', knR: 'legR' };
@@ -4437,6 +4584,7 @@ function cannonReplayEvent(e) {
   else if (e.k === 'pop') { lastPop = 0; pop(a[0], a[1] || undefined); }
   else if (e.k === 'ws') { wallSound(CANNON_WALLS[a[0]], a[0]); if (!reduceMotion) shake = Math.max(shake, 0.18); }
   else if (e.k === 'cs') crashSound(a[0]);
+  else if (e.k === 'cb') cannonBoom(a[0]);
   else if (e.k === 'rs') ripSound();
   else if (e.k === 'face') setFace(a[0], a[1]);
   else if (e.k === 'paper') canPaperRaw(...a);
@@ -4756,8 +4904,8 @@ function labCam(now, dt) {
   wantPos.copy(face).multiplyScalar(5.2).addScaledVector(side, 1.6 + sway).setY(STAND_H + 1.7); wantLook.set(0, STAND_H + 1.15, 0); return 3;
 }
 function labDone() {
-  if (!labBuilt) return; stage.classList.remove('cannonrun');
-  const survived = LAB.text === 'survived' || LAB.text === 'stayed in the cart' || LAB.text === 'stayed in the tub', lost = labBol() ? 0 : cause ? 15 : LAB.lost;
+  if (!labBuilt) return; stage.classList.remove('cannonrun'); mixPickVis(true);
+  const survived = LAB.text === 'survived' || String(LAB.text).indexOf('stayed in the ') === 0, lost = labBol() ? 0 : cause ? 15 : LAB.lost;
   $('labRes').innerHTML = '';
   const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
   $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (labBol() && LAB.dist ? ' · FLEW ' + Math.round(LAB.dist).toLocaleString('en-US') + ' FT' : '')));
