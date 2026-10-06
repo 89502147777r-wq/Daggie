@@ -3191,6 +3191,13 @@ function cartDebrisStep(dt) {
     }
   }
 }
+function labDebrisSettled() { // everything that flies has landed: the obstacle's pieces, glass, the cart's parts, and Daggie himself
+  const o = OBX.built[OBX.cur], sets = []; if (o && OBX.cur !== 'post') for (const t in o.sets) sets.push(o.sets[t]); if (OBX.shards) sets.push(OBX.shards);
+  for (const st of sets) { if (!st.mesh.visible) continue; for (let i = 0; i < st.N; i++) if (st.life[i] > 0 && !st.rest[i]) return false; }
+  if (CDEB.on) for (const d of CDEB.list) if (!d.rest && d.m.visible) return false;
+  const c = RAGSIM && RAGSIM.core; if (c) { let m = 0; for (let i = 0; i < c.n; i++) { const k = i * 3; m = Math.max(m, Math.hypot(c.x[k] - c.o[k], c.x[k + 1] - c.o[k + 1], c.x[k + 2] - c.o[k + 2])); } if (m * 240 > 1.2) return false; }
+  return true;
+}
 function cartDebrisReset() { for (const d of CDEB.list) { d.m.visible = false; d.rest = true; } CDEB.on = false; CDEB.timer = 0; if (CART_ROOT) CART_ROOT.visible = true; CART.box.on = true; }
 
 // ---------- the vehicle in the crash hall: the shopping cart or a bathtub on a trolley ----------
@@ -3247,9 +3254,9 @@ const OBST = {
   post: { name: 'STEEL POST', r: BOLLARD_R, h: BOLLARD_H, bend: 10, knock: 30, tumble: 10, solid: false },
   truck: { absorb: 0, hard: 3.2, fx: 'sand', name: 'DUMP TRUCK (SAND)', r: 0.3, cyls: [-1.0, -0.5, 0, 0.5, 1.0].map(dx => ({ dx, r: 0.3 })).concat([{ dx: 0, dz: -1.0, r: 1.2, h: 3.05 }, { dx: 0, dz: -3.2, r: 1.25, h: 3.05 }, { dx: 0, dz: -5.4, r: 1.25, h: 3.05 }, { dx: 0, dz: -6.3, r: 1.0, h: 3.05 }]), h: 3.0, bend: 120, knock: 9999, tumble: 10, solid: true, kick: 0.05, lift: 0.1, sound: 'truck', pop: 'TRUCK HOLDS!', rider: { up: 0.15, om: 0.3, crash: 0.06 }, rock: { parts: ['truck', 'truckg'], slide: 0.008, tilt: 0.0009, tiltMax: 0.06, tau: 0.7, w: 7, py: 0, pz: -3.4 },
     glass: { key: 'truckg', yoff: 0, cart: [[0, 2.3, 0.25]] },
-    dent: { parts: ['truck', 'truckg'], k: 0.016, min: 0.06, max: 1.5, cx: 0, cy: 0.95, sx: 0.6, sy: 0.85, z0: -2.0, z1: 0.3, shiftN: 6, mask: (x, y, z) => z > -2.4 && Math.abs(x) < 1.15 && !(Math.abs(x) > 0.88 && y < 1.2 && z < -0.05) },
+    dent: { parts: ['truck', 'truckg'], k: 0.016, min: 0.06, max: 1.5, cx: 0, cy: 0.95, sx: 0.6, sy: 0.85, z0: -2.0, z1: 0.3, shiftN: 9, mask: (x, y, z) => z > -2.4 && Math.abs(x) < 1.15 && !(Math.abs(x) > 0.88 && y < 1.2 && z < -0.05) },
     layout() { return [{ t: 'truck', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }, { t: 'truckg', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
-  car: { absorb: 2200, hard: 5, fx: 'dust', name: 'CAR (SIDEWAYS)', r: 0.9, cyls: [-1.3, -0.65, 0, 0.65, 1.3].map(dx => ({ dx, r: 0.9, rim: 0.9 })), h: 1.45, bend: 9999, knock: 9999, tumble: 12, solid: true, kick: 0.35, lift: 0.45, sound: 'car', pop: 'CAR HIT!', rider: { up: 1.15, om: 0.7, crash: 0, cap: 11 }, rock: { parts: ['car', 'carg'], slide: 0.035, tilt: 0.004, tiltMax: 0.22, tau: 0.6, w: 9, py: 0, pz: 0 },
+  car: { absorb: 2200, hard: 5, fx: 'dust', name: 'CAR (SIDEWAYS)', r: 0.9, cyls: [[-1.3, 0.95], [-0.65, 1.1], [0, 1.42], [0.65, 1.42], [1.3, 1.28]].map(([dx, h]) => ({ dx, r: 0.9, rim: 0.9, h })), h: 1.45, bend: 9999, knock: 9999, tumble: 12, solid: true, kick: 0.35, lift: 0.45, sound: 'car', pop: 'CAR HIT!', rider: { up: 1.15, om: 0.7, crash: 0, cap: 11 }, rock: { parts: ['car', 'carg'], slide: 0.035, tilt: 0.004, tiltMax: 0.22, tau: 0.6, w: 9, py: 0, pz: 0 },
     glass: { key: 'carg', yoff: 0.75, cart: [[-0.1, 1.05, 0.8]] },
     dent: { parts: ['car', 'carg'], k: 0.02, min: 0.05, max: 0.95, cx: -0.1, cy: -0.2, sx: 0.95, sy: 0.45, z0: 0.0, z1: 0.9, shiftN: 5, mask: (x, y, z) => z > 0.05 && Math.abs(x) < 2.3 && !(Math.abs(x) > 1.0 && z > 0.55 && y < -0.05) },
     layout() { return [{ t: 'car', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }, { t: 'carg', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
@@ -3343,14 +3350,14 @@ function obxGlassKit(m, fb, yoff) { /* the transparent half of a model: a tinted
 function obsGlassReset(id) { /* a new run: clean glass, no holes, no shards */ const M = OBX_MODELS[id || OBX.cur]; if (OBX.shards) OBX.shards.clear(); if (!M || !M.gl) return; M.hits = 0; M.gl.mat.map = M.gl.clean; const g = M.gl.crack.image.getContext('2d'); obxGlassBase(g, 1024, 1024); M.gl.crack.needsUpdate = true; }
 function obsGlassAt(x, y, z, power) { /* power 0..1 at the point (x, y, z) of the obstacle's own frame: cracks the pane there; a hard one punches a hole and throws shards */
   const id = OBX.cur, spec = OBST[id], o = OBX.built[id], M = OBX_MODELS[id]; if (!spec || !spec.glass || !o || !M || !M.gl || power < 0.12) return;
-  let pn = null, best = 0.3; for (const p of M.panes) { const d = Math.hypot(Math.max(p.bb[0] - x, 0, x - p.bb[1]), Math.max(p.bb[2] - y, 0, y - p.bb[3]), Math.max(p.bb[4] - z, 0, z - p.bb[5])); if (d < best) { best = d; pn = p; } } if (!pn || M.hits > 14) return; M.hits++;
+  let pn = null, best = 0.3; for (const p of M.panes) { const d = Math.hypot(Math.max(p.bb[0] - x, 0, x - p.bb[1]), Math.max(p.bb[2] - y, 0, y - p.bb[3]), Math.max(p.bb[4] - z, 0, z - p.bb[5])); if (d < best) { best = d; pn = p; } } if (!pn || M.hits > 6) return; M.hits++;
   const t = pn.uv(x, y, z), r = pn.rect, S = 1024, px = (r[0] + clamp(t[0], 0, 1) * (r[2] - r[0])) * S, py = (1 - (r[1] + clamp(t[1], 0, 1) * (r[3] - r[1]))) * S, g = M.gl.crack.image.getContext('2d');
   obxCrack(g, px, py, (r[2] - r[0]) * S * 0.5, power); M.gl.crack.needsUpdate = true; M.gl.mat.map = M.gl.crack;
   if (power > 0.55) { const gm = o.kits[spec.glass.key].geo, a = gm.attributes.position.array, yl = y - spec.glass.yoff, R = 0.16 + 0.4 * power; let cut = 0; // the pane breaks out round the point
     for (let i = 0; i + 8 < a.length; i += 9) { const cx = (a[i] + a[i + 3] + a[i + 6]) / 3, cy = (a[i + 1] + a[i + 4] + a[i + 7]) / 3, cz = (a[i + 2] + a[i + 5] + a[i + 8]) / 3; if (Math.hypot(cx - x, cy - yl, cz - z) < R) { for (let k = 0; k < 3; k++) { a[i + k * 3] = cx; a[i + k * 3 + 1] = cy; a[i + k * 3 + 2] = cz; } cut++; } }
     gm.attributes.position.needsUpdate = true; gm.userData.dented = a.slice();
-    if (cut) { if (!OBX.shards) { const sg = new THREE.BoxGeometry(1, 1, 1), sm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.1, depthWrite: false }); OBX.shards = new CanDebris(sg, sm, 200); OBX.shards.snd = 'glass'; OBX.shards.bnc = 0.2; OBX.shards.dragK = 0.4; OBX.shards.mesh.castShadow = false; }
-      const nr = pn.nrm || [0, 0, 1], N = Math.round(14 + 50 * power), wx = LAB_LANE + x, wz = BOLLARD_Z + z; for (let i = 0; i < N; i++) { const sp = rand(0.5, 4 + 6 * power); OBX.shards.spawn(wx + rand(-R, R) * 0.6, y + rand(-R, R) * 0.6, wz + rand(-R, R) * 0.4, nr[0] * sp + rand(-2, 2), rand(0.5, 3 + 4 * power) + nr[1] * sp, nr[2] * sp + rand(-2, 2), rand(0.04, 0.16), 0.004, rand(0.03, 0.12), 4, 0xc4dde8, false); }
+    if (cut) { if (!OBX.shards) { const sg = new THREE.BoxGeometry(1, 1, 1), sm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.1, depthWrite: false }); OBX.shards = new CanDebris(sg, sm, 80); OBX.shards.snd = 'glass'; OBX.shards.bnc = 0.2; OBX.shards.dragK = 0.4; OBX.shards.mesh.castShadow = false; }
+      const nr = pn.nrm || [0, 0, 1], N = Math.round(5 + 16 * power), wx = LAB_LANE + x, wz = BOLLARD_Z + z; for (let i = 0; i < N; i++) { const sp = rand(0.5, 4 + 6 * power); OBX.shards.spawn(wx + rand(-R, R) * 0.6, y + rand(-R, R) * 0.6, wz + rand(-R, R) * 0.4, nr[0] * sp + rand(-2, 2), rand(0.5, 3 + 4 * power) + nr[1] * sp, nr[2] * sp + rand(-2, 2), rand(0.04, 0.12), 0.004, rand(0.03, 0.09), 2.2, 0xc4dde8, false); }
       glassSound(1.15 - 0.3 * power); } }
 }
 function obsGlassHit(wx, wy, wz, sp) { /* Daggie's body meets the obstacle at a world point */ const spec = OBST[OBX.cur]; if (!spec || !spec.glass || sp < 6) return; obsGlassAt(wx - LAB_LANE, wy, wz - BOLLARD_Z, clamp((sp - 4) / 26, 0.15, 1)); }
@@ -5144,8 +5151,8 @@ function labStep(dt, now) {
     if (LAB_STREAKS) LAB_STREAKS.visible = P === 'roll' && state === 'ride' && LABCART.v >= 22.3; // 50 mph and up
     if (P === 'replay') { labDmg(true, LAB.dist || 0, 'DISTANCE', ' FT', 0); labReplayStep(dt, now); return; }
     if (P === 'roll' && state === 'ride') { if (CART.pw[1] - BOLLARD_Z < 7 && faceMode !== 'scared') setFace('scared', 5000); if (CART.step(dt)) labImpact(); labCartPlace(); for (const w of wheels) w.rotation.x -= LABCART.v / WHEEL_R * dt; if (LABCART.hit) { LAB.phase = 'crash'; LAB.t = 0; } }
-    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); cartDebrisStep(dt); labDmg(true, LAB.dist = labDist(), 'DISTANCE', ' FT', 0); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
-    else if (P === 'done' && RAGSIM) ragSimStep(dt);
+    else if (P === 'crash' && RAGSIM) { ragSimStep(dt); cartDebrisStep(dt); labDmg(true, LAB.dist = labDist(), 'DISTANCE', ' FT', 0); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4 && (RAGSIM.t > 8 || labDebrisSettled())) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
+    else if (P === 'done' && RAGSIM) { ragSimStep(dt); cartDebrisStep(dt); }
     return;
   }
   if (LAB.machine === 'fart') {
