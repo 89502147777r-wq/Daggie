@@ -4797,8 +4797,11 @@ function stairsCam() {
   if (!RAGSIM) { ty = H * 0.5 + 0.8; tz = STAIR.z0 - L * 0.5 + 1.5; const d = Math.max(10, L * 2.3 + 6); p = canOrbit(LAB_LANE, ty, tz, d, d * 0.25, CAN.cam, ty + 1); wantPos.set(p[0], p[1], p[2]); wantLook.set(LAB_LANE, ty, tz); snapCam = true; return 6; }
   ty = STAIR.fy + 0.4; tz = STAIR.fz - 1.0; p = canOrbit(LAB_LANE, ty, tz, 11, 3.5, CAN.cam, ty + 2); wantPos.set(p[0], p[1], p[2]); wantLook.set(LAB_LANE, ty, tz); snapCam = true; return 14;
 }
+function bollardVis() { // the yellow post (and its base plate) exist only in the cart and bathtub machines, and in the mix when the post is the chosen obstacle
+  if (!BOLLARD) return; const on = LAB.machine === 'bollard' || LAB.machine === 'tub' || (LAB.machine === 'mix' && MIX.obs === 'post'); BOLLARD.visible = on; if (BOLLARD.parent) BOLLARD.parent.visible = on;
+}
 function labStep(dt, now) {
-  stepGas(dt);
+  bollardVis(); stepGas(dt);
   if (LAB.machine === 'cannon') { if (state === 'lab' && LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } cannonStep(dt, now); return; }
   if (LAB.machine === 'stairs') { if (state === 'lab' && LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } stairsStep(dt, now); return; } // (the result menu was never reached from here before)
   if (state === 'lab') { if (now - stateT > 2500) $('hook').classList.remove('show'); if (LAB.pending && now > LAB.pending) { LAB.pending = 0; labDone(); } }
