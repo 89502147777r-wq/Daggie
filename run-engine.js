@@ -3240,10 +3240,10 @@ if (!OBS_ORDER.includes(MIX.obs)) MIX.obs = 'truck'; /* a saved choice that no l
 // strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
 const OBST = {
   post: { name: 'STEEL POST', r: BOLLARD_R, h: BOLLARD_H, bend: 10, knock: 30, tumble: 10, solid: false },
-  truck: { absorb: 0, hard: 3.2, fx: 'sand', name: 'DUMP TRUCK (SAND)', r: 0.3, cyls: [-1.0, -0.5, 0, 0.5, 1.0].map(dx => ({ dx, r: 0.3 })).concat([{ dx: 0, dz: -1.0, r: 1.2, h: 3.05 }, { dx: 0, dz: -3.2, r: 1.25, h: 3.05 }, { dx: 0, dz: -5.4, r: 1.25, h: 3.05 }, { dx: 0, dz: -6.3, r: 1.0, h: 3.05 }]), h: 3.0, bend: 120, knock: 9999, tumble: 10, solid: true, kick: 0.05, lift: 0.1, sound: 'truck', pop: 'TRUCK HOLDS!', rider: { up: 0.15, om: 0.3, crash: 0.06 }, rock: { part: 'truck', slide: 0.003, tilt: 0.0004, tau: 0.6, w: 8, py: 0, pz: -3.4 },
-    dent: { part: 'truck', k: 0.012, min: 0.03, max: 1.1, cx: 0, cy: 0.95, sx: 0.6, sy: 0.85, z0: -2.0, z1: 0.3, shiftN: 6, mask: (x, y, z) => z > -2.4 && Math.abs(x) < 1.15 && !(Math.abs(x) > 0.9 && y < 1.05 && z < -0.1) },
+  truck: { absorb: 0, hard: 3.2, fx: 'sand', name: 'DUMP TRUCK (SAND)', r: 0.3, cyls: [-1.0, -0.5, 0, 0.5, 1.0].map(dx => ({ dx, r: 0.3 })).concat([{ dx: 0, dz: -1.0, r: 1.2, h: 3.05 }, { dx: 0, dz: -3.2, r: 1.25, h: 3.05 }, { dx: 0, dz: -5.4, r: 1.25, h: 3.05 }, { dx: 0, dz: -6.3, r: 1.0, h: 3.05 }]), h: 3.0, bend: 120, knock: 9999, tumble: 10, solid: true, kick: 0.05, lift: 0.1, sound: 'truck', pop: 'TRUCK HOLDS!', rider: { up: 0.15, om: 0.3, crash: 0.06 }, rock: { part: 'truck', slide: 0.005, tilt: 0.0006, tau: 0.7, w: 7, py: 0, pz: -3.4 },
+    dent: { part: 'truck', k: 0.012, min: 0.03, max: 1.1, cx: 0, cy: 0.95, sx: 0.6, sy: 0.85, z0: -2.0, z1: 0.3, shiftN: 6, mask: (x, y, z) => z > -2.4 && Math.abs(x) < 1.15 && !(Math.abs(x) > 0.88 && y < 1.2 && z < -0.05) },
     layout() { return [{ t: 'truck', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
-  car: { absorb: 2200, hard: 5, fx: 'dust', name: 'CAR (SIDEWAYS)', r: 0.9, cyls: [-1.3, -0.65, 0, 0.65, 1.3].map(dx => ({ dx, r: 0.9 })), h: 1.5, bend: 55, knock: 9999, tumble: 12, solid: true, solidMax: 55, kick: 0.35, lift: 0.45, sound: 'car', pop: 'CAR SHOVED!', rider: { up: 0.6, om: 0.7, crash: 0.03 }, rock: { part: 'car', slide: 0.016, tilt: 0.0018, tau: 0.45, w: 12, py: 0, pz: 0 },
+  car: { absorb: 2200, hard: 5, fx: 'dust', name: 'CAR (SIDEWAYS)', r: 0.9, cyls: [-1.3, -0.65, 0, 0.65, 1.3].map(dx => ({ dx, r: 0.9 })), h: 1.5, bend: 55, knock: 9999, tumble: 12, solid: true, solidMax: 55, kick: 0.35, lift: 0.45, sound: 'car', pop: 'CAR SHOVED!', rider: { up: 0.6, om: 0.7, crash: 0.03 }, rock: { part: 'car', slide: 0.022, tilt: 0.0028, tau: 0.55, w: 10, py: 0, pz: 0 },
     dent: { part: 'car', k: 0.007, min: 0.03, max: 0.55, cx: -0.1, cy: -0.2, sx: 0.95, sy: 0.45, z0: 0.0, z1: 0.9, shiftN: 5, mask: (x, y, z) => z > 0.05 && Math.abs(x) < 2.3 && !(Math.abs(x) > 1.0 && z > 0.55 && y < -0.05) },
     layout() { return [{ t: 'car', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
   tires: { absorb: 600, hard: 6, fx: 'splash', name: 'TIRE STACK', r: 0.35, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.35 })), h: 1.35, bend: 3, knock: 11, tumble: 40, solid: false, kick: 0.55, lift: 0.9, sound: 'tires', pop: 'TIRES EVERYWHERE!',
@@ -3281,44 +3281,101 @@ function obxWheel(P, x, y, z, rad, w, axis) { /* a real tyre (rounded profile), 
   out.push(P(new THREE.CylinderGeometry(rad * 0.58, rad * 0.58, w * 0.72, 20), 0x8d9096, x + (axis === 'x' ? sd * w * 0.02 : 0), y, z + (axis === 'x' ? 0 : sd * w * 0.02), rx, 0, rz, 0.05));
   for (let i = 0; i < 8; i++) { const p = at(w * 0.38, i * 0.7854); out.push(P(new THREE.CylinderGeometry(rad * 0.06, rad * 0.06, rad * 0.12, 6), 0x55585d, p[0], p[1], p[2], rx, 0, rz, 0)); }
   return out; }
+function obxBox(w, h, d, r, sx, sy, sz) { /* a box with rounded edges and a flat grid of vertices on every face (sx, sy, sz: spacing in metres), so a dent has something to move */
+  const H = [w / 2, h / 2, d / 2], sp = [sx || 9, sy || 9, sz || 9]; r = Math.max(0, Math.min(r, H[0], H[1], H[2])); const rr = r >= 0.03; if (!rr) r = 0;
+  const ax = i => { const hh = H[i], a = [-hh]; if (rr) a.push(-hh + r * 0.45, -hh + r); const n = Math.max(1, Math.round(2 * (hh - r) / sp[i])); for (let k = 1; k < n; k++) a.push(-hh + r + 2 * (hh - r) * k / n); if (rr) a.push(hh - r, hh - r * 0.45); a.push(hh); return a.filter((v, k) => k === 0 || v - a[k - 1] > 1e-6); };
+  const A = [ax(0), ax(1), ax(2)], P = [], N = [];
+  for (let k = 0; k < 3; k++) for (const s of [-1, 1]) {
+    const i = (k + 1) % 3, j = (k + 2) % 3, vert = (a, b) => { const p = [0, 0, 0]; p[k] = s * H[k]; p[i] = A[i][a]; p[j] = A[j][b]; const fn = [0, 0, 0]; fn[k] = s;
+      if (!rr) return [p, fn]; const q = [0, 0, 0], dv = [0, 0, 0]; for (let m = 0; m < 3; m++) { const lim = H[m] - r; q[m] = Math.max(-lim, Math.min(lim, p[m])); dv[m] = p[m] - q[m]; } const l = Math.hypot(dv[0], dv[1], dv[2]); if (l < 1e-9) return [p, fn]; return [[q[0] + dv[0] / l * r, q[1] + dv[1] / l * r, q[2] + dv[2] / l * r], [dv[0] / l, dv[1] / l, dv[2] / l]]; };
+    let flip = null; for (let a = 0; a < A[i].length - 1; a++) for (let b = 0; b < A[j].length - 1; b++) {
+      const v00 = vert(a, b), v10 = vert(a + 1, b), v01 = vert(a, b + 1), v11 = vert(a + 1, b + 1);
+      if (flip === null) { const u = [v10[0][0] - v00[0][0], v10[0][1] - v00[0][1], v10[0][2] - v00[0][2]], v = [v01[0][0] - v00[0][0], v01[0][1] - v00[0][1], v01[0][2] - v00[0][2]], cr = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; flip = cr[k] * s < 0; }
+      const tris = flip ? [[v00, v01, v10], [v10, v01, v11]] : [[v00, v10, v01], [v10, v11, v01]]; for (const t of tris) for (const v of t) { P.push(v[0][0], v[0][1], v[0][2]); N.push(v[1][0], v[1][1], v[1][2]); } } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3)); g.setAttribute('normal', new THREE.BufferAttribute(Float32Array.from(N), 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(P.length / 3 * 2), 2)); return g;
+}
+function obxPoly(pts, k) { /* a polyline cut into k pieces per segment */ const o = []; for (let i = 0; i < pts.length - 1; i++) for (let j = 0; j < k; j++) { const t = j / k; o.push([pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t]); } o.push(pts[pts.length - 1]); return o; }
+function obxRange(a, b, dx) { const n = Math.max(1, Math.ceil((b - a) / dx)), o = []; for (let i = 0; i <= n; i++) o.push(a + (b - a) * i / n); return o; }
+function obxLin(X, A, x) { if (x <= X[0]) return A[0]; for (let i = 1; i < X.length; i++) if (x <= X[i]) { const t = (x - X[i - 1]) / (X[i] - X[i - 1]); return A[i - 1] + (A[i] - A[i - 1]) * t; } return A[A.length - 1]; }
+function obxLoft(xs, pathOf, k, ctr) { /* a smooth skin: at every station x the path (a polyline of [z, y]) is a cross-section, neighbouring stations are joined; ctr [x, y, z] is a point inside the body, so the skin is turned the right way out */
+  const rows = xs.map(x => obxPoly(pathOf(x), k)), m = rows[0].length, P = [], I = [];
+  rows.forEach((row, i) => row.forEach(([z, y]) => P.push(xs[i], y, z)));
+  for (let i = 0; i < rows.length - 1; i++) for (let j = 0; j < m - 1; j++) { const a = i * m + j, b = a + 1, c = a + m, d = c + 1; I.push(a, c, b, b, c, d); }
+  let sum = 0; for (let t = 0; t < I.length; t += 3) { const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3, ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2], nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, cx = (P[a] + P[b] + P[c]) / 3 - ctr[0], cy = (P[a + 1] + P[b + 1] + P[c + 1]) / 3 - ctr[1], cz = (P[a + 2] + P[b + 2] + P[c + 2]) / 3 - ctr[2]; sum += nx * cx + ny * cy + nz * cz; }
+  if (sum < 0) for (let t = 0; t < I.length; t += 3) { const q = I[t + 1]; I[t + 1] = I[t + 2]; I[t + 2] = q; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(P.length / 3 * 2), 2)); g.setIndex(I); g.computeVertexNormals(); return g;
+}
+function obxCap(ring, x, ctr) { /* the flat end of a skin: the ring [z, y] at station x, filled as a fan */ let cz = 0, cy = 0; for (const [z, y] of ring) { cz += z; cy += y; } cz /= ring.length; cy /= ring.length; const P = []; for (let i = 0; i < ring.length - 1; i++) P.push(x, cy, cz, x, ring[i][1], ring[i][0], x, ring[i + 1][1], ring[i + 1][0]);
+  let sum = 0; for (let t = 0; t < P.length; t += 9) { const ux = P[t + 3] - P[t], uy = P[t + 4] - P[t + 1], uz = P[t + 5] - P[t + 2], vx = P[t + 6] - P[t], vy = P[t + 7] - P[t + 1], vz = P[t + 8] - P[t + 2]; sum += (uy * vz - uz * vy) * (x - ctr[0]); } if (sum < 0) for (let t = 0; t < P.length; t += 9) for (let q = 0; q < 3; q++) { const a = P[t + 3 + q]; P[t + 3 + q] = P[t + 6 + q]; P[t + 6 + q] = a; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(P.length / 3 * 2), 2)); g.computeVertexNormals(); return g; }
+function obxTyre(P, x, y, z, rad, w, axis) { /* a real tyre: rounded profile, axis 'x' (truck) or 'z' (car) */ const sc = rad / 0.355, rx = axis === 'x' ? 0 : Math.PI / 2, rz = axis === 'x' ? Math.PI / 2 : 0;
+  return P(new THREE.LatheGeometry(OBX_TIRE.map(([r, yy]) => new THREE.Vector2(r * sc, yy * (w / 0.22))), 20), 0x181818, x, y, z, rx, 0, rz, 0.06); }
+function obxAlloyZ(P, x, y, z, rad, w) { /* the car's wheel: tyre, dark recess, silver rim, ten spokes, hub cap and nuts (axis along z) */
+  const sd = Math.sign(z) || 1, out = [obxTyre(P, x, y, z, rad, w, 'z')], zf = z + sd * w * 0.36, C = (r, l, c, zz) => P(new THREE.CylinderGeometry(r, r, l, 24), c, x, y, zz, Math.PI / 2, 0, 0, 0.03);
+  out.push(C(rad * 0.74, w * 0.5, 0x9ea2a8, z + sd * w * 0.1), C(rad * 0.64, w * 0.5, 0x15161a, z + sd * w * 0.13));
+  for (let i = 0; i < 10; i++) { const a = i * 0.6283; out.push(P(obxBox(rad * 0.5, rad * 0.075, w * 0.07, 0.004), 0xb9bdc3, x + Math.cos(a) * rad * 0.38, y + Math.sin(a) * rad * 0.38, zf, 0, 0, a, 0.03)); }
+  out.push(C(rad * 0.13, w * 0.12, 0xc9ccd1, z + sd * w * 0.4)); for (let i = 0; i < 5; i++) { const a = i * 1.2566; out.push(P(new THREE.CylinderGeometry(rad * 0.025, rad * 0.025, w * 0.08, 6), 0x777a80, x + Math.cos(a) * rad * 0.2, y + Math.sin(a) * rad * 0.2, z + sd * w * 0.42, Math.PI / 2, 0, 0, 0)); }
+  return out; }
+function obxSteelX(P, x, y, z, rad, w) { /* the truck's wheel: tyre, white steel disc with a deep dish, ten nuts, hub (axis along x) */
+  const sd = Math.sign(x) || 1, out = [obxTyre(P, x, y, z, rad, w, 'x')], C = (r, l, c, xx) => P(new THREE.CylinderGeometry(r, r, l, 22), c, xx, y, z, 0, 0, Math.PI / 2, 0.05);
+  out.push(C(rad * 0.6, w * 0.7, 0xc8cbce, x + sd * w * 0.03), C(rad * 0.4, w * 0.74, 0x8a8d92, x + sd * w * 0.05), C(rad * 0.16, w * 0.8, 0x55585d, x + sd * w * 0.06));
+  for (let i = 0; i < 10; i++) { const a = i * 0.6283; out.push(P(new THREE.CylinderGeometry(rad * 0.035, rad * 0.035, rad * 0.1, 6), 0x60646a, x + sd * w * 0.4, y + Math.cos(a) * rad * 0.28, z + Math.sin(a) * rad * 0.28, 0, 0, Math.PI / 2, 0)); }
+  return out; }
 function OBX_MERGE(parts, fb) { /* if the parts cannot be merged the obstacle is still there, as a plain block, and the game does not stop */ let g = null; try { g = mergeGeometries(parts); } catch (e) { g = null; } return g || fb; }
 const OBS_KIT = {
-  truck: () => { const P = OBX_PART, BX = (w, h, d, c, x, y, z, r, sg, gr) => P(new RoundedBoxGeometry(w, h, d, sg || 2, r === undefined ? 0.03 : r), c, x, y, z, 0, 0, 0, gr),
-      CZ = (r, l, c, x, y, z) => P(new THREE.CylinderGeometry(r, r, l, 14), c, x, y, z, Math.PI / 2, 0, 0, 0.08), hh = (a, b, c) => { const t = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return t - Math.floor(t); },
-      sand = (sx, sy, sz, c, x, y, z) => { const g = new THREE.IcosahedronGeometry(1, 3), pp = g.attributes.position; for (let i = 0; i < pp.count; i++) { const a = pp.getX(i), b = pp.getY(i), d = pp.getZ(i), n = 1 + 0.12 * (hh(a * 3, b * 3, d * 3) - 0.5) + 0.07 * Math.sin(d * 5 + a * 3); pp.setXYZ(i, a * sx * n, Math.max(b, 0) * sy * n, d * sz * n); } g.computeVertexNormals(); return P(g, c, x, y, z, 0, 0, 0, 0.16); },
-      cabW = 0xe4e5e1, dark = 0x3a3d42, steel = 0x5d6369, steelD = 0x2f3338, parts = [
-      // frame, axles, driveshaft, springs
-      BX(0.2, 0.3, 7.1, steelD, -0.6, 0.85, -3.4, 0.02), BX(0.2, 0.3, 7.1, steelD, 0.6, 0.85, -3.4, 0.02), CZ(0.06, 3.0, 0x2a2c30, 0, 0.75, -2.9),
-      BX(0.12, 0.1, 1.2, 0x2a2c30, -0.8, 0.72, -5.55, 0.02), BX(0.12, 0.1, 1.2, 0x2a2c30, 0.8, 0.72, -5.55, 0.02),
-      // cab: white upper, dark lower; finely subdivided in front so it can crumple
-      BX(2.4, 1.55, 1.88, cabW, 0, 2.225, -0.76, 0.12, 6), BX(2.4, 0.5, 1.88, dark, 0, 1.2, -0.76, 0.1, 6), BX(2.0, 0.85, 0.06, 0x101a24, 0, 2.5, 0.2, 0.01, 6),
-      BX(1.5, 0.6, 0.07, 0x1b1b1d, 0, 1.25, 0.2, 0.02, 6), BX(2.5, 0.34, 0.26, 0x4a4d53, 0, 0.62, 0.17, 0.04, 6), BX(2.3, 0.1, 0.5, steelD, 0, 3.03, 0.0, 0.03, 2), BX(2.2, 0.35, 0.3, cabW, 0, 3.17, -0.9, 0.1, 2),
-      BX(0.9, 0.1, 0.15, 0xe8a317, 0, 3.1, 0.05, 0.02, 2), BX(0.9, 0.03, 0.02, 0x111111, -0.5, 2.2, 0.24, 0.005, 2), BX(0.9, 0.03, 0.02, 0x111111, 0.5, 2.2, 0.24, 0.005, 2), BX(0.5, 0.14, 0.02, 0xf2f2ea, 0, 0.62, 0.31, 0.005, 2),
-      // rear of the truck
-      BX(2.2, 0.15, 0.1, steelD, 0, 0.72, -7.1, 0.02), BX(0.25, 0.2, 0.05, 0xc01818, -1.0, 1.3, -7.07, 0.02), BX(0.25, 0.2, 0.05, 0xc01818, 1.0, 1.3, -7.07, 0.02), BX(0.55, 0.5, 0.03, 0x111111, -1.1, 0.55, -6.95, 0.01), BX(0.55, 0.5, 0.03, 0x111111, 1.1, 0.55, -6.95, 0.01),
-      // dump body: ribbed steel, rust band, hi-vis stripe, headboard, hoist rams
-      BX(2.5, 1.45, 5.15, steel, 0, 1.83, -4.43, 0.06, 3), BX(2.5, 0.15, 5.2, steelD, 0, 1.1, -4.43, 0.03), BX(2.6, 0.1, 5.25, steelD, 0, 2.58, -4.43, 0.03), BX(2.51, 0.35, 5.1, 0x5a3f2c, 0, 1.3, -4.43, 0.03, 2, 0.2), BX(2.52, 0.18, 5.0, 0xe8a317, 0, 2.3, -4.43, 0.02),
-      BX(2.5, 0.8, 0.14, steel, 0, 2.95, -1.93, 0.04), BX(2.4, 0.12, 0.12, steelD, 0, 2.5, -7.03, 0.02),
-      P(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 12), 0x2a2c30, -0.5, 1.55, -2.5, 0.7, 0, 0, 0.05), P(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 12), 0x2a2c30, 0.5, 1.55, -2.5, 0.7, 0, 0, 0.05),
-      // tanks, exhaust, tow lights
-      CZ(0.3, 1.3, 0x9a9da3, 1.15, 0.85, -2.6), CZ(0.15, 0.8, 0x9a9da3, -1.0, 0.8, -2.2), P(new THREE.CylinderGeometry(0.07, 0.07, 1.8, 10), 0x9a9da3, 1.32, 2.45, -1.88, 0, 0, 0, 0.05)];
-    for (let i = 0; i < 5; i++) parts.push(BX(1.4, 0.025, 0.03, 0x73777d, 0, 1.0 + i * 0.12, 0.245, 0.01, 2));
-    for (const sd of [-1, 1]) parts.push(BX(0.4, 0.26, 0.07, 0x25272a, sd * 0.9, 1.3, 0.2, 0.02, 3), BX(0.32, 0.18, 0.03, 0xf6efcf, sd * 0.9, 1.3, 0.235, 0.01, 2), BX(0.2, 0.1, 0.04, 0xe08a10, sd * 0.9, 1.06, 0.22, 0.01, 2), BX(0.18, 0.14, 0.04, 0xf0eac0, sd * 0.75, 0.62, 0.31, 0.01, 2),
-      BX(0.02, 1.5, 0.02, dark, sd * 1.205, 2.2, -0.8, 0.005, 2), BX(0.04, 0.04, 0.2, 0xc5c8cc, sd * 1.22, 2.1, -0.35, 0.01, 2), BX(0.03, 0.65, 1.0, 0x101a24, sd * 1.21, 2.65, -0.55, 0.01, 2), BX(0.2, 0.05, 0.5, steelD, sd * 1.25, 0.95, -0.4, 0.01, 2),
-      BX(0.3, 0.04, 0.04, steelD, sd * 1.4, 2.7, 0.1, 0.005, 2), BX(0.12, 0.45, 0.2, 0x1b1b1d, sd * 1.58, 2.55, 0.12, 0.03, 2), BX(0.5, 0.12, 1.3, dark, sd * 1.12, 1.1, -0.55, 0.04, 2));
-    for (let z = -2.1; z > -6.95; z -= 0.6) parts.push(BX(2.56, 1.3, 0.07, 0x4a5056, 0, 1.83, z, 0.01, 2));
-    parts.push(sand(1.15, 0.55, 2.45, 0xcaa86c, 0, 2.5, -4.43), sand(0.5, 0.25, 0.7, 0xb7955a, -0.45, 2.95, -3.5), sand(0.55, 0.28, 0.8, 0xd3b377, 0.4, 2.95, -5.3));
-    for (const [x, z, w] of [[-1.12, -0.55, 0.42], [1.12, -0.55, 0.42], [-0.95, -4.9, 0.36], [0.95, -4.9, 0.36], [-1.38, -4.9, 0.36], [1.38, -4.9, 0.36], [-0.95, -6.2, 0.36], [0.95, -6.2, 0.36], [-1.38, -6.2, 0.36], [1.38, -6.2, 0.36]]) parts.push(...obxWheel(P, x, 0.52, z, 0.52, w, 'x'));
+  truck: () => { const P = OBX_PART, white = 0xe9ebec, red = 0xa8121a, black = 0x151618, dark = 0x26282b, steel = 0x62676d, silver = 0xb9bdc2, glass = 0x0e151c, orange = 0xe08a1a,
+      BX = (w, h, d, c, x, y, z, r, sx, sy, sz, gr) => P(obxBox(w, h, d, r === undefined ? 0 : r, sx, sy, sz), c, x, y, z, 0, 0, 0, gr),
+      CZ = (r, l, c, x, y, z) => P(new THREE.CylinderGeometry(r, r, l, 14), c, x, y, z, Math.PI / 2, 0, 0, 0.08), CX = (r, l, c, x, y, z) => P(new THREE.CylinderGeometry(r, r, l, 12), c, x, y, z, 0, 0, Math.PI / 2, 0.06), CV = (r, l, c, x, y, z) => P(new THREE.CylinderGeometry(r, r, l, 12), c, x, y, z, 0, 0, 0, 0.06),
+      hh = (a, b, c) => { const t = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return t - Math.floor(t); },
+      sand = (det, sx, sy, sz, c, x, y, z) => { const g = new THREE.IcosahedronGeometry(1, det), pp = g.attributes.position; for (let i = 0; i < pp.count; i++) { const a = pp.getX(i), b = pp.getY(i), d = pp.getZ(i), n = 1 + 0.12 * (hh(a * 3, b * 3, d * 3) - 0.5) + 0.07 * Math.sin(d * 5 + a * 3); pp.setXYZ(i, a * sx * n, Math.max(b, 0) * sy * n, d * sz * n); } g.computeVertexNormals(); return P(g, c, x, y, z, 0, 0, 0, 0.16); },
+      FX = [0.18, 0.18, 0.6], parts = [];
+    // chassis: ladder frame, cross members, axles, springs, drive shaft
+    for (const sd of [-1, 1]) parts.push(BX(0.2, 0.32, 7.2, black, sd * 0.62, 0.9, -3.45), BX(0.14, 0.1, 1.3, dark, sd * 0.85, 0.78, -5.55));
+    for (const z of [-1.2, -2.6, -3.8, -5.2, -6.6]) parts.push(BX(1.3, 0.16, 0.14, dark, 0, 0.9, z));
+    parts.push(CX(0.08, 2.2, dark, 0, 0.55, -0.55), CX(0.09, 2.0, dark, 0, 0.55, -4.9), CX(0.09, 2.0, dark, 0, 0.55, -6.2), CZ(0.06, 3.2, dark, 0, 0.8, -2.9));
+    // cab (cab-over, white), finely gridded in front so it can crumple
+    parts.push(BX(2.4, 1.2, 1.88, white, 0, 2.45, -0.76, 0.1, ...FX, 0.08), BX(2.4, 0.9, 1.88, white, 0, 1.4, -0.76, 0.06, ...FX, 0.08), BX(2.22, 1.02, 0.05, black, 0, 2.5, 0.185, 0, ...FX, 0.04), BX(2.12, 0.92, 0.07, glass, 0, 2.5, 0.2, 0, ...FX, 0.0),
+      BX(1.25, 0.5, 0.05, black, 0, 1.62, 0.2, 0, ...FX, 0.04), BX(1.0, 0.22, 0.05, black, 0, 1.1, 0.2, 0, 0.2, 0.2, 0.6, 0.04), BX(2.5, 0.42, 0.3, black, 0, 0.62, 0.17, 0.06, ...FX, 0.05), BX(0.9, 0.05, 0.22, silver, 0, 0.86, 0.15), BX(0.5, 0.14, 0.02, 0xf2f2ea, 0, 0.62, 0.325),
+      BX(0.22, 0.06, 0.02, silver, 0, 1.94, 0.2), BX(1.25, 0.02, 0.03, silver, 0, 1.62, 0.23), BX(2.3, 0.06, 1.8, white, 0, 3.07, -0.8, 0.03), BX(2.5, 0.12, 1.4, red, 0, 3.47, -1.25, 0.04), BX(2.5, 0.9, 0.14, red, 0, 3.0, -1.93, 0.05));
+    for (let i = -2; i <= 2; i++) parts.push(BX(0.02, 0.46, 0.03, silver, i * 0.25, 1.62, 0.23), BX(0.14, 0.08, 0.08, orange, i * 0.35, 3.1, 0.15), BX(0.9, 0.02, 0.03, silver, 0, 1.04 + (i + 2) * 0.06, 0.23));
+    for (const sd of [-1, 1]) { parts.push(BX(0.5, 0.3, 0.08, black, sd * 0.82, 1.12, 0.2, 0.03), BX(0.42, 0.22, 0.03, 0xf3f5f7, sd * 0.82, 1.12, 0.245), BX(0.2, 0.1, 0.04, orange, sd * 0.82, 0.93, 0.23), BX(0.16, 0.12, 0.04, 0xf0eac0, sd * 0.7, 0.62, 0.325), BX(0.46, 0.14, 1.3, black, sd * 1.15, 1.15, -0.55, 0.05),
+        BX(0.02, 1.7, 0.02, dark, sd * 1.205, 1.95, -0.05), BX(0.02, 1.7, 0.02, dark, sd * 1.205, 1.95, -1.15), BX(0.025, 0.86, 1.03, black, sd * 1.2, 2.55, -0.55), BX(0.03, 0.78, 0.95, glass, sd * 1.205, 2.55, -0.55), BX(0.05, 0.04, 0.2, silver, sd * 1.22, 2.05, -0.95),
+        BX(0.4, 0.04, 0.04, black, sd * 1.4, 2.7, 0.1), BX(0.14, 0.5, 0.26, black, sd * 1.6, 2.65, 0.1, 0.04), BX(0.02, 0.42, 0.2, 0x1a2a38, sd * 1.53, 2.65, 0.1), BX(0.1, 0.2, 0.12, black, sd * 1.6, 2.28, 0.12, 0.03), BX(0.22, 0.05, 0.5, silver, sd * 1.28, 0.95, -0.45), BX(0.22, 0.05, 0.5, silver, sd * 1.28, 1.4, -0.45), BX(0.04, 0.8, 0.04, silver, sd * 1.24, 1.7, -1.05),
+        // the dump body: red steel with silver stiffeners, orange stripe, rails
+        BX(0.5, 0.1, 2.0, dark, sd * 1.2, 1.12, -5.55, 0.03), BX(0.55, 0.5, 0.03, black, sd * 1.15, 0.55, -6.95), BX(0.25, 0.2, 0.05, 0xc01818, sd * 1.0, 1.3, -7.07), BX(0.04, 0.68, 0.12, black, sd * 0.0 + 1.15, 0.9, sd * 0.4 - 2.7), P(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 12), steel, sd * 0.5, 1.55, -2.5, 0.7, 0, 0, 0.05), BX(0.4, 0.04, 0.3, silver, sd * 1.05, 1.0, -2.9));
+      for (let z = -2.5; z > -6.9; z -= 0.82) parts.push(BX(0.05, 1.25, 0.14, silver, sd * 1.275, 1.85, z)); }
+    parts.push(BX(2.5, 1.5, 5.15, red, 0, 1.85, -4.43, 0.06, 0.6, 0.6, 1.0, 0.1), BX(2.5, 0.2, 5.2, black, 0, 1.05, -4.43), BX(2.6, 0.12, 5.25, steel, 0, 2.62, -4.43, 0.03), BX(2.52, 0.12, 5.1, orange, 0, 1.25, -4.43, 0), BX(2.4, 0.12, 0.12, steel, 0, 2.55, -7.03), BX(2.2, 0.15, 0.1, black, 0, 0.72, -7.1),
+      CZ(0.32, 1.4, silver, 1.15, 0.9, -2.7), BX(0.5, 0.4, 0.9, dark, -1.1, 0.85, -2.2), BX(0.52, 0.04, 0.92, steel, -1.1, 1.07, -2.2), CV(0.07, 2.2, silver, 1.3, 2.6, -1.85), BX(0.1, 0.04, 0.2, dark, 1.3, 1.9, -1.75), BX(0.16, 0.04, 0.16, dark, 1.3, 3.72, -1.85));
+    parts.push(sand(3, 1.15, 0.55, 2.45, 0xcaa86c, 0, 2.58, -4.43), sand(2, 0.5, 0.25, 0.7, 0xb7955a, -0.45, 3.02, -3.5), sand(2, 0.55, 0.28, 0.8, 0xd3b377, 0.4, 3.02, -5.3));
+    for (const [x, z] of [[-1.12, -0.55], [1.12, -0.55], [-0.95, -4.9], [0.95, -4.9], [-1.4, -4.9], [1.4, -4.9], [-0.95, -6.2], [0.95, -6.2], [-1.4, -6.2], [1.4, -6.2]]) parts.push(...obxSteelX(P, x, 0.55, z, 0.55, 0.3));
     return { geo: OBX_MERGE(parts, new THREE.BoxGeometry(2.5, 3, 7).translate(0, 1.5, -3.4)), mat: obxMat(0.6, 0.28), fl: 0.5 }; },
-  car: () => { const P = OBX_PART, body = 0x9c1f1a, BX = (w, h, d, c, x, y, z, r, sg, gr) => P(new RoundedBoxGeometry(w, h, d, sg || 2, r === undefined ? 0.03 : r), c, x, y, z, 0, 0, 0, gr), parts = [
-      BX(4.5, 0.62, 1.8, body, 0, 0.62, 0, 0.12, 6), BX(3.4, 0.12, 1.84, 0x1b1b1d, 0, 0.36, 0, 0.02, 2), BX(2.3, 0.56, 1.52, body, -0.1, 1.2, 0, 0.14, 6), BX(2.0, 0.05, 1.4, 0x861a16, -0.1, 1.5, 0, 0.02, 2),
-      BX(0.14, 0.3, 1.7, 0x1b1b1d, -2.27, 0.45, 0, 0.03, 2), BX(0.14, 0.3, 1.7, 0x1b1b1d, 2.27, 0.45, 0, 0.03, 2), BX(0.04, 0.18, 0.8, 0x1b1b1d, -2.26, 0.55, 0, 0.01, 2),
-      BX(0.06, 0.14, 0.4, 0xfff2c2, -2.25, 0.72, -0.6, 0.02, 2), BX(0.06, 0.14, 0.4, 0xfff2c2, -2.25, 0.72, 0.6, 0.02, 2), BX(0.06, 0.14, 0.4, 0xc01818, 2.25, 0.75, -0.6, 0.02, 2), BX(0.06, 0.14, 0.4, 0xc01818, 2.25, 0.75, 0.6, 0.02, 2)];
-    for (const sd of [-1, 1]) { parts.push(BX(0.95, 0.38, 0.03, 0x1a2530, -0.62, 1.2, sd * 0.765, 0.01, 4), BX(0.8, 0.38, 0.03, 0x1a2530, 0.45, 1.2, sd * 0.765, 0.01, 4), BX(0.12, 0.1, 0.14, body, -0.95, 1.0, sd * 0.95, 0.02, 2), BX(0.5, 0.1, 0.02, 0xefece4, 2.26, 0.5, sd * 0.0, 0.005, 2));
-      for (const x of [-1.0, 0.15, 1.1]) parts.push(BX(0.02, 0.5, 0.02, 0x2a0d0b, x, 0.62, sd * 0.905, 0.005, 2)); for (const x of [-0.2, 0.9]) parts.push(BX(0.16, 0.04, 0.04, 0xcfd2d6, x, 0.8, sd * 0.91, 0.01, 2));
-      for (const x of [-1.4, 1.4]) { parts.push(P(new THREE.CylinderGeometry(0.4, 0.4, 0.06, 20), 0x0a0a0a, x, 0.34, sd * 0.9, Math.PI / 2, 0, 0, 0)); parts.push(...obxWheel(P, x, 0.33, sd * 0.82, 0.33, 0.22, 'z')); } }
-    const geo = OBX_MERGE(parts, new THREE.BoxGeometry(4.5, 1.5, 1.8).translate(0, 0.75, 0)); geo.translate(0, -0.75, 0);
-    return { geo, mat: obxMat(0.35, 0.45), fl: 0.45 }; },
+  car: () => { const P = OBX_PART, paint = 0x15171b, glass = 0x0b1117, plastic = 0x0b0b0c, chrome = 0xa3a7ad, red = 0xb0121a, ctr = [0, 0.7, 0],
+      BX = (w, h, d, c, x, y, z, r, sx, sy, sz, gr) => P(obxBox(w, h, d, r === undefined ? 0 : r, sx, sy, sz), c, x, y, z, 0, 0, 0, gr),
+      X = [-2.35, -2.32, -2.2, -1.8, -1.2, -0.85, -0.45, -0.05, 0.5, 1.0, 1.5, 2.0, 2.25, 2.35], T = [0.5, 0.7, 0.78, 0.85, 0.92, 0.96, 1.18, 1.4, 1.43, 1.4, 1.19, 0.99, 0.95, 0.6], YB = [0.3, 0.26, 0.24, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.24, 0.26, 0.3], WS = [0.7, 0.78, 0.85, 0.885, 0.885, 0.885, 0.88, 0.875, 0.87, 0.87, 0.87, 0.87, 0.85, 0.78],
+      sec = x => { const t = obxLin(X, T, x), yb = obxLin(X, YB, x), ws = obxLin(X, WS, x), ys = Math.min(0.9, t - 0.04), g = Math.min(1, Math.max(0, (t - 0.96) / 0.46)); return { t, yb, ws, ys, wr: ws - 0.05 - 0.19 * g, cr: 0.015 + 0.01 * g, wb: ws - 0.1, yl: yb + 0.18 }; },
+      strip = (x0, x1, fn, col, gr, dx) => P(obxLoft(obxRange(x0, x1, dx || 0.1), fn, 2, ctr), col, 0, 0, 0, 0, 0, 0, gr === undefined ? 0.05 : gr),
+      parts = [];
+    const sideLo = sd => x => { const s = sec(x); return [[sd * s.wb, s.yb], [sd * s.ws * 1.004, s.yl], [sd * s.ws, s.ys]]; }, deck = x => { const s = sec(x); return [[-s.ws, s.ys], [-s.wr, s.t], [0, s.t + s.cr], [s.wr, s.t], [s.ws, s.ys]]; }, top = x => { const s = sec(x); return [[-s.wr, s.t], [0, s.t + s.cr], [s.wr, s.t]]; },
+      sideGl = (sd, o) => x => { const s = sec(x), e = o || 0; return [[sd * (s.ws + e), s.ys], [sd * (s.wr + e), s.t]]; }, rail = (sd) => x => { const s = sec(x); return [[sd * (s.wr + 0.012), s.t - 0.1], [sd * (s.wr + 0.004), s.t + 0.004]]; };
+    // the skin: lower sides, bonnet, boot lid, windows, windscreen, roof, tailgate glass, window frames
+    for (const sd of [-1, 1]) { parts.push(strip(-2.35, 2.35, sideLo(sd), paint, 0.05, 0.1), strip(-0.85, 2.0, sideGl(sd), glass, 0.0, 0.1), strip(-0.85, 2.0, rail(sd), plastic, 0, 0.1), strip(0.2, 0.32, sideGl(sd, 0.007), plastic, 0, 0.06), strip(-0.85, -0.6, sideGl(sd, 0.007), plastic, 0, 0.06), strip(1.55, 1.95, sideGl(sd, 0.007), paint, 0.05, 0.1)); }
+    parts.push(strip(-2.35, -0.85, deck, paint, 0.05, 0.1), strip(2.0, 2.35, deck, paint, 0.05, 0.08), strip(-0.85, -0.05, top, glass, 0, 0.08), strip(-0.05, 1.0, top, paint, 0.05, 0.1), strip(1.0, 2.0, top, glass, 0, 0.1));
+    const ring = x => { const s = sec(x); return [[-s.wb, s.yb], [-s.ws, s.yl], [-s.ws, s.ys], [-s.wr, s.t], [0, s.t + s.cr], [s.wr, s.t], [s.ws, s.ys], [s.ws, s.yl], [s.wb, s.yb], [-s.wb, s.yb]]; };
+    parts.push(P(obxCap(ring(-2.35), -2.35, ctr), plastic, 0, 0, 0, 0, 0, 0, 0), P(obxCap(ring(2.35), 2.35, ctr), plastic, 0, 0, 0, 0, 0, 0, 0));
+    // bumpers, grille, lamps, number plates
+    parts.push(BX(0.3, 0.34, 1.72, plastic, -2.2, 0.45, 0, 0.08, 9, 9, 9, 0.04), BX(0.3, 0.34, 1.72, plastic, 2.2, 0.47, 0, 0.08, 9, 9, 9, 0.04), BX(0.22, 0.07, 1.5, plastic, -2.28, 0.26, 0, 0.03, 9, 9, 9, 0.04),
+      BX(0.06, 0.15, 0.56, plastic, -2.33, 0.7, 0, 0.012, 9, 9, 9, 0.04), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.73, 0, 0.003), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.69, 0, 0.003), BX(0.012, 0.012, 0.5, chrome, -2.365, 0.65, 0, 0.003),
+      BX(0.02, 0.14, 0.34, 0xe9eef2, -2.34, 0.45, 0, 0.01), BX(0.02, 0.14, 0.34, 0xe9eef2, 2.34, 0.47, 0, 0.01));
+    for (const sd of [-1, 1]) { parts.push(BX(0.13, 0.17, 0.4, plastic, -2.27, 0.72, sd * 0.58, 0.04), BX(0.03, 0.14, 0.36, 0xe4ebef, -2.325, 0.72, sd * 0.58, 0.02), BX(0.03, 0.05, 0.14, 0xe08a1a, -2.33, 0.62, sd * 0.78, 0.01), BX(0.1, 0.17, 0.4, red, 2.3, 0.8, sd * 0.6, 0.03), BX(0.03, 0.05, 0.12, 0xf3f3f3, 2.35, 0.74, sd * 0.78, 0.01), BX(0.14, 0.03, 0.12, 0xb5b9be, 2.3, 0.62, sd * 0.65, 0.01));
+      // the sides: sill, rubbing strip, door lines, handles, mirror, fuel flap, arches, chrome belt line
+      parts.push(BX(3.9, 0.06, 0.03, plastic, -0.1, 0.34, sd * 0.89, 0.01, 9, 9, 9, 0.04), BX(4.1, 0.07, 0.02, plastic, -0.1, 0.55, sd * 0.89, 0.008, 9, 9, 9, 0.04), BX(2.8, 0.012, 0.012, chrome, 0.5, 0.905, sd * 0.875, 0.003));
+      for (const dx of [-0.85, -0.45, 0.3, 1.05, 1.9]) parts.push(BX(0.012, dx === 0.3 ? 0.62 : 0.56, 0.012, 0x050506, dx, dx === 0.3 ? 0.6 : 0.6, sd * 0.887, 0.003));
+      for (const dx of [-0.1, 0.9]) parts.push(BX(0.15, 0.025, 0.035, chrome, dx, 0.78, sd * 0.89, 0.008));
+      parts.push(BX(0.17, 0.05, 0.05, paint, -0.75, 0.98, sd * 0.97, 0.02), BX(0.09, 0.14, 0.2, paint, -0.8, 1.04, sd * 1.06, 0.04), BX(0.05, 0.12, 0.16, 0x1a2430, -0.8, 1.04, sd * 1.075, 0.01), BX(0.1, 0.1, 0.012, 0xb3b6bb, 1.78, 0.86, sd * 0.865, 0.01));
+      for (const wx of [-1.4, 1.27]) { parts.push(P(new THREE.CylinderGeometry(0.41, 0.41, 0.03, 28), 0x050506, wx, 0.33, sd * 0.888, Math.PI / 2, 0, 0, 0), ...obxAlloyZ(P, wx, 0.33, sd * 0.84, 0.31, 0.21)); } }
+    parts.push(BX(0.02, 0.12, 0.5, 0xf1f1ec, -2.37, 0.38, 0, 0.005), BX(0.02, 0.12, 0.5, 0xf1f1ec, 2.37, 0.5, 0, 0.005));
+    const geo = OBX_MERGE(parts, new THREE.BoxGeometry(4.7, 1.45, 1.77).translate(0, 0.72, 0)); geo.translate(0, -0.75, 0);
+    return { geo, mat: obxMat(0.22, 0.55), fl: 0.45 }; },
   tire: () => { const prof = [[0.2, -0.11], [0.26, -0.11], [0.32, -0.1], [0.35, -0.07], [0.355, 0], [0.35, 0.07], [0.32, 0.1], [0.26, 0.11], [0.2, 0.11], [0.19, 0], [0.2, -0.11]].map(([r, y]) => new THREE.Vector2(r, y)), geo = new THREE.LatheGeometry(prof, 28),
       map = tex(128, 128, (g, w, h) => { g.fillStyle = '#1c1c1c'; g.fillRect(0, 0, w, h); for (let i = 0; i < 500; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '70,70,70' : '0,0,0') + ',0.25)'; g.fillRect(Math.random() * w, Math.random() * h, 3, 2); } g.fillStyle = '#0c0c0c'; for (let x = 0; x < w; x += 8) g.fillRect(x, h * 0.3, 4, h * 0.4); g.fillStyle = 'rgba(200,200,200,0.55)'; g.fillRect(0, h * 0.14, w * 0.5, 3); });
     return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.92, metalness: 0.0, side: THREE.DoubleSide }), fl: 0.11 }; },
@@ -3338,8 +3395,8 @@ function obsBuild(id) {
 function obsPlace(id) { // every block back in its place, still
   if (OBX.dust) OBX.dust.clear(); OBX.cool = {}; OBX.psp = {};
   const o = obsBuild(id), sp = OBST[id], q = new THREE.Quaternion(), up = new V3(0, 1, 0), jit = sp.layout; 
-  for (const t in o.kits) { const gm = o.kits[t].geo; if (gm.userData.orig) { gm.attributes.position.array.set(gm.userData.orig); gm.attributes.normal.array.set(gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; } } // a new run: the dent is hammered out
-  OBX_ROCK.on = false; for (const t in o.sets) { o.sets[t].mesh.position.set(0, 0, 0); o.sets[t].mesh.quaternion.set(0, 0, 0, 1); } // a new run: the vehicle is back in place
+  for (const t in o.kits) { const gm = o.kits[t].geo; if (gm.userData.orig) { gm.attributes.position.array.set(gm.userData.orig); gm.attributes.normal.array.set(gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; gm.userData.shown = false; } } // a new run: the dent is hammered out
+  OBX_ROCK.on = false; OBX_ROCK.id = ''; for (const t in o.sets) { o.sets[t].mesh.position.set(0, 0, 0); o.sets[t].mesh.quaternion.set(0, 0, 0, 1); } // a new run: the vehicle is back in place
   for (const t in o.sets) o.sets[t].clear();
   for (const b of o.blocks) { const i = b.set.next; q.setFromAxisAngle(up, b.ry || 0); b.set.raw(LAB_LANE + b.x, b.y, BOLLARD_Z + b.z, 0, 0, 0, b.sx, b.sy, b.sz, 99999, b.col, true, q.x, q.y, q.z, q.w, 0, 0, 0); b.i = i; b.set.fl[i] = b.kit.fl; }
   for (const t in o.sets) { o.sets[t].mesh.visible = true; o.sets[t].mesh.instanceMatrix.needsUpdate = true; }
@@ -3355,26 +3412,34 @@ function obsDeform(v) { // a heavy obstacle is not a rock: the front of the truc
   for (let i = 0; i + 2 < n; i += 3) if (hit[i] || hit[i + 1] || hit[i + 2]) { // crumpled metal is faceted: a flat normal on every triangle that moved
     const p = i * 3, ux = a[p + 3] - a[p], uy = a[p + 4] - a[p + 1], uz = a[p + 5] - a[p + 2], vx = a[p + 6] - a[p], vy = a[p + 7] - a[p + 1], vz = a[p + 8] - a[p + 2];
     let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nzz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nzz) || 1; nx /= l; ny /= l; nzz /= l; for (let q = 0; q < 3; q++) { na[p + q * 3] = nx; na[p + q * 3 + 1] = ny; na[p + q * 3 + 2] = nzz; } }
-  pos.needsUpdate = true; nor.needsUpdate = true;
+  pos.needsUpdate = true; nor.needsUpdate = true; geo.userData.dented = a.slice(); geo.userData.dentedN = na.slice(); geo.userData.shown = true;
   for (let j = 0; j < (A.shiftN || 0); j++) if (CART.cyls[j]) CART.cyls[j].z -= D;
   CART.pw[1] -= D * 0.9; labCartPlace(); board.updateMatrixWorld(true);
   if (v >= 8) obsFx(sp, v, 1);
   return D;
 }
 const OBX_ROCK = { on: false, t: 0, id: '', S: 0, A: 0, T: 0.7, cz: [], q: null, ax: null, c: null };
-function obsRockStart(v) { // the struck vehicle is shoved and rocks on its suspension: the lighter it is, the more (the truck barely, the car clearly); a hit hard enough to throw it is handled by the debris physics instead
-  const sp = OBST[OBX.cur], k = sp && sp.rock, o = OBX.built[OBX.cur]; OBX_ROCK.on = false; if (!k || !o || !o.sets[k.part] || v >= sp.bend) return;
+function obsRockStart(v) { // the struck vehicle is shoved and rocks on its suspension: the lighter it is, the more (the truck a little, the car clearly); a hit hard enough to throw it is handled by the debris physics instead
+  const sp = OBST[OBX.cur], k = sp && sp.rock, o = OBX.built[OBX.cur]; OBX_ROCK.on = false; OBX_ROCK.id = ''; if (!k || !o || !o.sets[k.part] || v >= sp.bend) return;
   Object.assign(OBX_ROCK, { on: true, t: 0, id: OBX.cur, S: k.slide * v, A: k.tilt * v, cz: CART.cyls.map(c => c.z) });
   if (AC && v >= 6 && !sfxPlay('creak', 0.5, k.part === 'truck' ? 0.7 : 1, 0.2)) { OUT(); const t = AC.currentTime, big = k.part === 'truck', g = clamp(v / 45, 0.2, 1); // metal groan on the springs, then two soft settling thumps
     noise(t + 0.1, 0.5, 0.05 * g, 'bandpass', big ? 300 : 460, big ? 190 : 300, 12); noise(t + 0.3, 0.12, 0.1 * g, 'lowpass', 300, 100, 0.8); noise(t + 0.62, 0.1, 0.06 * g, 'lowpass', 260, 90, 0.8); }
 }
-function obsRockStep(dt) {
-  const R = OBX_ROCK; if (!R.on) return; R.t += dt; const sp = OBST[R.id], k = sp.rock, o = OBX.built[R.id], m = o && o.sets[k.part] && o.sets[k.part].mesh; if (!m) { R.on = false; return; }
+function obsRockAt(t) { // the vehicle's pose t seconds after the hit (t < 0: untouched): shoved back, tilting away and rocking back on its springs, with a little bounce
+  const R = OBX_ROCK; if (!R.id) return; const sp = OBST[R.id], k = sp.rock, o = OBX.built[R.id], m = o && o.sets[k.part] && o.sets[k.part].mesh; if (!m) return;
   if (!R.q) { R.q = new THREE.Quaternion(); R.ax = new V3(1, 0, 0); R.c = new V3(); }
-  const t = R.t, u = Math.min(1, t / R.T), slide = R.S * (1 - (1 - u) * (1 - u)), ang = -R.A * Math.exp(-t / k.tau) * Math.sin(k.w * t);
-  R.q.setFromAxisAngle(R.ax, ang); R.c.set(LAB_LANE, k.py, BOLLARD_Z + k.pz); const rx = R.c.clone().applyQuaternion(R.q); m.quaternion.copy(R.q); m.position.set(R.c.x - rx.x, R.c.y - rx.y, R.c.z - rx.z - slide);
+  const tt = Math.max(0, t), u = Math.min(1, tt / R.T), slide = R.S * (1 - (1 - u) * (1 - u)), ang = -R.A * Math.exp(-tt / k.tau) * Math.sin(k.w * tt), heave = 0.6 * R.A * Math.exp(-tt / k.tau) * Math.abs(Math.sin(k.w * tt));
+  R.q.setFromAxisAngle(R.ax, ang); R.c.set(LAB_LANE, k.py, BOLLARD_Z + k.pz); const rx = R.c.clone().applyQuaternion(R.q); m.quaternion.copy(R.q); m.position.set(R.c.x - rx.x, R.c.y - rx.y + heave, R.c.z - rx.z - slide);
+  return slide;
+}
+function obsRockStep(dt) {
+  const R = OBX_ROCK; if (!R.on) return; R.t += dt; const sp = OBST[R.id], slide = obsRockAt(R.t); if (slide === undefined) { R.on = false; return; }
   const n = Math.min(CART.cyls.length, sp.dent ? sp.dent.shiftN : 0); for (let j = 0; j < n; j++) if (R.cz[j] !== undefined) CART.cyls[j].z = R.cz[j] - slide; // what the body collides with moves with the vehicle
-  if (t > R.T + 3) { R.on = false; }
+  if (R.t > R.T + 3) R.on = false;
+}
+function obsDentShow(dented) { // the replay: the front is whole before the hit and crumpled after it
+  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], gm = sp && sp.dent && o && o.kits[sp.dent.part] && o.kits[sp.dent.part].geo; if (!gm || !gm.userData.dented || gm.userData.shown === dented) return; gm.userData.shown = dented;
+  gm.attributes.position.array.set(dented ? gm.userData.dented : gm.userData.orig); gm.attributes.normal.array.set(dented ? gm.userData.dentedN : gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true;
 }
 function obsApply() { // choose the obstacle for this machine, give the vehicle's physics its strengths, show it and hide the rest
   const id = LAB.machine === 'mix' && OBST[MIX.obs] ? MIX.obs : 'post', sp = OBST[id]; OBX.cur = id;
@@ -4024,6 +4089,7 @@ function labReplayStep(dt, now) {
   if (R2.cage && R2.dent) { const want = before ? 'o' : 'd'; if (R2.shown !== want) { R2.cage.geometry.attributes.position.array.set(before ? R2.cage.geometry.userData.orig : R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; R2.shown = want; } }
   bollardFall(before || !(CART.knocked || CART.bent) ? 0 : clamp((R2.t - R2.imp) * 5, 0, 1));
   if (!before && !R2.boomed) { R2.boomed = true; burst(new V3(LAB_LANE, 0.8, BOLLARD_Z), 60, SPARK, 6); tone(90, 30, 0.5, 'sine', 0.4); if (!reduceMotion) shake = 0.5; }
+  if (labBol() && OBX.cur !== 'post') { obsDentShow(!before); obsRockAt(R2.t - R2.imp); }
   labReplayFrame(R2.t);
   if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked || CART.bent) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
 }
