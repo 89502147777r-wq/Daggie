@@ -628,7 +628,7 @@ function makeTubMesh(wheelsOut) { // origin on the floor, front faces -z, built 
   extra(tube([[0.075, yr + 0.06, zt], [0.02, yr - 0.07, zt + 0.1], [-0.12, yr - 0.1, zt + 0.12], [-0.2, yr + 0.14, zt + 0.04]], 0.007, 24), MAT.hose, 'x:hose');
   { const dr = new THREE.SphereGeometry(0.035, 14, 8); dr.scale(1, 0.15, 1); dr.translate(0, 0.31, 0.45); extra(dr, MAT.chrome, 'x:drain'); }
   // the rubber duck on the front rim
-  { const db = new THREE.SphereGeometry(0.06, 14, 10); db.scale(1.1, 0.9, 1); db.translate(0.09, 0.9, -0.74); const dh = new THREE.SphereGeometry(0.036, 12, 8); dh.translate(0.09, 0.97, -0.7); extra(mergeGeometries([db, dh].map(x => (x.index ? x.toNonIndexed() : x))), MAT.yellow, 'x:duck'); const bk = new THREE.ConeGeometry(0.016, 0.04, 10); bk.rotateX(Math.PI / 2); bk.translate(0.09, 0.965, -0.66); extra(bk, MAT.orange, 'x:beak'); }
+  { const db = new THREE.SphereGeometry(0.06, 14, 10); db.scale(1.1, 0.9, 1); db.translate(0.09, 0.9, -0.74); const dh = new THREE.SphereGeometry(0.036, 12, 8); dh.translate(0.09, 0.97, -0.7); extra(mergeGeometries([db, dh].map(x => (x.index ? x.toNonIndexed() : x))), MAT.yellow, 'x:duck', 'rubber'); const bk = new THREE.ConeGeometry(0.016, 0.04, 10); bk.rotateX(Math.PI / 2); bk.translate(0.09, 0.965, -0.66); extra(bk, MAT.orange, 'x:beak', 'rubber'); }
   root.userData.pieces = pieces; root.userData.extras = extras; root.userData.g = g; root.userData.pieceMat = MAT.enamel; root.userData.bigPieces = true;
   return root;
 }
@@ -1503,19 +1503,27 @@ let MASTER = null, AUDIO_DEST = null;
 let NOISE = null, REVERB_IN = null;
 function OUT() {
   if (!MASTER) {
-    MASTER = AC.createGain(); const comp = AC.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
-    MASTER.connect(comp); comp.connect(AC.destination);
+    MASTER = AC.createGain(); TAILBUS = AC.createGain(); TAILBUS.connect(MASTER);
+    const ls = AC.createBiquadFilter(); ls.type = 'lowshelf'; ls.frequency.value = 120; ls.gain.value = 5; // weight
+    const pk = AC.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 280; pk.Q.value = 0.8; pk.gain.value = -2; // less mud
+    const hs = AC.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 6500; hs.gain.value = 3; // air
+    const sat = AC.createWaveShaper(), cv = new Float32Array(2048); for (let i = 0; i < 2048; i++) { const x = i * 2 / 2048 - 1; cv[i] = Math.tanh(x * 1.7) / Math.tanh(1.7); } sat.curve = cv; sat.oversample = '2x'; // density
+    const comp = AC.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 3.5; comp.attack.value = 0.003; comp.release.value = 0.22;
+    SLOWLP = AC.createBiquadFilter(); SLOWLP.type = 'lowpass'; SLOWLP.frequency.value = 20000; SLOWLP.Q.value = 0.5;
+    MASTER.connect(ls); ls.connect(pk); pk.connect(hs); hs.connect(SLOWLP); SLOWLP.connect(sat); sat.connect(comp); comp.connect(AC.destination);
     try { AUDIO_DEST = AC.createMediaStreamDestination(); comp.connect(AUDIO_DEST); } catch (e) { AUDIO_DEST = null; }
-    try { const len = Math.floor(AC.sampleRate * 1.3), ir = AC.createBuffer(2, len, AC.sampleRate); for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+    try { const sr = AC.sampleRate, len = Math.floor(sr * 1.4), ir = AC.createBuffer(2, len, sr); // a hall: no sound for 20 ms, then early reflections, then a tail that gets darker
+      for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let lp = 0; for (let i = 0; i < len; i++) { const t = i / len; lp += ((Math.random() * 2 - 1) - lp) * (1 - (0.15 + 0.8 * t) * 0.9); d[i] = i < sr * 0.02 ? 0 : lp * Math.pow(1 - t, 2.6); }
+        for (const [ms, a2] of [[23, 0.7], [37, 0.55], [51, 0.5], [68, 0.4], [84, 0.35]]) { const j = Math.floor(sr * (ms + (c ? 5 : -3)) / 1000); d[j] += (Math.random() < 0.5 ? -1 : 1) * a2; } }
       const conv = AC.createConvolver(); conv.buffer = ir; const wet = AC.createGain(); wet.gain.value = 0.22; REVERB_IN = AC.createGain(); REVERB_IN.connect(conv); conv.connect(wet); wet.connect(comp); } catch (e) { REVERB_IN = null; }
     NOISE = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const nd = NOISE.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
   }
   return MASTER;
 }
-let SND_GAIN = 1;
-function sendOut(node, rev) { if (SND_GAIN !== 1) { const m = AC.createGain(); m.gain.value = SND_GAIN; node.connect(m); node = m; } node.connect(OUT()); if (REVERB_IN && rev) { const g = AC.createGain(); g.gain.value = rev; node.connect(g); g.connect(REVERB_IN); } }
+let SND_GAIN = 1, SND_WIDE = 0, SLOWLP = null, SND_BUS = null, TAILBUS = null;
+function sendOut(node, rev, pan) { if (SND_GAIN !== 1) { const m = AC.createGain(); m.gain.value = SND_GAIN; node.connect(m); node = m; } if (AC.createStereoPanner) { const p = AC.createStereoPanner(); p.pan.value = clamp(pan !== undefined ? pan : SND_WIDE ? (Math.random() * 2 - 1) * SND_WIDE : 0, -1, 1); node.connect(p); node = p; } node.connect(SND_BUS || OUT()); if (REVERB_IN && rev) { const g = AC.createGain(); g.gain.value = rev; node.connect(g); g.connect(REVERB_IN); } }
 // filtered noise burst: thuds, scrapes, whooshes
-function noise(t, dur, vol, type, f0, f1, q) { const src = AC.createBufferSource(); src.buffer = NOISE; const f = AC.createBiquadFilter(); f.type = type; f.Q.value = q || 0.8; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur); const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f); f.connect(g); sendOut(g, 0.25); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05); }
+function noise(t, dur, vol, type, f0, f1, q) { const src = AC.createBufferSource(); src.buffer = NOISE; const f = AC.createBiquadFilter(); f.type = type; f.Q.value = q || 0.8; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur); const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f); f.connect(g); sendOut(g, 0.25, type === 'lowpass' ? 0 : undefined); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05); }
 function initAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } else if (AC.state === 'suspended') AC.resume(); if (AC) sfxPreload(); }
 function tone(f0, f1, dur, type, vol, delay) {
   recEvt('t', [f0, f1, dur, type, vol, delay || 0]);
@@ -1539,10 +1547,11 @@ function noiseDist(t, dur, vol, f0, f1, q) { // overdriven band of noise: the cr
   const sh = AC.createWaveShaper(); sh.curve = distCurve().curve; const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   src.connect(f); f.connect(sh); sh.connect(g); sendOut(g, 0.3); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
 }
-function sweep(t, f0, f1, dur, vol, type) { const o = AC.createOscillator(), g = AC.createGain(); o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); sendOut(g, 0.3); o.start(t); o.stop(t + dur + 0.05); }
-function crashSound(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
+function sweep(t, f0, f1, dur, vol, type) { const o = AC.createOscillator(), g = AC.createGain(); o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); sendOut(g, 0.3, f0 < 400 ? 0 : undefined); o.start(t); o.stop(t + dur + 0.05); } // low sweeps stay in the middle
+function crashSound(p) { SND_WIDE = 0.6; try { crashSound0(p); } finally { SND_WIDE = 0; } }
+function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
   recEvt('c', [p]); if (!AC) return; OUT(); const t = AC.currentTime;
-  sweep(t, 150 + 80 * p, 30, 0.3 + 0.45 * p, 0.5 + 0.5 * p); // body of the hit
+  sweep(t, 150 + 80 * p, 30, 0.3 + 0.45 * p, 0.5 + 0.5 * p); if (p > 0.15) sweep(t + 0.005, 62, 22, 0.5 + 0.7 * p, 0.3 + 0.4 * p, 'sine'); // body of the hit, and a sub under it
   noiseDist(t, 0.14 + 0.22 * p, 0.28 + 0.3 * p, 2600, 240, 1.1); // crunch
   noise(t, 0.05, 0.22, 'highpass', 3400, 1600, 0.7); // crack
   const f = rand(520, 760); // ringing metal: inharmonic partials
@@ -1562,29 +1571,60 @@ function sfxPlay(names, vol, rate, wet) { // true if a recording was played
   if (!AC) return false; for (const n of [].concat(names)) { const L = SFX.buf[n]; if (!L || !L.length) continue; OUT(); const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = pick(L); src.playbackRate.value = (rate || 1) * rand(0.96, 1.04); g.gain.value = vol === undefined ? 1 : vol; src.connect(g); sendOut(g, wet === undefined ? 0.2 : wet); src.start(); return true; } return false;
 }
 function ping(t, f, dur, vol) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o2.type = 'sine'; o.frequency.value = f; o2.frequency.value = f * 2.76; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); const g2 = AC.createGain(); g2.gain.value = 0.35; o.connect(g); o2.connect(g2); g2.connect(g); sendOut(g, 0.35); o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02); }
-function cannonBoom(lv) { SND_GAIN = 0.65; try { cannonBoom0(lv); } finally { SND_GAIN = 1; } }
-function cannonBoom0(lv) { // a cannon firing: the crack of the pressure wave, the blast, the body, a deep sub, the ringing barrel, the echo through the hall
-  lv = clamp(lv, 1, 5); if (sfxPlay('cannon', 0.95, [1.15, 1.05, 0.95, 0.85, 0.75][lv - 1], 0.45)) return; if (!AC) return; OUT(); const t = AC.currentTime, p = lv / 5;
-  noise(t, 0.03, 0.55, 'highpass', 5000, 2000, 0.7); noise(t, 0.07, 0.45, 'bandpass', 2400, 1100, 1);
-  noiseDist(t, 0.28 + 0.4 * p, 0.55 + 0.25 * p, 3200, 140, 0.9);
-  sweep(t, 115 - 25 * p, 28, 0.5 + 0.8 * p, 0.7 + 0.3 * p, 'sine'); if (lv >= 3) sweep(t + 0.01, 55, 20, 1.1 + p, 0.2 + 0.5 * p, 'sine');
-  const f = 230 - 30 * lv; for (const [r, a2, d] of [[1, 1, 1.4], [2.32, 0.5, 0.9], [4.1, 0.3, 0.5]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f * r; g.gain.setValueAtTime(0.0001, t + 0.02); g.gain.exponentialRampToValueAtTime(0.025 * a2 * (0.6 + p), t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); sendOut(g, 0.4); o.start(t); o.stop(t + d + 0.05); }
-  noise(t + 0.12, 1.2 + p * 1.2, 0.2 + 0.1 * p, 'lowpass', 420, 50, 0.6); noise(t + 0.03, 0.5, 0.1, 'bandpass', 600, 2400, 0.8);
+
+// ---------- sound that follows the physics: every piece that lands makes its own small sound, and the flight has wind ----------
+const DSND = { tokens: 25, last: 0 };
+function debrisHit(kind, v, size) { // v: speed at which the piece hit the floor (m/s), size: its largest dimension; at most ~45 of these a second so a phone can follow
+  if (!AC) return; const now = AC.currentTime; DSND.tokens = Math.min(25, DSND.tokens + Math.max(0, now - DSND.last) * 45); DSND.last = now; if (DSND.tokens < 1) return; DSND.tokens--; OUT();
+  const t = now, vv = clamp(v / 8, 0.2, 1), sz = clamp(size, 0.05, 1.5); SND_WIDE = 0.7;
+  try {
+    if (kind === 'glass') { ping(t, clamp(4200 * Math.exp(rand(-0.5, 0.5)) / Math.pow(sz * 4, 0.35), 1500, 11000), rand(0.03, 0.12), (0.03 + 0.05 * vv) * 1.6); if (v > 4) noise(t, 0.012, 0.05 * vv, 'highpass', 6000, 3000, 0.7); }
+    else if (kind === 'wood') { noise(t, rand(0.025, 0.06), 0.16 * vv, 'bandpass', rand(900, 2200), 600, 3); sweep(t, rand(180, 300), 90, 0.05, 0.1 * vv, 'sine'); }
+    else if (kind === 'stone') { noise(t, 0.07, 0.2 * vv, 'lowpass', rand(500, 1200), 150, 0.8); noise(t, 0.02, 0.1 * vv, 'bandpass', rand(2000, 4000), 1500, 3); }
+    else if (kind === 'metal') { ping(t, rand(500, 1600), rand(0.15, 0.4), 0.05 * vv * 1.6); noise(t, 0.01, 0.06 * vv, 'highpass', 5000, 3000, 0.7); }
+    else if (kind === 'box') noise(t, 0.07, 0.16 * vv, 'lowpass', rand(400, 1000), 120, 0.7);
+    else if (kind === 'melon') { noise(t, 0.09, 0.2 * vv, 'bandpass', rand(300, 900), 200, 1.2); sweep(t, 140, 70, 0.08, 0.14 * vv, 'sine'); }
+    else if (kind === 'barrel') { ping(t, rand(180, 320), 0.3, 0.07 * vv * 1.6); noise(t, 0.04, 0.1 * vv, 'bandpass', 1200, 800, 2); }
+    else if (kind === 'pin') { noise(t, 0.03, 0.18 * vv, 'bandpass', rand(1500, 3000), 1000, 3); ping(t, rand(900, 1400), 0.08, 0.05 * vv * 1.6); }
+    else if (kind === 'soft') noise(t, 0.08, 0.1 * vv, 'lowpass', 700, 200, 0.7);
+  } finally { SND_WIDE = 0; }
 }
-function glassSound(f) { SND_GAIN = 2.6; try { glassSound0(f); } finally { SND_GAIN = 1; } }
-function glassSound0(f) { // f: pitch, 1 for thin glass, lower for thick: the first crack, the burst, a body, a cascade of tinkles that thins out, the frame's thud
+const WIND = { src: null, bp: null, g: null };
+function windSet(v) { // the rush of air around a fast flight; v in mph, 0 fades it out
+  if (!AC) return; OUT(); if (!WIND.src) { const src = AC.createBufferSource(); src.buffer = NOISE; src.loop = true; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.6; const g = AC.createGain(); g.gain.value = 0; src.connect(bp); bp.connect(g); if (AC.createStereoPanner) { const pn = AC.createStereoPanner(); g.connect(pn); pn.connect(OUT()); } else g.connect(OUT()); src.start(); WIND.src = src; WIND.bp = bp; WIND.g = g; }
+  const t = AC.currentTime, target = v > 5 ? clamp(0.01 + v * 0.0001, 0, 0.1) : 0; WIND.bp.frequency.setTargetAtTime(250 + v * 2.2, t, 0.08); WIND.g.gain.setTargetAtTime(target, t, target ? 0.15 : 0.3);
+}
+function duckTail() { if (!AC || !TAILBUS) return; const t = AC.currentTime; TAILBUS.gain.cancelScheduledValues(t); TAILBUS.gain.setValueAtTime(0.18, t); TAILBUS.gain.setTargetAtTime(1, t + 0.1, 0.3); } // every new impact pushes the cannon's long tail down for a moment, so it does not drown the sounds
+function windDuck() { if (!AC || !WIND.g) return; const t = AC.currentTime; WIND.g.gain.cancelScheduledValues(t); WIND.g.gain.setValueAtTime(0, t); } // the next frame brings it back: a dip around every impact
+function sndSlow(on) { if (AC && SLOWLP) SLOWLP.frequency.setTargetAtTime(on ? 3600 : 20000, AC.currentTime, 0.1); } // slow motion: duller, heavier
+function cannonBoom(lv) { SND_GAIN = 0.5; SND_WIDE = 0.85; try { cannonBoom0(lv); } finally { SND_GAIN = 1; SND_WIDE = 0; } }
+function cannonBoom0(lv) { // a cannon firing: the crack of the pressure wave, the blast, two thumps and a sub, the air it moves; then a SHORT tail (ring, two echoes, a rumble) on its own bus
+  lv = clamp(lv, 1, 5); if (sfxPlay('cannon', 0.95, [1.15, 1.05, 0.95, 0.85, 0.75][lv - 1], 0.3)) return; if (!AC) return; OUT(); const t = AC.currentTime, p = lv / 5;
+  noise(t, 0.03, 0.55, 'highpass', 5000, 2000, 0.7); noise(t, 0.07, 0.5, 'bandpass', 2400, 1100, 1);
+  noiseDist(t, 0.3 + 0.35 * p, 0.6 + 0.3 * p, 3400, 120, 0.9); noiseDist(t + 0.01, 0.18 + 0.2 * p, 0.35, 1200, 90, 0.8);
+  sweep(t, 125 - 25 * p, 26, 0.35 + 0.4 * p, 0.85 + 0.3 * p, 'sine'); sweep(t, 90, 24, 0.4 + 0.4 * p, 0.6, 'sine'); if (lv >= 2) sweep(t + 0.012, 58, 18, 0.5 + 0.6 * p, 0.3 + 0.55 * p, 'sine');
+  noise(t, 0.3 + 0.25 * p, 0.5, 'lowpass', 300, 40, 0.6); noise(t + 0.03, 0.4, 0.12, 'bandpass', 600, 3200, 0.8);
+  SND_BUS = TAILBUS; try {
+    const f = 230 - 30 * lv; for (const [r, a2, d] of [[1, 1, 0.7], [2.32, 0.5, 0.45], [4.1, 0.3, 0.3], [6.7, 0.18, 0.2]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f * r; g.gain.setValueAtTime(0.0001, t + 0.02); g.gain.exponentialRampToValueAtTime(0.03 * a2 * (0.6 + p), t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); sendOut(g, 0.1); o.start(t); o.stop(t + d + 0.05); }
+    for (const [d, v] of [[0.14, 0.3], [0.3, 0.18]]) noiseDist(t + d, 0.18 + 0.12 * p, v * (0.6 + p * 0.4), 1800, 100, 0.8);
+    noise(t + 0.1, 0.6 + 0.5 * p, 0.22 + 0.1 * p, 'lowpass', 420, 60, 0.6);
+  } finally { SND_BUS = null; }
+}
+function glassSound(f) { SND_GAIN = 2.3; SND_WIDE = 0.8; try { glassSound0(f); } finally { SND_GAIN = 1; SND_WIDE = 0; } }
+function glassSound0(f) { // f: pitch, 1 for thin glass, lower for thick: the first crack, the burst, secondary cracks, a body, a cascade of tinkles that thins out, a shimmer, the frame's thud
   if (!AC) return; OUT(); const t = AC.currentTime;
-  noise(t, 0.012, 0.5, 'highpass', 6000 * f, 3000, 0.7); noise(t, 0.35, 0.28, 'highpass', 4500 * f, 1800 * f, 0.6); noise(t + 0.01, 0.12, 0.3, 'bandpass', 2800 * f, 1500 * f, 2);
-  for (let i = 0, n = 38 + Math.round(30 / f); i < n; i++) ping(t + 0.02 + Math.pow(Math.random(), 1.8) * 1.0, rand(2200, 9000) * f, rand(0.015, 0.05), rand(0.02, 0.06));
-  sweep(t, 160, 70, 0.16, 0.18, 'sine');
+  noise(t, 0.012, 0.5, 'highpass', 6000 * f, 3000, 0.7); noise(t, 0.35, 0.28, 'highpass', 4500 * f, 1800 * f, 0.6); noise(t + 0.01, 0.12, 0.3, 'bandpass', 2800 * f, 1500 * f, 2); noise(t + 0.005, 0.18, 0.22, 'bandpass', 1900 * f, 900 * f, 1.5);
+  for (const d of [0.06, 0.11, 0.19]) noise(t + d, 0.02, 0.28, 'highpass', 5200 * f, 2500, 0.8);
+  for (let i = 0, n = 70 + Math.round(50 / f); i < n; i++) ping(t + 0.02 + Math.pow(Math.random(), 1.8) * 1.2, rand(1800, 11000) * f, rand(0.02, 0.09), rand(0.02, 0.06));
+  noise(t + 0.1, 0.7, 0.07, 'highpass', 7000, 4000, 0.6); sweep(t, 170, 62, 0.2, 0.28, 'sine'); sweep(t, 90, 40, 0.3, 0.2, 'sine');
 }
-function matSound(kind, p, f) { SND_GAIN = { wood: 3.4, brick: 2.3, stone: 2.3, metal: 2.5, ice: 2.1 }[kind] || 1; try { matSound0(kind, p, f); } finally { SND_GAIN = 1; } }
+function matSound(kind, p, f) { SND_GAIN = { wood: 3.0, brick: 2.0, stone: 2.0, metal: 2.2, ice: 1.9 }[kind] || 1; SND_WIDE = 0.6; try { matSound0(kind, p, f); } finally { SND_GAIN = 1; SND_WIDE = 0; } }
 function matSound0(kind, p, f) { // wood, brick, stone, metal, ice: each its own layers (f: pitch factor)
   if (!AC) return; OUT(); const t = AC.currentTime;
-  if (kind === 'wood') { for (const d of [0, 0.03, 0.07]) noise(t + d, 0.05, 0.4, 'bandpass', 1800 * f, 700 * f, 3); sweep(t, 190 * f, 70, 0.2, 0.3, 'sine'); for (let i = 0; i < 6; i++) noise(t + 0.05 + Math.random() * 0.3, 0.02, 0.1, 'highpass', rand(2500, 5000), 2000, 1); }
-  else if (kind === 'brick' || kind === 'stone') { sweep(t, (kind === 'brick' ? 140 : 110) * f, 38, 0.35, 0.55, 'sine'); noiseDist(t, 0.12, 0.3, 1800, 300, 1); noise(t, 0.6, 0.18, 'lowpass', 500, 120, 0.7); for (let i = 0; i < 12; i++) noise(t + 0.04 + Math.pow(Math.random(), 1.5) * 0.6, rand(0.02, 0.06), rand(0.05, 0.12), 'bandpass', rand(800, 2500), rand(400, 1200), 2.5); }
-  else if (kind === 'metal') { noise(t, 0.012, 0.4, 'highpass', 4000, 2500, 0.7); const base = rand(300, 460) * f; for (const [r, a, d] of [[1, 1, 1.3], [2.43, 0.6, 0.9], [3.87, 0.4, 0.6], [5.5, 0.25, 0.4], [7.7, 0.15, 0.3]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = base * r; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.045 * a * p, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + d * (0.6 + f * 0.4)); o.connect(g); sendOut(g, 0.35); o.start(t); o.stop(t + d + 0.05); } sweep(t, 90 * f, 35, 0.25, 0.3 * p, 'sine'); }
-  else if (kind === 'ice') { noise(t, 0.015, 0.45, 'highpass', 5000, 3000, 0.7); noise(t, 0.3, 0.2, 'highpass', 3800, 1600, 0.6); for (let i = 0; i < 24; i++) ping(t + 0.02 + Math.pow(Math.random(), 1.8) * 0.8, rand(1800, 6000) * f, rand(0.02, 0.07), rand(0.015, 0.04)); sweep(t, 140, 60, 0.15, 0.15, 'sine'); }
+  if (kind === 'wood') { for (const d of [0, 0.03, 0.07, 0.11]) noise(t + d, 0.05, 0.4, 'bandpass', 1800 * f, 700 * f, 3); sweep(t, 190 * f, 62, 0.28, 0.4, 'sine'); sweep(t, 100, 38, 0.4, 0.25, 'sine'); noise(t, 0.4, 0.2, 'lowpass', 600, 120, 0.7); for (let i = 0; i < 14; i++) noise(t + 0.05 + Math.random() * 0.45, 0.02, 0.1, 'highpass', rand(2500, 5000), 2000, 1); }
+  else if (kind === 'brick' || kind === 'stone') { sweep(t, (kind === 'brick' ? 140 : 110) * f, 34, 0.45, 0.6, 'sine'); sweep(t + 0.005, 60, 22, 0.8, 0.45, 'sine'); noiseDist(t, 0.14, 0.32, 1800, 300, 1); noise(t, 0.9, 0.22, 'lowpass', 500, 90, 0.7); noise(t + 0.05, 0.5, 0.08, 'highpass', 5000, 2500, 0.6); for (let i = 0; i < 22; i++) noise(t + 0.04 + Math.pow(Math.random(), 1.5) * 0.8, rand(0.02, 0.06), rand(0.05, 0.12), 'bandpass', rand(800, 2500), rand(400, 1200), 2.5); }
+  else if (kind === 'metal') { noise(t, 0.012, 0.4, 'highpass', 4000, 2500, 0.7); const base = rand(300, 460) * f; for (const [r, a, d] of [[1, 1, 1.6], [2.43, 0.6, 1.1], [3.87, 0.4, 0.8], [5.5, 0.25, 0.55], [7.7, 0.15, 0.4], [9.4, 0.1, 0.3], [12.6, 0.07, 0.22]]) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = base * r; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.045 * a * p, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + d * (0.6 + f * 0.4)); o.connect(g); sendOut(g, 0.4); o.start(t); o.stop(t + d + 0.05); } sweep(t, 90 * f, 33, 0.35, 0.34 * p, 'sine'); sweep(t, 60 * f, 25, 0.6, 0.2 * p, 'sine'); }
+  else if (kind === 'ice') { noise(t, 0.015, 0.45, 'highpass', 5000, 3000, 0.7); noise(t, 0.3, 0.2, 'highpass', 3800, 1600, 0.6); for (let i = 0; i < 36; i++) ping(t + 0.02 + Math.pow(Math.random(), 1.8) * 1.0, rand(1800, 7000) * f, rand(0.02, 0.08), rand(0.015, 0.04)); sweep(t, 140, 58, 0.2, 0.2, 'sine'); sweep(t, 80, 34, 0.35, 0.15, 'sine'); }
 }
 function ripSound() { // a limb tearing off: metal screech, snap, sizzle
   recEvt('r', []); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'rs', a: [] }); if (!AC) return; if (sfxPlay('rip', 0.9, 1, 0.25)) return; OUT(); const t = AC.currentTime;
@@ -2870,7 +2910,7 @@ class RagCore {
 // knocks the bollard down, bursts its front and tumbles forward. Its basket is the collision box for the body.
 class CartSim {
   constructor(S, lane, bz, br) {
-    Object.assign(this, { S, lane, bz, br, zfOut: -0.47 * S - 0.012, zbOut: 0.72 * S, H: 1.12 * S, mode: 'roll', a: 0, w: 0, vy: 0, vz: 0, pl: [0, -0.47 * S - 0.012], pw: [0, 0], knocked: false, burst: false, knockV: 30, bendV: 10, tumbleV: 10, solid: false, solidMax: Infinity, plow: false, obsH: 1.1, obsCyls: null, openFront: false });
+    Object.assign(this, { S, lane, bz, br, zfOut: -0.47 * S - 0.012, zbOut: 0.72 * S, H: 1.12 * S, mode: 'roll', a: 0, w: 0, vy: 0, vz: 0, pl: [0, -0.47 * S - 0.012], pw: [0, 0], knocked: false, burst: false, tipW: 1, rebound: 1, knockV: 30, bendV: 10, tumbleV: 10, solid: false, solidMax: Infinity, plow: false, obsH: 1.1, obsCyls: null, openFront: false });
     const me = this;
     this.box = { on: true, toLocalPrev: (x, y, z) => me.toLocalPrev(x, y, z), hw: 0.32 * S, y0: 0.4 * S, y1: 1.02 * S, zf: -0.45 * S, zb: 0.45 * S, frontOpen: false, toWorld: (x, y, z) => me.toWorld(x, y, z), toLocal: (x, y, z) => me.toLocal(x, y, z), dirWorld: (x, y, z) => me.dirWorld(x, y, z) };
     this.cyls = [{ x: lane, z: bz, r: br, h: 1.1 }];
@@ -2885,9 +2925,9 @@ class CartSim {
     if (v >= this.knockV && v < this.tumbleV) { this.knocked = true; this.plow = true; this.tumble = false; this.cyls.length = 0; this.mode = 'roll'; this.vz = -v * 0.85; return; } // a soft obstacle: the vehicle ploughs through it, slowed, without tipping over
     this.mode = 'pivot'; this.pw = [0, this.knockedAt(v) ? this.pw[1] : this.bz + this.br]; this.pl = [0, this.zfOut];
     this.tumble = v >= this.tumbleV; this.pdamp = 0.05; this.burst = this.tumble; this.box.frontOpen = this.tumble || this.openFront; // 50 mph and up: the rider's weight bends the front wires open and he goes out over them
-    if (!this.knockedAt(v)) { this.vz = v * 0.1; this.w = v < this.tumbleV ? v * 0.2 : Math.min(9, v * 0.34); if (this.tumble) { if (!(this.solid && v < this.solidMax)) this.cyls.length = 0; this.bent = true; } return; } // (a solid obstacle stops him until it is hit too hard: then it is shoved aside) // the bent post no longer stops the rider (it leans over, see labImpact)
+    if (!this.knockedAt(v)) { this.vz = v * 0.1 * this.rebound; this.w = (v < this.tumbleV ? v * 0.2 : Math.min(9, v * 0.34)) * this.tipW; if (this.tumble) { if (!(this.solid && v < this.solidMax)) this.cyls.length = 0; this.bent = true; } return; } // (a solid obstacle stops him until it is hit too hard: then it is shoved aside) // the bent post no longer stops the rider (it leans over, see labImpact)
     this.knocked = true; this.cyls.length = 0;
-    this.vz = -0.5 * v; this.w = Math.min(12, v * 0.3); this.pdamp = 0.6; // the snapped post barely slows it: it rolls on and goes over
+    this.vz = -0.5 * v; this.w = Math.min(12, v * 0.3) * this.tipW; this.pdamp = 0.6; // the snapped post barely slows it: it rolls on and goes over
   }
   knockedAt(v) { return v >= this.knockV || (this.solid && v >= this.solidMax); }
   savePrev() { this.prev = { a: this.a, pw: this.pw.slice(), pl: this.pl.slice() }; }
@@ -3006,8 +3046,8 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   // no grip: Daggie doesn't hold on to the cart, he's carried only by the basket walls and his own inertia
   core.settle(); for (let i = 0; i < core.n; i++) core.vel(i, vel.x, vel.y, vel.z, 1 / 240);
   const fast = impactV >= 10; // 50 mph and up: the tipping cart throws him out ahead in an arc, head first, spinning forward (tested offline)
-  if (fast) { const pk = I.pel * 3, yc = core.x[pk + 1] + 0.3, zc = core.x[pk + 2], up = clamp(0.22 * impactV, 4.5, 7), om = -3;
-    for (let i = 0; i < core.n; i++) { const k = i * 3, ry = core.x[k + 1] - yc, rz = core.x[k + 2] - zc; core.vel(i, vel.x, vel.y + up - om * rz, vel.z + om * ry, 1 / 240); }
+  if (fast) { const Ld = (VEH_DEFS[LAB_VEH] && VEH_DEFS[LAB_VEH].launch) || { up: 0.22, min: 4.5, max: 7, om: -3, yaw: 0 }, pk = I.pel * 3, xc = core.x[pk], yc = core.x[pk + 1] + 0.3, zc = core.x[pk + 2], up = clamp(Ld.up * impactV, Ld.min, Ld.max), om = Ld.om, yaw = Ld.yaw * (Math.random() < 0.5 ? -1 : 1) * rand(0.6, 1.2); // how he leaves: arc height, forward somersault, swivel
+    for (let i = 0; i < core.n; i++) { const k = i * 3, rx = core.x[k] - xc, ry = core.x[k + 1] - yc, rz = core.x[k + 2] - zc; core.vel(i, vel.x + yaw * rz, vel.y + up - om * rz, vel.z * (Ld.keep ?? 1) + om * ry - yaw * rx, 1 / 240); }
     core.friction = 0.995; core.drag = 0.01; }
   const pk0 = I.pel * 3, seatY = CART.toLocal(core.x[pk0], core.x[pk0 + 1], core.x[pk0 + 2])[1];
   const restB = {}, corr = {}; for (const n in RAG_PARTS) { const q = RAG_PARTS[n]; restB[n] = ragBasis(rest[q[0]], rest[q[1]], rest[q[2]], rest[q[3]], new THREE.Matrix4()); }
@@ -3048,6 +3088,7 @@ function ragSimStep(dt) {
   if (LAB.bollardTip && BOLLARD) { LAB.bollardTip = Math.min(1, LAB.bollardTip + dt * 5); bollardFall(1 - Math.pow(1 - LAB.bollardTip, 3)); }
   if (n === 12) S.acc = 0;
   if (n > 0) ragSparks(S, dt);
+  if (labBol() && OBX.cur !== 'post') obsTear(dt);
   ragApply();
 }
 function ragApply() { // move every mesh part to where its points are
@@ -3105,11 +3146,11 @@ function cartDebrisBuild() {
   for (const p of CART_ROOT.userData.pieces) {
     const geo = p.geo.clone(); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z);
     const m = new THREE.Mesh(geo, chromeM); m.castShadow = true; m.visible = false; scene.add(m);
-    const sz = new V3(); geo.boundingBox.getSize(sz); CDEB.list.push({ m, c, q: new THREE.Quaternion(), r: CART_ROOT.userData.bigPieces ? clamp(Math.min(sz.x, sz.y, sz.z) * 0.5 * CART_S, 0.05, 0.25) : 0.12, v: new V3(), w: new V3(), rest: true, cd: 0 });
+    const sz = new V3(); geo.boundingBox.getSize(sz); CDEB.list.push({ m, c, q: new THREE.Quaternion(), r: CART_ROOT.userData.bigPieces ? clamp(Math.min(sz.x, sz.y, sz.z) * 0.5 * CART_S, 0.05, 0.25) : 0.12, v: new V3(), w: new V3(), rest: true, cd: 0, mk: 'ceramic' });
   }
   for (const o of CART_ROOT.userData.extras) {
     const m = o.clone(); m.visible = false; m.position.set(0, 0, 0); scene.add(m);
-    CDEB.list.push({ m, c: o.position.clone(), q: o.quaternion.clone(), r: o.isGroup ? 0.08 : 0.06, v: new V3(), w: new V3(), rest: true, cd: 0, orig: o });
+    CDEB.list.push({ m, c: o.position.clone(), q: o.quaternion.clone(), r: o.isGroup ? 0.08 : 0.06, v: new V3(), w: new V3(), rest: true, cd: 0, orig: o, mk: o.userData.mk || 'metal' });
   }
 }
 function cartBreak() {
@@ -3120,24 +3161,26 @@ function cartBreak() {
     const lp = d.c.clone().multiplyScalar(CART_S); p.copy(lp); board.localToWorld(p); d.m.position.copy(p);
     qq.copy(bq).multiply(d.q); d.m.quaternion.copy(qq); d.m.scale.setScalar(CART_S); d.m.visible = true;
     dir.subVectors(p, ip); if (dir.lengthSq() < 1e-4) dir.set(rand(-1, 1), 0.5, rand(-1, 1)); dir.normalize();
-    d.v.copy(base).multiplyScalar(0.3 * rand(0.8, 1.2)).addScaledVector(dir, (3 + 0.06 * v) * rand(0.6, 1.4)); d.v.y += rand(1.5, 5);
+    const pr = DEB_PROPS[d.mk] || DEB_PROPS.metal; d.v.copy(base).multiplyScalar(0.3 * rand(0.8, 1.2)).addScaledVector(dir, (3 + 0.06 * v) * rand(0.6, 1.4) * pr.fly); d.v.y += rand(1.5, 5) * pr.lift;
     d.w.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize().multiplyScalar(rand(6, 18)); d.rest = false; d.cd = 0;
   }
   burst(new V3(LAB_LANE, 0.9, BOLLARD_Z), 90, SPARK, 9); ripSound();
 }
 const _dq = new THREE.Quaternion(), _da = new V3();
+const DEB_PROPS = { metal: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, chrome: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, ceramic: { b: 0.26, drag: 0.02, snd: 'stone', fly: 0.8, lift: 0.9 }, fabric: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, fabric2: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, plastic: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, accent: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, black: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, wheel: { b: 0.58, drag: 0.015, snd: 'metal', fly: 1.7, lift: 1.2 }, rubber: { b: 0.7, drag: 0.02, snd: 'soft', fly: 1.3, lift: 2.2 } };
 function cartDebrisStep(dt) {
   obsStep(dt);
   if (CART.knocked && !CART.plow && LABCART.v >= 30 && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
   if (!CDEB.on) return; CDEB.cool -= dt;
   for (const d of CDEB.list) {
     if (d.rest) continue; d.cd -= dt;
-    d.v.y -= 9.8 * dt; d.v.multiplyScalar(1 / (1 + 0.02 * d.v.length() * dt)); d.m.position.addScaledVector(d.v, dt); // air drag: the faster the more it slows
+    const pr = DEB_PROPS[d.mk] || DEB_PROPS.metal; d.v.y -= 9.8 * dt; d.v.multiplyScalar(1 / (1 + pr.drag * d.v.length() * dt)); d.m.position.addScaledVector(d.v, dt); // air drag: the faster the more it slows
     const wl = d.w.length(); if (wl > 1e-4) { _da.copy(d.w).multiplyScalar(1 / wl); _dq.setFromAxisAngle(_da, wl * dt); d.m.quaternion.premultiply(_dq); }
     if (d.m.position.y < d.r) {
       d.m.position.y = d.r;
-      if (d.v.y < -6 && d.cd <= 0 && CDEB.cool <= 0) { burst(d.m.position, 5, SPARK, 3); clank(8); d.cd = 0.25; CDEB.cool = 0.05; }
-      if (d.v.y < 0) d.v.y = -d.v.y * 0.32; d.v.x *= Math.exp(-5 * dt); d.v.z *= Math.exp(-5 * dt); d.w.multiplyScalar(Math.exp(-6 * dt));
+      if (d.v.y < -2.5 && d.cd <= 0) { debrisHit(pr.snd, -d.v.y, d.r * 2); d.cd = 0.12; }
+      if (d.v.y < -6 && d.mk !== 'fabric' && d.mk !== 'fabric2' && d.mk !== 'rubber' && CDEB.cool <= 0) { burst(d.m.position, 5, SPARK, 3); CDEB.cool = 0.05; }
+      if (d.v.y < 0) d.v.y = -d.v.y * pr.b; d.v.x *= Math.exp(-5 * dt); d.v.z *= Math.exp(-5 * dt); d.w.multiplyScalar(Math.exp(-6 * dt));
       if (d.v.length() < 0.6 && d.w.length() < 1.2) { d.rest = true; d.v.set(0, 0, 0); d.w.set(0, 0, 0); }
     }
   }
@@ -3154,24 +3197,24 @@ function makeSpecMesh(spec, wheelsOut) { // origin on the floor, front faces -z;
     plastic: new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.45, metalness: 0.1 }), chrome: new THREE.MeshStandardMaterial({ color: 0xeef1f5, metalness: 1, roughness: 0.12 }), accent: new THREE.MeshStandardMaterial({ color: spec.accent, roughness: 0.6 }), black: new THREE.MeshStandardMaterial({ color: 0x0f1013, roughness: 0.4 }) };
   try { const env = labEnv(); MAT.chrome.envMap = env; MAT.chrome.envMapIntensity = 1.2; } catch (e) { /* no reflections, still fine */ }
   const flat = ge => (ge.index ? ge.toNonIndexed() : ge), extras = [], groups = {};
-  const extra = (geo, mat, name) => { geo.scale(1 / S, 1 / S, 1 / S); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z); const m = new THREE.Mesh(geo, mat); m.position.copy(c); m.castShadow = true; m.receiveShadow = true; m.name = name; g.add(m); extras.push(m); };
+  const extra = (geo, mat, name, mk) => { geo.scale(1 / S, 1 / S, 1 / S); geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new V3()); geo.translate(-c.x, -c.y, -c.z); const m = new THREE.Mesh(geo, mat); m.position.copy(c); m.castShadow = true; m.receiveShadow = true; m.name = name; m.userData.mk = mk; g.add(m); extras.push(m); };
   for (const p of spec.prims) {
     let ge; if (p.t === 'box') ge = new RoundedBoxGeometry(p.s[0], p.s[1], p.s[2], 3, p.r); else if (p.t === 'cyl') { ge = new THREE.CylinderGeometry(p.rt, p.rb, p.h, 18); if (p.ax === 'x') ge.rotateZ(Math.PI / 2); else if (p.ax === 'z') ge.rotateX(Math.PI / 2); } else { ge = new THREE.SphereGeometry(p.r, 16, 12); ge.scale(p.sc[0], p.sc[1], p.sc[2]); }
     if (p.rot && (p.rot[0] || p.rot[1] || p.rot[2])) ge.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(p.rot[0], p.rot[1], p.rot[2], 'XYZ'))); ge.translate(p.p[0], p.p[1], p.p[2]);
-    if (p.g) (groups[p.g + '|' + p.m] = groups[p.g + '|' + p.m] || []).push(ge); else extra(ge, MAT[p.m], p.n || 'part');
+    if (p.g) (groups[p.g + '|' + p.m] = groups[p.g + '|' + p.m] || []).push(ge); else extra(ge, MAT[p.m], p.n || 'part', p.m);
   }
-  for (const key in groups) extra(mergeGeometries(groups[key].map(flat)), MAT[key.split('|')[1]], 'x:' + key.split('|')[0]);
-  for (const [x, y, z, r, wd] of spec.wheels) { const w = new THREE.Group(); w.position.set(x / S, y / S, z / S); const wm = new THREE.Mesh(new THREE.CylinderGeometry(r / S, r / S, wd / S, 18), MAT.black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.45 / S, r * 0.45 / S, (wd + 0.006) / S, 12), MAT.chrome); hub.rotation.z = Math.PI / 2; w.add(hub); g.add(w); extras.push(w); if (wheelsOut) wheelsOut.push(w); }
+  for (const key in groups) extra(mergeGeometries(groups[key].map(flat)), MAT[key.split('|')[1]], 'x:' + key.split('|')[0], key.split('|')[1]);
+  for (const [x, y, z, r, wd] of spec.wheels) { const w = new THREE.Group(); w.position.set(x / S, y / S, z / S); const wm = new THREE.Mesh(new THREE.CylinderGeometry(r / S, r / S, wd / S, 18), MAT.black); wm.rotation.z = Math.PI / 2; wm.castShadow = true; w.add(wm); const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.45 / S, r * 0.45 / S, (wd + 0.006) / S, 12), MAT.chrome); hub.rotation.z = Math.PI / 2; w.add(hub); w.userData.mk = 'wheel'; g.add(w); extras.push(w); if (wheelsOut) wheelsOut.push(w); }
   root.userData.pieces = []; root.userData.extras = extras; root.userData.g = g; root.userData.bigPieces = true;
   return root;
 }
 // kind -> name, the word for 'stayed in the ...', the box of its seat (the physics), where he sits and where his hands rest, the height of its floor above the ground
 const VEH_ORDER = ['cart', 'tub', 'chair', 'sofa'];
 const VEH_DEFS = {
-  cart: { name: 'SHOPPING CART', noun: 'cart' },
-  tub: { name: 'BATHTUB', noun: 'tub', box: { hw: 0.34, y0: 0.3, y1: 0.84, zf: -0.7, zb: 0.7, zfOut: -0.9, zbOut: 0.9, H: 0.85 }, seat: [0.14, 0.22], rimY: 0.54, rimX: 0.36, floorY: 0.3, build: makeTubMesh },
-  chair: { name: 'OFFICE CHAIR', noun: 'chair', box: { hw: 0.26, y0: 0.5, y1: 1.2, zf: -0.27, zb: 0.3, zfOut: -0.3, zbOut: 0.34, H: 1.2 }, seat: [0.6, 0.1], rimY: 0.675, rimX: 0.3, floorY: 0, open: true, build: w => makeSpecMesh(VEH_SPECS.chair, w) },
-  sofa: { name: 'SOFA ON WHEELS', noun: 'sofa', box: { hw: 0.69, y0: 0.43, y1: 1.0, zf: -0.42, zb: 0.4, zfOut: -0.45, zbOut: 0.5, H: 1.05 }, seat: [0.53, 0.1], rimY: 0.72, rimX: 0.73, floorY: 0, open: true, build: w => makeSpecMesh(VEH_SPECS.sofa, w) },
+  cart: { name: 'SHOPPING CART', launch: { up: 0.22, min: 4.5, max: 7, om: -3, yaw: 0, keep: 1 }, fx: 'sparks', tipW: 1, rebound: 1, noun: 'cart' },
+  tub: { name: 'BATHTUB', launch: { up: 0.3, min: 5.5, max: 9.5, om: -2.0, yaw: 0.3, keep: 0.85 }, fx: 'water', tipW: 0.55, rebound: 0.6, noun: 'tub', box: { hw: 0.34, y0: 0.3, y1: 0.84, zf: -0.7, zb: 0.7, zfOut: -0.9, zbOut: 0.9, H: 0.85 }, seat: [0.14, 0.22], rimY: 0.54, rimX: 0.36, floorY: 0.3, build: makeTubMesh },
+  chair: { name: 'OFFICE CHAIR', launch: { up: 0.12, min: 2, max: 4.2, om: -4.6, yaw: 1.6, keep: 1.05 }, fx: 'sparks', tipW: 1.6, rebound: 1.4, noun: 'chair', box: { hw: 0.26, y0: 0.5, y1: 1.2, zf: -0.27, zb: 0.3, zfOut: -0.3, zbOut: 0.34, H: 1.2 }, seat: [0.6, 0.1], rimY: 0.675, rimX: 0.3, floorY: 0, open: true, build: w => makeSpecMesh(VEH_SPECS.chair, w) },
+  sofa: { name: 'SOFA ON WHEELS', launch: { up: 0.08, min: 1.5, max: 3, om: -2.0, yaw: 0.6, keep: 0.72 }, fx: 'feathers', tipW: 0.45, rebound: 0.5, noun: 'sofa', box: { hw: 0.69, y0: 0.43, y1: 1.0, zf: -0.42, zb: 0.4, zfOut: -0.45, zbOut: 0.5, H: 1.05 }, seat: [0.53, 0.1], rimY: 0.72, rimX: 0.73, floorY: 0, open: true, build: w => makeSpecMesh(VEH_SPECS.sofa, w) },
 };
 let LAB_VEH = 'cart', CART_SPEC0 = null; const VEHS = {};
 function labVehicle(kind) {
@@ -3180,7 +3223,7 @@ function labVehicle(kind) {
   if (!VEH_DEFS[kind]) kind = 'cart'; if (kind === LAB_VEH) return;
   const d = VEH_DEFS[kind]; if (!VEHS[kind]) { const w = [], root = d.build(w); board.add(root); VEHS[kind] = { root, wheels: w }; }
   LAB_VEH = kind; for (const k in VEHS) VEHS[k].root.visible = k === kind; CART_ROOT = VEHS[kind].root;
-  wheels.length = 0; wheels.push(...VEHS[kind].wheels); CART.setSpec(d.box || CART_SPEC0); CART.openFront = !!d.open; CART.box.frontOpen = !!d.open;
+  wheels.length = 0; wheels.push(...VEHS[kind].wheels); CART.tipW = d.tipW || 1; CART.rebound = d.rebound || 1; CART.setSpec(d.box || CART_SPEC0); CART.openFront = !!d.open; CART.box.frontOpen = !!d.open;
   const cart = kind === 'cart'; CART_SEAT.set(0, cart ? 0.17 : d.seat[0], cart ? 0.32 : d.seat[1]); CART_RIM_Y = cart ? (1.02 - 0.4) * CART_S : d.rimY; CART_RIM_X = cart ? (0.32 + 0.03) * CART_S : d.rimX;
   daggie.position.y = (cart ? 0.4 * CART_S : d.floorY) + 0.012; // he sits on the floor of whichever vehicle it is
   for (const dd of CDEB.list) scene.remove(dd.m); CDEB.list.length = 0; CDEB.built = false; CDEB.on = false; // pieces are rebuilt from the new vehicle
@@ -3195,17 +3238,17 @@ const OBS_ORDER = ['post', 'boxes', 'melons', 'barrels', 'bricks', 'barrier', 'p
 // strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
 const OBST = {
   post: { name: 'STEEL POST', r: BOLLARD_R, h: BOLLARD_H, bend: 10, knock: 30, tumble: 10, solid: false },
-  boxes: { name: 'CARDBOARD BOXES', r: 0.3, cyls: [-0.9, -0.3, 0.3, 0.9].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 2, knock: 4, tumble: 60, solid: false, kick: 0.85, lift: 1, sound: 'box', pop: 'BOXES EVERYWHERE!',
+  boxes: { absorb: 40, hard: 99, fx: 'paper', name: 'CARDBOARD BOXES', r: 0.3, cyls: [-0.9, -0.3, 0.3, 0.9].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 2, knock: 4, tumble: 60, solid: false, kick: 0.85, lift: 1, sound: 'box', pop: 'BOXES EVERYWHERE!',
     layout() { const b = []; for (let row = 0; row < 3; row++) for (let i = 0; i < 4; i++) b.push({ t: 'box', x: (i - 1.5) * 0.6 + rand(-0.02, 0.02), y: 0.29 + row * 0.59, z: rand(-0.02, 0.02), sx: 0.58, sy: 0.57, sz: 0.58, ry: rand(-0.08, 0.08), col: 0xc99a62 + Math.floor(rand(0, 5)) * 0x040302 }); b.push({ t: 'box', x: -0.3, y: 2.06, z: 0, sx: 0.5, sy: 0.4, sz: 0.5, ry: 0.2, col: 0xd2a56c }, { t: 'box', x: 0.35, y: 2.0, z: 0, sx: 0.4, sy: 0.3, sz: 0.4, ry: -0.3, col: 0xb98c58 }); return b; } },
-  melons: { name: 'WATERMELONS', r: 0.25, cyls: [-0.4, 0, 0.4].map(dx => ({ dx, r: 0.25 })), h: 1.0, bend: 2, knock: 5, tumble: 50, solid: false, kick: 0.8, lift: 1.2, sound: 'melon', pop: 'WATERMELON SPLAT!', splash: [[3, 0.2, 0.3], [2.4, 0.5, 0.35], [0.4, 1.4, 0.4]],
+  melons: { absorb: 70, hard: 14, fx: 'juice', name: 'WATERMELONS', r: 0.25, cyls: [-0.4, 0, 0.4].map(dx => ({ dx, r: 0.25 })), h: 1.0, bend: 2, knock: 5, tumble: 50, solid: false, kick: 0.8, lift: 1.2, sound: 'melon', pop: 'WATERMELON SPLAT!', splash: [[3, 0.2, 0.3], [2.4, 0.5, 0.35], [0.4, 1.4, 0.4]],
     layout() { const b = [], c = () => [0x2f7d32, 0x3e9142, 0x276a2b][Math.floor(rand(0, 3))]; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) b.push({ t: 'melon', x: (i - 1) * 0.42, y: 0.21, z: (j - 1) * 0.1 - 0.0, sx: 0.46, sy: 0.4, sz: 0.4, ry: rand(0, 6), col: c() }); for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) b.push({ t: 'melon', x: (i - 0.5) * 0.42, y: 0.55, z: (j - 0.5) * 0.2, sx: 0.46, sy: 0.4, sz: 0.4, ry: rand(0, 6), col: c() }); b.push({ t: 'melon', x: 0, y: 0.88, z: 0, sx: 0.46, sy: 0.4, sz: 0.4, ry: rand(0, 6), col: c() }); return b; } },
-  barrels: { name: 'OIL BARRELS', r: 0.3, cyls: [-0.62, 0, 0.62].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 8, knock: 20, tumble: 18, solid: false, kick: 0.7, lift: 0.8, sound: 'barrel', pop: 'BARRELS DOWN!',
+  barrels: { absorb: 260, hard: 7, fx: 'splash', name: 'OIL BARRELS', r: 0.3, cyls: [-0.62, 0, 0.62].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 8, knock: 20, tumble: 18, solid: false, kick: 0.7, lift: 0.8, sound: 'barrel', pop: 'BARRELS DOWN!',
     layout() { const b = [], c = [0xc0392b, 0x2c6fbb, 0xc0392b, 0xd9a21b, 0x2f7d4f]; let n = 0; for (let i = 0; i < 3; i++) b.push({ t: 'barrel', x: (i - 1) * 0.62, y: 0.45, z: 0, sx: 0.58, sy: 0.9, sz: 0.58, ry: rand(0, 6), col: c[n++ % 5] }); for (let i = 0; i < 2; i++) b.push({ t: 'barrel', x: (i - 0.5) * 0.62, y: 1.35, z: 0, sx: 0.58, sy: 0.9, sz: 0.58, ry: rand(0, 6), col: c[n++ % 5] }); return b; } },
-  bricks: { name: 'BRICK WALL', r: 0.14, cyls: [-1, -0.5, 0, 0.5, 1].map(dx => ({ dx, r: 0.14 })), h: 1.6, bend: 12, knock: 50, tumble: 12, solid: true, kick: 0.5, lift: 0.8, sound: 'brick', pop: 'THE WALL FALLS!',
+  bricks: { absorb: 800, hard: 4.2, fx: 'dust', name: 'BRICK WALL', r: 0.14, cyls: [-1, -0.5, 0, 0.5, 1].map(dx => ({ dx, r: 0.14 })), h: 1.6, bend: 12, knock: 50, tumble: 12, solid: true, kick: 0.5, lift: 0.8, sound: 'brick', pop: 'THE WALL FALLS!',
     layout() { const b = []; for (let row = 0; row < 8; row++) { const odd = row % 2; const xs = odd ? [-1.125, -0.75, -0.25, 0.25, 0.75, 1.125] : [-1, -0.5, 0, 0.5, 1]; for (const x of xs) { const half = odd && Math.abs(x) > 1; b.push({ t: 'brick', x: half ? Math.sign(x) * 1.125 : x, y: 0.1 + row * 0.2, z: 0, sx: half ? 0.24 : 0.49, sy: 0.19, sz: 0.25, ry: 0, col: 0xa8442c + Math.floor(rand(-5, 6)) * 0x030201 }); } } return b; } },
-  barrier: { name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, solidMax: 55, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
+  barrier: { absorb: 0, hard: 3.8, fx: 'dust', name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, solidMax: 55, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
     layout() { return [{ t: 'barrier', x: 0, y: 0, z: 0, sx: 2.2, sy: 1, sz: 1, ry: 0, col: 0xb9b9b3 }]; } },
-  pins: { name: 'BOWLING PINS', r: 0.15, cyls: [{ dx: 0, r: 0.15 }], h: 0.6, bend: 1, knock: 2.5, tumble: 80, solid: false, kick: 1.0, lift: 1.4, sound: 'pins', pop: 'STRIKE!',
+  pins: { absorb: 12, hard: 99, fx: 'none', name: 'BOWLING PINS', r: 0.15, cyls: [{ dx: 0, r: 0.15 }], h: 0.6, bend: 1, knock: 2.5, tumble: 80, solid: false, kick: 1.0, lift: 1.4, sound: 'pins', pop: 'STRIKE!',
     layout() { const b = []; for (let k = 0; k < 4; k++) for (let j = 0; j <= k; j++) b.push({ t: 'pin', x: (j - k / 2) * 0.3, y: 0, z: -k * 0.27, sx: 0.55, sy: 0.55, sz: 0.55, ry: 0, col: 0xffffff }); return b; } },
 };
 const OBX = { cur: 'post', built: {} };
@@ -3220,10 +3263,11 @@ const OBS_KIT = {
 function obsBuild(id) {
   if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
   for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
-  for (const t in by) { const kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
+  for (const t in by) { const kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin' }[t]; set.dragK = { box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08 }[t]; set.bnc = { box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5 }[t]; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
   return (OBX.built[id] = out);
 }
 function obsPlace(id) { // every block back in its place, still
+  if (OBX.dust) OBX.dust.clear(); OBX.cool = {}; OBX.psp = {};
   const o = obsBuild(id), sp = OBST[id], q = new THREE.Quaternion(), up = new V3(0, 1, 0), jit = sp.layout; 
   for (const t in o.sets) o.sets[t].clear();
   for (const b of o.blocks) { const i = b.set.next; q.setFromAxisAngle(up, b.ry || 0); b.set.raw(LAB_LANE + b.x, b.y, BOLLARD_Z + b.z, 0, 0, 0, b.sx, b.sy, b.sz, 99999, b.col, true, q.x, q.y, q.z, q.w, 0, 0, 0); b.i = i; b.set.fl[i] = b.kit.fl; }
@@ -3236,9 +3280,10 @@ function obsApply() { // choose the obstacle for this machine, give the vehicle'
   for (const k in OBX.built) for (const t in OBX.built[k].sets) OBX.built[k].sets[t].mesh.visible = false;
   if (labBol() && id !== 'post') obsPlace(id);
 }
-function obsStep(dt) { const o = OBX.built[OBX.cur]; if (o && OBX.cur !== 'post') for (const t in o.sets) o.sets[t].step(dt); }
+function obsStep(dt) { if (OBX.dust) OBX.dust.step(dt); const o = OBX.built[OBX.cur]; if (o && OBX.cur !== 'post') for (const t in o.sets) o.sets[t].step(dt); }
 function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds, gives, or is destroyed
   const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], st = v >= sp.knock ? 2 : v >= sp.bend ? 1 : 0, p = clamp((v - sp.bend) / Math.max(1, sp.knock - sp.bend) * 0.8 + 0.2, 0.2, 0.95); if (!o) return;
+  obsFx(sp, v, st);
   let flown = 0; for (const b of o.blocks) {
     if (st === 0 || (st === 1 && Math.random() > p && o.blocks.length > 1)) continue; flown++;
     const k = sp.kick * (st === 1 ? 0.55 : 1) * rand(0.6, 1.1), dx = b.x, near = 1 - clamp((b.z + 0.5) / 1.5, 0, 1) * 0.2;
@@ -3246,6 +3291,23 @@ function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds,
   }
   const at = new V3(LAB_LANE, 0.6, BOLLARD_Z); if (flown) { burst(at, 30 + flown * 2, sp.splash || [[1.4, 1.2, 1.0], [2, 1.7, 1.2]], 4 + v * 0.1); lastPop = 0; pop(st === 2 || flown > o.blocks.length * 0.6 ? sp.pop : 'SOMETHING GIVES!', 'lilac'); } else { lastPop = 0; pop(sp.pop.indexOf('HOLDS') >= 0 ? sp.pop : 'IT HOLDS!', 'lilac'); }
   obsSound(sp.sound, st, v);
+}
+
+function vehFx(v) { // the vehicle's own contribution to the crash
+  const fx = VEH_DEFS[LAB_VEH].fx, at = [LAB_LANE, 0.5, BOLLARD_Z + 0.6]; if (!OBX.dust) OBX.dust = new CanTrail(260, false); const D = OBX.dust, n = Math.round(14 + v * 0.5);
+  if (fx === 'water') { for (let i = 0; i < n * 1.4; i++) D.emit(at[0] + rand(-0.4, 0.4), at[1] + rand(0, 0.5), at[2] + rand(-0.6, 0.2), rand(-3, 3), rand(3, 7 + v * 0.1), -rand(0, 3 + v * 0.1), 0.25, 1.0 * rand(0.8, 1.4), rand(0.9, 1.5), 0.62, 0.8, 0.95, 0.5, 0.6); burst(new V3(at[0], at[1] + 0.3, at[2]), 70, [[0.7, 1.5, 3], [1.2, 2.2, 3.4], [2.5, 3, 3.4]], 5 + v * 0.1); }
+  else if (fx === 'feathers') { for (let i = 0; i < n; i++) D.emit(at[0] + rand(-0.6, 0.6), at[1] + rand(0, 0.6), at[2] + rand(-0.5, 0.3), rand(-2.5, 2.5), rand(1.5, 5), -rand(0, 2 + v * 0.06), 0.25, 0.9 * rand(0.8, 1.3), rand(1.4, 2.4), 0.95, 0.93, 0.88, 0.55, 0.35); }
+  else burst(new V3(at[0], at[1] + 0.2, at[2]), 30 + v, SPARK, 5 + v * 0.1);
+}
+function obsFx(sp, v, st) { // dust, pulp, splash: what comes out of the obstacle depends on what it is made of
+  if (!st) return; const at = [LAB_LANE, 0.5, BOLLARD_Z]; if (!OBX.dust) OBX.dust = new CanTrail(260, false); const D = OBX.dust, n = Math.round(10 + v * 0.45);
+  const puff = (rgb, a, s0, s1, life, k) => { for (let i = 0; i < n * k; i++) D.emit(at[0] + rand(-1, 1), at[1] + rand(0, 0.8), at[2] + rand(-0.4, 0.4), rand(-2.5, 2.5), rand(0.5, 3), -rand(1, 4 + v * 0.1), s0, s1 * rand(0.8, 1.3), life * rand(0.7, 1.2), rgb[0], rgb[1], rgb[2], a, 1.1); };
+  if (sp.fx === 'dust') puff([0.62, 0.56, 0.5], 0.55, 0.5, 2.4, 1.6, 1); else if (sp.fx === 'paper') puff([0.85, 0.78, 0.65], 0.4, 0.3, 1.2, 1.0, 0.7); else if (sp.fx === 'juice') puff([0.75, 0.12, 0.18], 0.55, 0.3, 1.3, 0.9, 0.9); else if (sp.fx === 'splash') puff([0.12, 0.09, 0.07], 0.5, 0.3, 1.1, 0.8, 0.6);
+}
+function obsTear(dt) { // a hard obstacle tears limbs off on hard knocks, a soft one does not (the threshold is the obstacle's own)
+  const S = RAGSIM, sp = OBST[OBX.cur]; if (!S || OBX.cur === 'post' || sp.hard > 90 || S.t > 4) return; const c = S.core, I = S.I; OBX.cool = OBX.cool || {}; OBX.psp = OBX.psp || {};
+  for (const nm in STR_LIMB) { const g = STR_LIMB[nm]; OBX.cool[g] = (OBX.cool[g] || 0) - dt; const k = I[nm] * 3, sv = Math.hypot(c.x[k] - c.o[k], c.x[k + 1] - c.o[k + 1], c.x[k + 2] - c.o[k + 2]) * 240, drop = (OBX.psp[nm] ?? sv) - sv; OBX.psp[nm] = sv;
+    if (drop > sp.hard && OBX.cool[g] <= 0 && !c.broken.includes(g)) { OBX.cool[g] = 0.3; if (Math.random() < Math.min(0.75, (drop - sp.hard) / 14)) c.breakGroup(g); } }
 }
 function obsSound(kind, st, v) {
   const p = clamp(v / 45, 0.15, 1); if (!AC) return; OUT(); const t = AC.currentTime;
@@ -3274,15 +3336,16 @@ function labCartReset() {
 function labImpact() {
   const v = LABCART.v; LABCART.hit = true; CART.impact(v);
   const dd = OBX.cur === 'post' || OBST[OBX.cur].solid ? labDent(v) : 0; CART.box.zf = CART.zf0 + dd * CART_S * 0.75; /* a soft obstacle does not crumple the cart */ // the crumpled front wires are a wall further back now
-  ragStart(new V3(0, 0, -v), CART.plow ? Math.min(v, 9) : v); // ploughing through something soft is not a crash: he keeps sitting and lurches
-  const post = OBX.cur === 'post';
+  const vR = OBX.cur !== 'post' && CART.knocked ? v * Math.sqrt(Math.max(0.05, 1 - (OBST[OBX.cur].absorb || 0) / (v * v))) : v; // an obstacle that is destroyed takes some of his speed
+  ragStart(new V3(0, 0, -vR), CART.plow ? Math.min(vR, 9) : vR); // ploughing through something soft is not a crash: he keeps sitting and lurches
+  const post = OBX.cur === 'post'; if (v >= 8) vehFx(v);
   if (!post) obsHit(v);
   else if (CART.knocked) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.25, 0.25); lastPop = 0; pop('POST SNAPPED!', 'lilac'); }
   else if (CART.bent) { LAB.bollardTip = 0.001; LAB.tipYaw = rand(-0.1, 0.1); lastPop = 0; pop('POST BENT!', 'lilac'); }
   const bp = new V3(LAB_LANE, 0.8, BOLLARD_Z); if (post || OBST[OBX.cur].sound === 'barrel' || OBST[OBX.cur].sound === 'concrete') burst(bp, 60 + v * 2, SPARK, 6 + v * 0.1); crashSound(clamp(v / 89 * (post ? 1 : 0.6), 0.1, 1)); if (v >= 22) hitStopUntil = performance.now() + 70;
   if (!reduceMotion) shake = Math.min(0.9, 0.2 + v * 0.012);
   if (!reduceMotion && v >= 22) { const fl = document.createElement('div'); fl.className = 'flash'; stage.appendChild(fl); setTimeout(() => fl.remove(), 350); } // white flash on a hard hit
-  slowUntil = performance.now() + 1200; slowK = 0.3; setFace('hit', 99999); if (post && !CART.knocked && !CART.bent) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
+  slowUntil = performance.now() + 1200; slowK = 0.3; sndSlow(true); setTimeout(() => sndSlow(false), 1300); setFace('hit', 99999); if (post && !CART.knocked && !CART.bent) { lastPop = 0; pop(Math.round(v / 0.447) + ' MPH!', 'lilac'); }
 }
 function labBollardOutcome() {
   const S = RAGSIM, c = S.core, torn = c.broken.length, inCart = c.inCart[S.I.pel], held = c.pins.some(p => p.on);
@@ -4331,8 +4394,8 @@ function cannonBuild() {
   const G = canShardGeo(), gm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false });
   const tri = new THREE.BufferGeometry(); tri.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0.1, 0, 0.35, 1, 0], 3)); tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0.1, 0.35, 1], 2)); tri.computeVertexNormals();
   CAN.smoke = new CanTrail(600, false); CAN.fire = new CanTrail(700, true);
-  CAN.glass = new CanDebris(tri, gm, 900); CAN.glass.id = 'g'; CAN.byId.g = CAN.glass; CAN.glass.mesh.setColorAt(0, new THREE.Color(0xffffff));
-  CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' || K === 'window' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; if (W.kind === 'window') main.mesh.material = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.55, side: THREE.DoubleSide }); main.id = 'm' + k; CAN.byId['m' + k] = main; if (aux) { aux.id = 'a' + k; CAN.byId['a' + k] = aux; } CAN.sets.push({ main, aux }); });
+  CAN.glass = new CanDebris(tri, gm, 900); CAN.glass.id = 'g'; CAN.glass.snd = 'glass'; CAN.byId.g = CAN.glass; CAN.glass.mesh.setColorAt(0, new THREE.Color(0xffffff));
+  CANNON_WALLS.forEach((W, k) => { const m = CAN.mats[k], K = W.kind; const main = new CanDebris(K === 'wood' || K === 'window' ? G.splint[0] : K === 'metal' ? G.plate[0] : K === 'jelly' || K === 'cake' ? G.blob[0] : G.chunk[1], m, K === 'glass' ? 1 : 110), aux = (K === 'wood' || K === 'metal') ? new CanDebris(G.chunk[2], m, 50) : null; if (W.kind === 'window') main.mesh.material = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.55, side: THREE.DoubleSide }); main.id = 'm' + k; main.snd = { wood: 'wood', window: 'wood', metal: 'metal', stone: 'stone', ice: 'glass' }[K] || (W.draw === 'hay' ? 'soft' : null); CAN.byId['m' + k] = main; if (aux) { aux.id = 'a' + k; aux.snd = main.snd; CAN.byId['a' + k] = aux; } CAN.sets.push({ main, aux }); });
   for (let p = 0; p < 24; p++) { const mesh = new THREE.Mesh(G.paper[0], new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); mesh.visible = false; scene.add(mesh); CAN.paper.push({ m: mesh, v: new V3(), w: new V3(), life: 0 }); }
 }
 function canWallSnap(i) { const m = CAN.wallMats[i], U = m.userData.U, w = CAN.walls[i], tb = w.userData.tube, pm = w.userData.panel;
@@ -4363,7 +4426,7 @@ function cannonShow(on) {
 }
 function cannonStart(lv) {
   cannonBuild(); cannonShow(true); lv = clamp(lv, 1, 5);
-  CREC.on = false; CREC.play = null; labBars(false);
+  CREC.on = false; CREC.play = null; labBars(false); windSet(0);
   Object.assign(CAN, { phase: 'load', t: 0, next: 0, stuck: -1, broken: 0, mph: CANNON_MPH[lv - 1], recoil: 0, rest: 0, count: 0, touch: new Array(15).fill(false), spun: 0, sd: 0, lastZ: undefined, landing: false }); CAN.vmph = CAN.mph;
   LAB.phase = 'cannon'; board.visible = false; daggie.visible = false; rider.visible = false; // he is inside the barrel until the shot
   CAN.sub = 'LEVEL ' + lv + ' · ' + CAN.mph + ' MPH'; stage.classList.add('cannonrun'); labSpeedo(0); labDmg(false);
@@ -4384,7 +4447,7 @@ function cannonHold(core) { // the wall that stopped him: nothing gets through i
 }
 class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pieces
   constructor(geo, mat, N) { this.N = N; this.mesh = new THREE.InstancedMesh(geo, mat, N); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh);
-    this.p = new Float32Array(N * 3); this.v = new Float32Array(N * 3); this.w = new Float32Array(N * 3); this.s = new Float32Array(N * 3); this.q = Array.from({ length: N }, () => new THREE.Quaternion()); this.life = new Float32Array(N); this.rest = new Uint8Array(N); this.fl = new Float32Array(N).fill(0.04); this.next = 0; this.d = new THREE.Object3D(); this.col = new THREE.Color(); this.hasCol = false; this.clear(); }
+    this.p = new Float32Array(N * 3); this.v = new Float32Array(N * 3); this.w = new Float32Array(N * 3); this.s = new Float32Array(N * 3); this.q = Array.from({ length: N }, () => new THREE.Quaternion()); this.life = new Float32Array(N); this.rest = new Uint8Array(N); this.fl = new Float32Array(N).fill(0.04); this.snd = null; this.dragK = 0.05; this.bnc = 0.3; this.next = 0; this.d = new THREE.Object3D(); this.col = new THREE.Color(); this.hasCol = false; this.clear(); }
   clear() { const z = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < this.N; i++) { this.mesh.setMatrixAt(i, z); this.life[i] = 0; } this.mesh.instanceMatrix.needsUpdate = true; this.mesh.visible = false; }
   spawn(px, py, pz, vx, vy, vz, sx, sy, sz, life, color, still, euler) {
     const q = new THREE.Quaternion().setFromEuler(euler ? new THREE.Euler(euler[0], euler[1], euler[2]) : new THREE.Euler(rand(0, 6.3), rand(0, 6.3), rand(0, 6.3))), w0 = rand(-14, 14), w1 = rand(-14, 14), w2 = rand(-14, 14);
@@ -4404,10 +4467,10 @@ class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pi
     for (let i = 0; i < this.N; i++) {
       if (this.life[i] <= 0) continue; any = true; this.life[i] -= dt; const k = i * 3;
       if (this.life[i] <= 0) { this.mesh.setMatrixAt(i, _cdZ); continue; } if (this.rest[i]) continue;
-      this.v[k + 1] -= 9.8 * dt; const dr = 1 / (1 + 0.05 * dt * Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2])); this.v[k] *= dr; this.v[k + 1] *= dr; this.v[k + 2] *= dr;
+      this.v[k + 1] -= 9.8 * dt; const dr = 1 / (1 + this.dragK * dt * Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2])); this.v[k] *= dr; this.v[k + 1] *= dr; this.v[k + 2] *= dr;
       this.p[k] += this.v[k] * dt; this.p[k + 1] += this.v[k + 1] * dt; this.p[k + 2] += this.v[k + 2] * dt;
       const wl = Math.hypot(this.w[k], this.w[k + 1], this.w[k + 2]); if (wl > 1e-3) { ax.set(this.w[k] / wl, this.w[k + 1] / wl, this.w[k + 2] / wl); dq.setFromAxisAngle(ax, wl * dt); this.q[i].premultiply(dq); }
-      if (this.p[k + 1] < this.fl[i]) { this.p[k + 1] = this.fl[i]; this.v[k + 1] *= -0.3; const f = Math.exp(-4 * dt); this.v[k] *= f; this.v[k + 2] *= Math.exp(-3 * dt); this.w[k] *= f; this.w[k + 1] *= f; this.w[k + 2] *= f; if (Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2]) < 0.5) { this.rest[i] = 1; this.w[k] = this.w[k + 1] = this.w[k + 2] = 0; } }
+      if (this.p[k + 1] < this.fl[i]) { if (this.snd && this.v[k + 1] < -1.4) debrisHit(this.snd, -this.v[k + 1], Math.max(this.s[k], this.s[k + 1], this.s[k + 2])); this.p[k + 1] = this.fl[i]; this.v[k + 1] *= -this.bnc; const f = Math.exp(-4 * dt); this.v[k] *= f; this.v[k + 2] *= Math.exp(-3 * dt); this.w[k] *= f; this.w[k + 1] *= f; this.w[k + 2] *= f; if (Math.hypot(this.v[k], this.v[k + 1], this.v[k + 2]) < 0.5) { this.rest[i] = 1; this.w[k] = this.w[k + 1] = this.w[k + 2] = 0; } }
       this.put(i);
     }
     this.mesh.instanceMatrix.needsUpdate = true; if (!any) this.mesh.visible = false;
@@ -4483,7 +4546,7 @@ function cannonShardStep(dt) {
   for (const sh of CAN.paper) { if (sh.life <= 0) continue; sh.life -= dt; if (sh.life <= 0) { sh.m.visible = false; continue; } sh.v.y -= 2.5 * dt; sh.v.multiplyScalar(1 / (1 + 1.5 * dt)); sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += sh.w.x * dt; sh.m.rotation.y += sh.w.y * dt; if (sh.m.position.y < 0.03) { sh.m.position.y = 0.03; sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); } }
 }
 function wallSound(W, i) {
-  tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
+  windDuck(); duckTail(); tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
   const d = W.draw, S = { glass: [['glass'], 1, 1], window: [['window', 'glass'], 1, 1.05], glass2: [['glass'], 1, 0.85], armor: [['glass'], 1, 0.7], hay: [['hay', 'wood'], 0.7, 0.8], ply: [['wood'], 1, 1.1], oak: [['wood'], 1, 0.85], brick: [['brick'], 1, 1], stone: [['stone'], 1, 1], concrete: [['stone'], 1, 0.8], ice: [['ice'], 1, 1], diamond: [['ice'], 1, 1.25], steel: [['metal'], 1, 1], gold: [['metal'], 1, 0.85], vault: [['vault', 'metal'], 1, 0.6] }[d];
   if (S && sfxPlay(S[0], S[1], S[2], 0.25)) return; if (!AC) return; OUT(); const t = AC.currentTime;
   if (d === 'glass' || d === 'window') { glassSound(d === 'window' ? 1.05 : 1); if (d === 'window') matSound('wood', 0.5, 1.4); }
@@ -4596,12 +4659,12 @@ function cannonReplayStep(dt) {
   const { a, b, k } = canFrameAt(F, Math.min(P.rt, F[F.length - 1][0])), qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
   parts.forEach((p, j) => { const o = 6 + j * 7; p.position.set(lerp(a[o], b[o], k), lerp(a[o + 1], b[o + 1], k), lerp(a[o + 2], b[o + 2], k)); qa.set(a[o + 3], a[o + 4], a[o + 5], a[o + 6]); qb.set(b[o + 3], b[o + 4], b[o + 5], b[o + 6]); p.quaternion.copy(qa).slerp(qb, k); });
   CAN.fx = lerp(a[3], b[3], k); CAN.fy = lerp(a[4], b[4], k); CAN.fz = lerp(a[5], b[5], k); if (lerp(a[1], b[1], k) > 15 && P.rt < F[F.length - 1][0] - 0.3) cannonTrail(CAN.fx, CAN.fy, CAN.fz + 0.9);
-  labSpeedo(lerp(a[1], b[1], k)); labDmg(true, Math.round(lerp(a[2], b[2], k)), 'WALLS', ' / 15', 0, CAN.sub);
+  labSpeedo(lerp(a[1], b[1], k)); labDmg(true, Math.round(lerp(a[2], b[2], k)), 'WALLS', ' / 15', 0, CAN.sub); { const vv = lerp(a[1], b[1], k); windSet(vv > 15 && P.rt < F[F.length - 1][0] - 0.3 ? vv : 0); }
   cannonShardStep(h);
   if (P.rt >= P.T || P.skip) cannonReplayEnd();
 }
 function cannonReplayEnd() {
-  const F = CREC.frames, last = F[F.length - 1]; CREC.play = null; labBars(false);
+  const F = CREC.frames, last = F[F.length - 1]; CREC.play = null; labBars(false); windSet(0);
   parts.forEach((p, j) => { const o = 6 + j * 7; p.position.set(last[o], last[o + 1], last[o + 2]); p.quaternion.set(last[o + 3], last[o + 4], last[o + 5], last[o + 6]); });
   CAN.phase = 'end'; labFinish(LAB.text);
 }
@@ -4691,14 +4754,14 @@ function cannonStep(dt, now) {
     if (C.t >= 1.8) cannonFire();
   } else if (C.phase === 'fly' && RAGSIM) {
     const S = RAGSIM; ragSimStep(dt); cannonDrive(S.core, S.I, dt); cannonWalls(); cannonRecFrame(dt); if (C.vmph > 15 && !C.landing) cannonTrail(S.core.x[S.I.pel * 3], S.core.x[S.I.pel * 3 + 1], S.core.x[S.I.pel * 3 + 2] + 0.9);
-    labSpeedo(CAN.vmph); labDmg(true, CAN.broken, 'WALLS', ' / 15', 0, CAN.sub);
+    labSpeedo(CAN.vmph); labDmg(true, CAN.broken, 'WALLS', ' / 15', 0, CAN.sub); windSet(C.vmph > 15 && !C.landing && C.stuck < 0 ? C.vmph : 0);
     const k = S.I.pel * 3, sp = Math.hypot(S.core.x[k] - S.core.o[k], S.core.x[k + 1] - S.core.o[k + 1], S.core.x[k + 2] - S.core.o[k + 2]) * 240;
     C.rest = sp < 0.6 ? C.rest + dt : 0; LAB.dist = Math.max(0, (BOLLARD_Z - S.core.x[k + 2])) * 3.28084;
     const over = C.stuck >= 0 ? S.t - C.stuckT > 2.2 : (C.next >= 15 && C.rest > 0.8) || S.t > 14;
     if (over || C.rest > 1.6) {
       C.phase = 'end'; const nm = C.stuck >= 0 ? CANNON_WALLS[C.stuck].n : '';
       LAB.text = C.broken >= 15 ? 'broke all 15 walls!' : 'broke ' + C.broken + ' wall' + (C.broken === 1 ? '' : 's') + (nm ? ' · stopped by ' + nm : '');
-      lastPop = 0; pop(C.broken >= 15 ? 'ALL 15!' : C.broken + ' / 15', 'green'); if (!cannonReplayStart()) labFinish(LAB.text);
+      windSet(0); lastPop = 0; pop(C.broken >= 15 ? 'ALL 15!' : C.broken + ' / 15', 'green'); if (!cannonReplayStart()) labFinish(LAB.text);
     }
   } else if (C.phase === 'replay') cannonReplayStep(dt);
   else if (C.phase === 'end' && RAGSIM) ragSimStep(dt);
