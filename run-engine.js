@@ -62,8 +62,10 @@ const FXAA_FRAG = ['uniform sampler2D tDiffuse; uniform vec2 px; varying vec2 vU
   ' vec3 a = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).xyz + texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).xyz);',
   ' vec3 b = a * 0.5 + 0.25 * (texture2D(tDiffuse, vUv + dir * -0.5).xyz + texture2D(tDiffuse, vUv + dir * 0.5).xyz);',
   ' float lB = dot(b, luma); vec3 col = (lB < lMin || lB > lMax) ? a : b;',
-  ' vec3 blur = 0.25 * (texture2D(tDiffuse, vUv + vec2(px.x, 0.0)).xyz + texture2D(tDiffuse, vUv - vec2(px.x, 0.0)).xyz + texture2D(tDiffuse, vUv + vec2(0.0, px.y)).xyz + texture2D(tDiffuse, vUv - vec2(0.0, px.y)).xyz);',
-  ' col = clamp(col + (col - blur) * 0.32, 0.0, 1.0); gl_FragColor = vec4(col, 1.0); }'].join('\n');
+  ' vec3 cN = texture2D(tDiffuse, vUv - vec2(0.0, px.y)).xyz; vec3 cS = texture2D(tDiffuse, vUv + vec2(0.0, px.y)).xyz; vec3 cW = texture2D(tDiffuse, vUv - vec2(px.x, 0.0)).xyz; vec3 cE = texture2D(tDiffuse, vUv + vec2(px.x, 0.0)).xyz;',
+  ' vec3 mn = min(min(min(cN, cS), min(cW, cE)), col); vec3 mx = max(max(max(cN, cS), max(cW, cE)), col);',
+  ' vec3 amp = sqrt(clamp(min(mn, 1.0 - mx) / max(mx, vec3(0.0001)), 0.0, 1.0)); vec3 wgt = amp * (-1.0 / 6.0);',
+  ' col = clamp((col + wgt * (cN + cS + cW + cE)) / (1.0 + 4.0 * wgt), 0.0, 1.0); gl_FragColor = vec4(col, 1.0); }'].join('\n');
 const fxaa = new ShaderPass({ uniforms: { tDiffuse: { value: null }, px: { value: new THREE.Vector2(1 / 800, 1 / 1600) } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: FXAA_FRAG });
 composer.addPass(fxaa);
 const LAB0 = MODE === 'lab'; if (LAB0) { grade.uniforms.sat.value = 1.42; grade.uniforms.con.value = 1.04; grade.uniforms.bri.value = -0.01; grade.uniforms.curve.value = 0.65; grade.uniforms.vig.value = 0.4; renderer.toneMappingExposure = 0.58; }
@@ -164,7 +166,7 @@ function darkSteel0() { return new THREE.MeshStandardMaterial({ color: 0x3b3f47,
 function roofTex() {
   const t = tex(512, 1024, (g, w, h) => {
     g.fillStyle = '#8d8a86'; g.fillRect(0, 0, w, h);
-    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 30; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
+    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 11; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
     g.strokeStyle = 'rgba(40,36,34,0.55)'; g.lineWidth = 3; for (let y = 0; y < h; y += 128) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); } for (let x = 0; x < w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
     g.fillStyle = 'rgba(30,26,24,0.35)'; for (let i = 0; i < 18; i++) { g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(10, 40), rand(6, 20), rand(0, 3), 0, TAU); g.fill(); }
     g.fillStyle = '#ffc21a'; g.fillRect(w * 0.035, 0, w * 0.018, h); g.fillRect(w * 0.947, 0, w * 0.018, h);
@@ -421,7 +423,7 @@ function floorAt(x, z) { if (MODE === 'lab') return !LABNOSTAND && x * x + z * z
 const asphalt = tex(512, 1024, (g, w, h) => {
   g.fillStyle = '#3b3e46'; g.fillRect(0, 0, w, h);
   const id = g.getImageData(0, 0, w, h), d = id.data;
-  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 34 + (Math.random() < 0.02 ? 40 : 0); d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 12 + (Math.random() < 0.01 ? 22 : 0); d[i] += n; d[i + 1] += n; d[i + 2] += n; }
   g.putImageData(id, 0, 0);
   g.fillStyle = '#f4f4ee';
   g.fillRect(w * 0.035, 0, w * 0.018, h); g.fillRect(w * 0.947, 0, w * 0.018, h);
@@ -536,7 +538,7 @@ if (VEH === 'cart') buildCart(); else if (VEH === 'skate') {
   // subdivide lengthwise for a smooth bend: rebuild via ShapeGeometry layers
   const topG = new THREE.ShapeGeometry(outline, 24); topG.rotateX(-Math.PI / 2);
   const refine = (g) => { const ng = g.toNonIndexed(); return ng; };
-  const grip = tex(256, 512, (g, w, h) => { g.fillStyle = '#17161b'; g.fillRect(0, 0, w, h); const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = Math.random() * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0); g.fillStyle = 'rgba(255,194,26,0.9)'; g.font = '700 44px ' + FONT; g.save(); g.translate(w / 2, h / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText('D-011', 0, 14); g.restore(); });
+  const grip = tex(256, 512, (g, w, h) => { g.fillStyle = '#17161b'; g.fillRect(0, 0, w, h); const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = Math.random() * 9; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0); g.fillStyle = 'rgba(255,194,26,0.9)'; g.font = '700 44px ' + FONT; g.save(); g.translate(w / 2, h / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText('D-011', 0, 14); g.restore(); });
   const art = tex(256, 1024, (g, w, h) => { g.fillStyle = '#ffc21a'; g.fillRect(0, 0, w, h); g.fillStyle = '#16141c'; for (let i = -8; i < 40; i++) { g.beginPath(); g.moveTo(0, i * 60); g.lineTo(w, i * 60 - 120); g.lineTo(w, i * 60 - 90); g.lineTo(0, i * 60 + 30); g.fill(); } g.fillStyle = '#ffc21a'; g.fillRect(28, h * 0.3, w - 56, h * 0.4); g.fillStyle = '#16141c'; const cx = w / 2, cy = h / 2, rr = 70; g.beginPath(); g.arc(cx, cy, rr, 0, TAU); g.lineWidth = 10; g.strokeStyle = '#16141c'; g.stroke(); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, rr, 0, Math.PI / 2); g.fill(); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, rr, Math.PI, Math.PI * 1.5); g.fill(); g.save(); g.translate(cx, h * 0.36); g.font = '700 52px ' + FONT; g.textAlign = 'center'; g.fillText('DAGGIE', 0, 0); g.restore(); });
   // build deck body as lofted strip so the kicktails bend smoothly
   function deckLayer(y0, mat, flipUV) {
@@ -4050,11 +4052,11 @@ function buildLab() {
   BIG.visible = false; board.visible = labBol();
   { const bm = new THREE.Group(), post = new THREE.Group(); post.rotation.order = 'YXZ'; post.position.y = 0.12; bm.add(post); const st = new THREE.Mesh(new THREE.CylinderGeometry(BOLLARD_R, BOLLARD_R, BOLLARD_H, 24), stripeMat(1.4)); st.position.y = BOLLARD_H / 2 - 0.12; st.castShadow = true; post.add(st); const cap = new THREE.Mesh(new THREE.SphereGeometry(BOLLARD_R, 20, 10, 0, TAU, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.4 })); cap.position.y = BOLLARD_H - 0.12; post.add(cap); const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 24), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 0.9 })); base.position.y = 0.06; bm.add(base); bm.position.set(LAB_LANE, 0, BOLLARD_Z); scene.add(bm); BOLLARD = post; LABCART.cyls.push({ x: LAB_LANE, z: BOLLARD_Z, r: BOLLARD_R, h: BOLLARD_H }); }
   scene.fog = new THREE.Fog(0x2a2733, 60, 260);
-  const conc = tex(512, 512, (g, w, h) => {
+  const conc = tex(1024, 1024, (g, w, h) => {
     g.fillStyle = '#6f6c70'; g.fillRect(0, 0, w, h);
-    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 7; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
-    for (let i = 0; i < 46; i++) { const cx = Math.random() * w, cy = Math.random() * h, r = 30 + Math.random() * 70, rg = g.createRadialGradient(cx, cy, 1, cx, cy, r); rg.addColorStop(0, Math.random() < 0.5 ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)'); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(cx - r, cy - r, 2 * r, 2 * r); }
-    g.strokeStyle = 'rgba(30,28,34,0.34)'; g.lineWidth = 3; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(w, x); g.stroke(); }
+    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 6; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
+    for (let i = 0; i < 70; i++) { const cx = Math.random() * w, cy = Math.random() * h, r = 60 + Math.random() * 140, rg = g.createRadialGradient(cx, cy, 1, cx, cy, r); rg.addColorStop(0, Math.random() < 0.5 ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)'); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(cx - r, cy - r, 2 * r, 2 * r); }
+    g.strokeStyle = 'rgba(30,28,34,0.34)'; g.lineWidth = 5; for (let x = 0; x <= w; x += 256) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(w, x); g.stroke(); }
   });
   conc.wrapS = conc.wrapT = THREE.RepeatWrapping; conc.repeat.set(10, 10);
   conc.repeat.set(10, 58); const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 460), new THREE.MeshStandardMaterial({ map: conc, roughness: 0.92 }));
