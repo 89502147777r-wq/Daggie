@@ -3128,6 +3128,10 @@ function labDentAt(y, z, v) {
   pos.needsUpdate = true; cage.geometry.computeVertexNormals();
 }
 const LABCART = { get box() { return CART.box; }, get cyls() { return CART.cyls; }, v: 0, hit: false };
+function labWeave(dt) { // a gentle swerve on the way in (the heading follows it); it fades out over the last metres, so the hit is always dead on the target
+  if (LABCART.hit) return; const W = LAB.weave || (LAB.weave = { A: rand(0.12, 0.42), f: rand(0.45, 0.9), ph: rand(0, 6.283), t: 0 }); W.t += dt;
+  const dz = CART.pw[1] - BOLLARD_Z, k = clamp((dz - 3.2) / 8, 0, 1), e = k * k * (3 - 2 * k), a = W.f * 6.283, arg = a * W.t + W.ph, x = W.A * e * Math.sin(arg), vx = W.A * e * a * Math.cos(arg);
+  board.position.x += x; board.rotation.y = -Math.atan2(vx, Math.max(2, LABCART.v)) * 0.8; }
 function labCartPlace() { const w = CART.toWorld(0, 0, 0); board.position.set(w[0], w[1], w[2]); board.rotation.set(-CART.a, 0, 0); }
 function labCartStep(dt) { if (LABCART.hit) CART.step(dt); labCartPlace(); }
 function labDent(v) { // crumple the front of the basket: deeper, wider and higher the faster it hit
@@ -3291,8 +3295,8 @@ const OBST = {
     glass: { key: 'carg', yoff: 0.75, cart: [[-0.1, 1.05, 0.8]] },
     dent: { parts: ['car', 'carg'], k: 0.02, min: 0.05, max: 0.95, cx: -0.1, cy: -0.2, sx: 0.95, sy: 0.45, z0: 0.0, z1: 0.9, shiftN: 5, mask: (x, y, z) => z > 0.05 && Math.abs(x) < 2.3 && !(Math.abs(x) > 1.0 && z > 0.55 && y < -0.05) },
     layout() { return [{ t: 'car', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }, { t: 'carg', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
-  tires: { absorb: 600, hard: 6, fx: 'splash', name: 'TIRE STACK', r: 0.35, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.35 })), h: 1.8, bend: 3, knock: 11, tumble: 40, solid: false, kick: 0.55, lift: 0.9, sound: 'tires', pop: 'TIRES EVERYWHERE!',
-    layout() { const b = []; for (let p = 0; p < 3; p++) for (let i = 0; i < 8; i++) b.push({ t: 'tire', x: (p - 1) * 0.7 + rand(-0.015, 0.015), y: 0.11 + i * 0.22, z: rand(-0.015, 0.015), sx: 1, sy: 1, sz: 1, ry: rand(0, 6), col: 0xffffff - Math.floor(rand(0, 6)) * 0x080808 }); return b; } },
+  tires: { absorb: 600, hard: 6, fx: 'splash', name: 'TIRE STACK', r: 0.35, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.35 })), h: 1.9, bend: 3, knock: 11, tumble: 40, solid: false, kick: 0.55, lift: 0.9, sound: 'tires', pop: 'TIRES EVERYWHERE!',
+    layout() { const b = []; for (let p = 0; p < 3; p++) for (let i = 0; i < 8; i++) b.push({ t: 'tire', x: (p - 1) * 0.7 + rand(-0.015, 0.015), y: 0.12 + i * 0.235, z: rand(-0.015, 0.015), sx: 1, sy: 1, sz: 1, ry: rand(0, 6), col: 0xffffff - Math.floor(rand(0, 6)) * 0x080808 }); return b; } },
   boxes: { absorb: 40, hard: 99, fx: 'paper', name: 'CARDBOARD BOXES', r: 0.3, cyls: [-0.9, -0.3, 0.3, 0.9].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 2, knock: 4, tumble: 60, solid: false, kick: 0.85, lift: 1, sound: 'box', pop: 'BOXES EVERYWHERE!',
     layout() { const b = []; for (let row = 0; row < 3; row++) for (let i = 0; i < 4; i++) b.push({ t: 'box', x: (i - 1.5) * 0.6 + rand(-0.02, 0.02), y: 0.29 + row * 0.59, z: rand(-0.02, 0.02), sx: 0.58, sy: 0.57, sz: 0.58, ry: rand(-0.08, 0.08), col: 0xc99a62 + Math.floor(rand(0, 5)) * 0x040302 }); b.push({ t: 'box', x: -0.3, y: 2.06, z: 0, sx: 0.5, sy: 0.4, sz: 0.5, ry: 0.2, col: 0xd2a56c }, { t: 'box', x: 0.35, y: 2.0, z: 0, sx: 0.4, sy: 0.3, sz: 0.4, ry: -0.3, col: 0xb98c58 }); return b; } },
   melons: { absorb: 70, hard: 14, fx: 'juice', name: 'WATERMELONS', r: 0.25, cyls: [-0.4, 0, 0.4].map(dx => ({ dx, r: 0.25 })), h: 1.0, bend: 2, knock: 5, tumble: 50, solid: false, kick: 0.8, lift: 1.2, sound: 'melon', pop: 'WATERMELON SPLAT!', splash: [[3, 0.2, 0.3], [2.4, 0.5, 0.35], [0.4, 1.4, 0.4]],
@@ -3300,7 +3304,7 @@ const OBST = {
   barrels: { absorb: 420, hard: 7, fx: 'splash', name: 'BARREL WALL', r: 0.3, cyls: [-0.93, -0.31, 0.31, 0.93].map(dx => ({ dx, r: 0.3 })), h: 3.6, bend: 8, knock: 22, tumble: 18, solid: false, kick: 0.7, lift: 0.8, sound: 'barrel', pop: 'BARRELS DOWN!',
     layout() { const b = []; for (let row = 0; row < 4; row++) { const n = row % 2 ? 3 : 4; for (let i = 0; i < n; i++) b.push({ t: 'barrel' + Math.floor(rand(0, 4)), x: (i - (n - 1) / 2) * 0.62, y: 0.45 + row * 0.9, z: 0, sx: 0.58, sy: 0.9, sz: 0.58, ry: rand(-0.35, 0.35), col: 0xffffff }); } return b; } },
   bricks: { absorb: 800, hard: 4.2, fx: 'dust', name: 'BRICK WALL', r: 0.14, cyls: [-1, -0.5, 0, 0.5, 1].map(dx => ({ dx, r: 0.14 })), h: 1.6, bend: 12, knock: 50, tumble: 12, solid: true, kick: 0.5, lift: 0.8, sound: 'brick', pop: 'THE WALL FALLS!',
-    layout() { const b = []; for (let row = 0; row < 8; row++) { const odd = row % 2; const xs = odd ? [-1.125, -0.75, -0.25, 0.25, 0.75, 1.125] : [-1, -0.5, 0, 0.5, 1]; for (const x of xs) { const half = odd && Math.abs(x) > 1; b.push({ t: 'brick', x: half ? Math.sign(x) * 1.125 : x, y: 0.1 + row * 0.2, z: 0, sx: half ? 0.25 : 0.5, sy: 0.2, sz: 0.25, ry: 0, col: 0xffffff - Math.floor(rand(0, 8)) * 0x0a0a0a }); } } return b; } },
+    layout() { const b = []; for (let row = 0; row < 8; row++) { const odd = row % 2; const xs = odd ? [-1.125, -0.75, -0.25, 0.25, 0.75, 1.125] : [-1, -0.5, 0, 0.5, 1]; for (const x of xs) { const half = odd && Math.abs(x) > 1; b.push({ t: 'brick' + Math.floor(rand(0, 4)), x: half ? Math.sign(x) * 1.125 : x, y: 0.1 + row * 0.2, z: 0, sx: half ? 0.25 : 0.5, sy: 0.2, sz: 0.25, ry: 0, col: 0xffffff - Math.floor(rand(0, 8)) * 0x0a0a0a }); } } return b; } },
   barrier: { absorb: 0, hard: 3.8, fx: 'dust', name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, solidMax: 55, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
     layout() { return [{ t: 'barrier', x: 0, y: 0, z: 0, sx: 2.2, sy: 1, sz: 1, ry: 0, col: 0xb9b9b3 }]; } },
   pins: { absorb: 12, hard: 99, fx: 'none', name: 'BOWLING PINS', r: 0.15, cyls: [{ dx: 0, r: 0.15 }], h: 0.6, bend: 1, knock: 2.5, tumble: 80, solid: false, kick: 1.0, lift: 1.4, sound: 'pins', pop: 'STRIKE!',
@@ -3489,27 +3493,62 @@ function obxBarrelKit(k) { const V = OBX_BAR[k], body = new THREE.LatheGeometry(
   let geo = null; try { geo = mergeGeometries([body.toNonIndexed(), plug(0.2, 0.12).toNonIndexed(), plug(-0.14, -0.2).toNonIndexed()]); } catch (e) { geo = null; } if (!geo) geo = body;
   const map = tex(512, 512, (g, w, h) => obxDrawBarrel(g, w, h, V)); map.wrapS = THREE.RepeatWrapping; map.offset.set(0.5, 0); /* the name sits at the front (+z) */
   return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.5, metalness: 0.45, envMap: (() => { try { return labEnv(); } catch (e) { return null; } })(), envMapIntensity: 0.6 }), fl: 0.29 }; }
+function obxTireProfile() { /* a real tyre section: bead, flared sidewall, shoulder, a tread with two grooves; returns the points and the fractions (along the surface) where each region starts */
+  const lo = [[0.19, -0.115], [0.205, -0.12], [0.235, -0.12], [0.262, -0.113], [0.292, -0.104], [0.32, -0.094], [0.338, -0.082], [0.35, -0.066], [0.355, -0.05], [0.357, -0.044]], mid = [[0.357, -0.038], [0.347, -0.034], [0.347, -0.023], [0.357, -0.019], [0.357, 0.019], [0.347, 0.023], [0.347, 0.034], [0.357, 0.038]],
+    up = lo.map(([r, y]) => [r, -y]).reverse(), pts = lo.concat(mid, up, [[0.19, 0.04], [0.19, -0.04], [0.19, -0.115]]), L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const v = L.map(l => l / L[L.length - 1]); return { pts, v, lowSide: [v[3], v[8]], tread: [v[9], v[10 + mid.length]], upSide: [v[10 + mid.length + 1], v[10 + mid.length + 6]] }; }
+function obxDrawTire(g, w, h, T, bump) { /* the tyre skin: dusty rubber, embossed lettering round both sidewalls, tread slits; bump = the height map (letters raised, grooves low) */
+  const bg = bump ? '#808080' : '#1d1d1f'; g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < (bump ? 1800 : 1400); i++) { const r = Math.random(); g.fillStyle = bump ? 'rgba(' + (r < 0.5 ? '40,40,40' : '210,210,210') + ',0.18)' : 'rgba(' + (r < 0.45 ? '75,75,78' : r < 0.8 ? '0,0,0' : '120,112,100') + ',0.2)'; g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 4, 1 + Math.random() * 2); }
+  const Y = v => (1 - v) * h; const band = (a, b) => [Y(b), Y(a)];
+  // tread: slanted slits across the ribs, worn lighter on top
+  { const [y0, y1] = band(T.tread[0], T.tread[1]); for (let x = 0; x < w; x += 13) { g.strokeStyle = bump ? 'rgba(20,20,20,0.9)' : 'rgba(0,0,0,0.85)'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x, y0 + 2); g.lineTo(x + 7, y1 - 2); g.stroke(); } if (!bump) { g.fillStyle = 'rgba(150,140,125,0.12)'; g.fillRect(0, y0, w, y1 - y0); } }
+  // sidewall lettering (embossed): once on the upper wall, once on the lower one; concentric ribs near the shoulder
+  for (const [a, b, flip] of [[T.upSide[0], T.upSide[1], 0], [T.lowSide[0], T.lowSide[1], 1]]) { const [y0, y1] = band(Math.min(a, b), Math.max(a, b)), cy = (y0 + y1) / 2;
+    g.fillStyle = bump ? '#c8c8c8' : '#4a4a4e'; g.strokeStyle = g.fillStyle; g.lineWidth = 2; g.beginPath(); g.moveTo(0, y0 + 6); g.lineTo(w, y0 + 6); g.moveTo(0, y1 - 6); g.lineTo(w, y1 - 6); g.stroke();
+    g.textBaseline = 'middle'; g.font = '800 36px "Arial Black", Impact, sans-serif'; g.fillText('GOODRIDE', w * 0.08 + flip * w * 0.5, cy - 8); g.font = '700 22px Arial, sans-serif'; g.fillText('205/55 R16  91H', w * 0.08 + flip * w * 0.5, cy + 17);
+    g.font = '700 20px Arial, sans-serif'; g.fillText('TUBELESS  RADIAL', w * 0.46 + flip * w * 0.5 - (flip ? w : 0), cy - 4); if (!bump && !flip) { g.fillStyle = '#d8c64a'; g.beginPath(); g.arc(w * 0.7, cy, 9, 0, 6.283); g.fill(); } }
+  // the bead and the inner liner are plain black rubber
+  if (!bump) { const [y0, y1] = band(0, T.lowSide[0]); g.fillStyle = 'rgba(8,8,8,0.55)'; g.fillRect(0, y0, w, y1 - y0); const [z0, z1] = band(T.upSide[1], 1); g.fillRect(0, z0, w, z1 - z0); } }
+function obxTireKit() { const T = obxTireProfile(), geo = new THREE.LatheGeometry(T.pts.map(([r, y]) => new THREE.Vector2(r, y)), 44), uv = geo.attributes.uv, n = T.pts.length;
+  for (let i = 0; i < uv.count; i++) uv.setY(i, T.v[Math.min(n - 1, Math.round(uv.getY(i) * (n - 1)))]);
+  const map = tex(1024, 512, (g, w, h) => obxDrawTire(g, w, h, T, false)), bumpMap = tex(1024, 512, (g, w, h) => obxDrawTire(g, w, h, T, true));
+  return { geo, mat: new THREE.MeshStandardMaterial({ map, bumpMap, bumpScale: 3, roughness: 0.88, metalness: 0, side: THREE.DoubleSide }), fl: 0.12 }; }
+const OBX_BRICKS = [['#c65c41', '#a74430'], ['#b3503a', '#8f3a2a'], ['#d27a55', '#b85f3e'], ['#9a4030', '#7d3224']];
+function obxBrickDraw(g, w, h, C, bump) { /* a brick face with a recessed mortar joint all round: the bump map sinks the joint, the colour map stains it */
+  const m = 7, x0 = m, y0 = m, bw = w - 2 * m, bh = h - 2 * m;
+  if (bump) { g.fillStyle = '#303030'; g.fillRect(0, 0, w, h); g.fillStyle = '#9a9a9a'; g.fillRect(x0, y0, bw, bh); for (let i = 0; i < 700; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '40,40,40' : '230,230,230') + ',0.3)'; g.fillRect(x0 + Math.random() * bw, y0 + Math.random() * bh, 1 + Math.random() * 3, 1 + Math.random() * 2); }
+    for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(20,20,20,0.7)'; g.beginPath(); g.ellipse(x0 + 10 + Math.random() * (bw - 20), y0 + 8 + Math.random() * (bh - 16), 2 + Math.random() * 3, 1.5 + Math.random() * 2, 0, 0, 6.283); g.fill(); } return; }
+  g.fillStyle = '#c9c2b4'; g.fillRect(0, 0, w, h); for (let i = 0; i < 500; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '120,112,98' : '235,228,214') + ',0.35)'; g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2); }
+  const gr = g.createLinearGradient(0, y0, 0, y0 + bh); gr.addColorStop(0, C[0]); gr.addColorStop(1, C[1]); g.fillStyle = gr; g.fillRect(x0, y0, bw, bh);
+  for (let i = 0; i < 1300; i++) { const r = Math.random(); g.fillStyle = r < 0.34 ? 'rgba(58,20,12,0.24)' : r < 0.68 ? 'rgba(238,156,112,0.17)' : 'rgba(30,10,6,0.15)'; g.fillRect(x0 + Math.random() * bw, y0 + Math.random() * bh, 1 + Math.random() * 3, 1 + Math.random() * 2); }
+  for (let i = 0; i < 4; i++) { const cx = x0 + Math.random() * bw, cy = y0 + Math.random() * bh, rg = g.createRadialGradient(cx, cy, 1, cx, cy, 14 + Math.random() * 18); rg.addColorStop(0, 'rgba(70,20,10,0.28)'); rg.addColorStop(1, 'rgba(70,20,10,0)'); g.fillStyle = rg; g.fillRect(x0, y0, bw, bh); }
+  for (let i = 0; i < 2; i++) { g.fillStyle = 'rgba(235,232,222,0.14)'; g.fillRect(x0 + Math.random() * bw * 0.7, y0, 4 + Math.random() * 14, bh * (0.2 + Math.random() * 0.5)); }
+  for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(40,12,6,0.45)'; g.beginPath(); g.ellipse(x0 + 10 + Math.random() * (bw - 20), y0 + 8 + Math.random() * (bh - 16), 1.5 + Math.random() * 3, 1 + Math.random() * 2, 0, 0, 6.283); g.fill(); }
+  const eg = (xa, ya, xb, yb, rx, ry, rw, rh) => { const e = g.createLinearGradient(xa, ya, xb, yb); e.addColorStop(0, 'rgba(30,8,4,0.5)'); e.addColorStop(1, 'rgba(30,8,4,0)'); g.fillStyle = e; g.fillRect(rx, ry, rw, rh); };
+  eg(0, y0, 0, y0 + 9, x0, y0, bw, 9); eg(0, y0 + bh, 0, y0 + bh - 9, x0, y0 + bh - 9, bw, 9); eg(x0, 0, x0 + 9, 0, x0, y0, 9, bh); eg(x0 + bw, 0, x0 + bw - 9, 0, x0 + bw - 9, y0, 9, bh);
+  for (let i = 0; i < 3; i++) { g.fillStyle = '#c9c2b4'; const cx = Math.random() < 0.5 ? x0 : x0 + bw, cy = Math.random() < 0.5 ? y0 : y0 + bh; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + (cx === x0 ? 1 : -1) * (6 + Math.random() * 8), cy); g.lineTo(cx, cy + (cy === y0 ? 1 : -1) * (5 + Math.random() * 6)); g.fill(); } }
+function obxBrickKit(k) { const C = OBX_BRICKS[k], map = tex(256, 128, (g, w, h) => obxBrickDraw(g, w, h, C, false)), bumpMap = tex(256, 128, (g, w, h) => obxBrickDraw(g, w, h, C, true));
+  return { geo: new RoundedBoxGeometry(1, 1, 1, 2, 0.035), mat: new THREE.MeshStandardMaterial({ map, bumpMap, bumpScale: 2.2, roughness: 0.93, color: 0xffffff }), fl: 0.1 }; }
 function OBX_MERGE(parts, fb) { /* if the parts cannot be merged the obstacle is still there, as a plain block, and the game does not stop */ let g = null; try { g = mergeGeometries(parts); } catch (e) { g = null; } return g || fb; }
 const OBS_KIT = {
   truck: () => ({ geo: OBX_MERGE(obxModel('truck').body, new THREE.BoxGeometry(2.5, 3, 7).translate(0, 1.5, -3.4)), mat: obxMat(0.6, 0.28), fl: 0.5 }),
   truckg: () => obxGlassKit(obxModel('truck'), new THREE.BoxGeometry(0.1, 0.1, 0.1), 0),
   car: () => { const geo = OBX_MERGE(obxModel('car').body, new THREE.BoxGeometry(4.5, 1.5, 1.8).translate(0, 0.75, 0)); geo.translate(0, -0.75, 0); return { geo, mat: obxMat(0.22, 0.55), fl: 0.45 }; },
   carg: () => obxGlassKit(obxModel('car'), new THREE.BoxGeometry(0.1, 0.1, 0.1), 0.75),
-  tire: () => { const prof = [[0.2, -0.11], [0.26, -0.11], [0.32, -0.1], [0.35, -0.07], [0.355, 0], [0.35, 0.07], [0.32, 0.1], [0.26, 0.11], [0.2, 0.11], [0.19, 0], [0.2, -0.11]].map(([r, y]) => new THREE.Vector2(r, y)), geo = new THREE.LatheGeometry(prof, 28),
-      map = tex(128, 128, (g, w, h) => { g.fillStyle = '#1c1c1c'; g.fillRect(0, 0, w, h); for (let i = 0; i < 500; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '70,70,70' : '0,0,0') + ',0.25)'; g.fillRect(Math.random() * w, Math.random() * h, 3, 2); } g.fillStyle = '#0c0c0c'; for (let x = 0; x < w; x += 8) g.fillRect(x, h * 0.3, 4, h * 0.4); g.fillStyle = 'rgba(200,200,200,0.55)'; g.fillRect(0, h * 0.14, w * 0.5, 3); });
-    return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.92, metalness: 0.0, side: THREE.DoubleSide }), fl: 0.11 }; },
+  tire: () => obxTireKit(),
   box: () => { const map = tex(256, 256, (g, w, h) => { g.fillStyle = '#c99a62'; g.fillRect(0, 0, w, h); for (let i = 0; i < 400; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '120,80,40' : '255,230,180') + ',0.08)'; g.fillRect(Math.random() * w, Math.random() * h, 22, 1); } g.fillStyle = 'rgba(214,190,130,0.85)'; g.fillRect(0, h * 0.46, w, h * 0.08); g.fillStyle = 'rgba(60,40,20,0.7)'; g.font = '700 22px Arial'; g.fillText('FRAGILE', 18, 44); g.fillRect(w - 80, h - 70, 56, 40); g.strokeStyle = 'rgba(80,50,20,0.6)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); }); return { geo: new RoundedBoxGeometry(1, 1, 1, 2, 0.03), mat: new THREE.MeshStandardMaterial({ map, roughness: 0.9 }), fl: 0.22 }; },
   melon: () => { const map = tex(128, 128, (g, w, h) => { g.fillStyle = '#4a9a47'; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 12) { g.fillStyle = 'rgba(20,70,25,0.55)'; g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + 8, h * 0.3, x - 6, h * 0.6, x + 4, h); g.lineTo(x + 9, h); g.bezierCurveTo(x, h * 0.6, x + 14, h * 0.3, x + 6, 0); g.fill(); } }); return { geo: new THREE.SphereGeometry(0.5, 16, 12), mat: new THREE.MeshStandardMaterial({ map, roughness: 0.4, metalness: 0.05 }), fl: 0.19 }; },
   barrel: () => { const pts = []; const prof = [[0, -0.5], [0.46, -0.5], [0.5, -0.46], [0.5, -0.38], [0.46, -0.34], [0.5, -0.3], [0.5, -0.02], [0.46, 0.02], [0.5, 0.06], [0.5, 0.3], [0.46, 0.34], [0.5, 0.38], [0.5, 0.46], [0.46, 0.5], [0, 0.5]]; for (const [r, y] of prof) pts.push(new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 24); return { geo, mat: new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.55, color: 0xffffff, envMap: (() => { try { return labEnv(); } catch (e) { return null; } })(), envMapIntensity: 0.7 }), fl: 0.29 }; },
   barrel0: () => obxBarrelKit(0), barrel1: () => obxBarrelKit(1), barrel2: () => obxBarrelKit(2), barrel3: () => obxBarrelKit(3),
-  brick: () => { const map = obxBrickTex(); return { geo: new RoundedBoxGeometry(1, 1, 1, 1, 0.03), mat: new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: 1.4, roughness: 0.92, color: 0xffffff }), fl: 0.1 }; },
+  brick0: () => obxBrickKit(0), brick1: () => obxBrickKit(1), brick2: () => obxBrickKit(2), brick3: () => obxBrickKit(3),
   barrier: () => { const sh = new THREE.Shape(); sh.moveTo(-0.25, 0); sh.lineTo(0.25, 0); sh.lineTo(0.25, 0.1); sh.lineTo(0.12, 0.45); sh.lineTo(0.08, 0.8); sh.lineTo(-0.08, 0.8); sh.lineTo(-0.12, 0.45); sh.lineTo(-0.25, 0.1); sh.closePath(); const ge = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false }); ge.translate(0, 0, -0.5); ge.rotateY(Math.PI / 2); const map = tex(256, 160, (c, w, h) => CAN_DRAW.concrete(c, w, h)); map.wrapS = map.wrapT = THREE.RepeatWrapping; map.repeat.set(1.5, 1); return { geo: ge, mat: new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: 1.2, roughness: 0.9 }), fl: 0.25 }; },
   pin: () => { const pts = [[0, 0], [0.17, 0], [0.2, 0.03], [0.31, 0.2], [0.35, 0.34], [0.3, 0.52], [0.2, 0.64], [0.15, 0.74], [0.17, 0.82], [0.2, 0.9], [0.17, 0.97], [0, 1]].map(([r, y]) => new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 18); const map = tex(16, 128, (g, w, h) => { g.fillStyle = '#f7f7f4'; g.fillRect(0, 0, w, h); g.fillStyle = '#c1272d'; g.fillRect(0, h * 0.53, w, h * 0.06); g.fillRect(0, h * 0.66, w, h * 0.06); }); return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.15, metalness: 0.0 }), fl: 0.1 }; },
 };
 function obsBuild(id) {
   if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
   for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
-  for (const t in by) { const tk = /^barrel\d$/.test(t) ? 'barrel' : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass' }[tk]; set.dragK = { box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02 }[tk]; set.bnc = { box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15 }[tk]; if (t === 'truckg' || t === 'carg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
+  for (const t in by) { const tk = /^(barrel|brick)\d$/.test(t) ? t.slice(0, -1) : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass' }[tk]; set.dragK = { box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02 }[tk]; set.bnc = { box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15 }[tk]; if (t === 'truckg' || t === 'carg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
   return (OBX.built[id] = out);
 }
 function obsPlace(id) { // every block back in its place, still
@@ -3574,10 +3613,10 @@ function obsStep(dt) { obsRockStep(dt); if (OBX.frag) OBX.frag.step(dt); if (OBX
 function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds, gives, or is destroyed
   const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], st = v >= sp.knock ? 2 : v >= sp.bend ? 1 : 0, p = clamp((v - sp.bend) / Math.max(1, sp.knock - sp.bend) * 0.8 + 0.2, 0.2, 0.95); if (!o) return;
   obsFx(sp, v, st);
-  const go = o.blocks.map(() => st !== 0 && !(st === 1 && Math.random() > p && o.blocks.length > 1)), drop = [], stack = b => b.t === 'brick' || /^barrel\d$/.test(b.t);
+  const go = o.blocks.map(() => st !== 0 && !(st === 1 && Math.random() > p && o.blocks.length > 1)), drop = [], stack = b => /^(brick|barrel)\d$/.test(b.t);
   if (st === 1) { const order = o.blocks.map((b, i) => i).sort((a, b) => o.blocks[a].y - o.blocks[b].y); // bottom up: a brick or a barrel whose support was thrown away drops instead of hanging in the air
     for (const i of order) { const b = o.blocks[i]; if (go[i] || !stack(b) || b.y - b.sy / 2 < 0.06) continue; let ok = false; for (let j = 0; j < o.blocks.length && !ok; j++) { const r = o.blocks[j]; if (go[j] || j === i || !stack(r)) continue; const dy = b.y - r.y; if (dy > 0.02 && dy < Math.max(b.sy, r.sy) * 1.35 && Math.abs(b.x - r.x) < (b.sx + r.sx) * 0.45) ok = true; } if (!ok) { go[i] = true; drop[i] = true; } } }
-  const brickWall = o.blocks.length > 0 && o.blocks[0].t === 'brick', grp = [], G = [];
+  const brickWall = o.blocks.length > 0 && /^brick\d$/.test(o.blocks[0].t), grp = [], G = [];
   if (brickWall) { // a wall breaks in chunks: neighbours that were laid together fly together
     const ord = o.blocks.map((b, i) => i).filter(i => go[i] && !drop[i]).sort((a, b) => (o.blocks[a].y - o.blocks[b].y) || (o.blocks[a].x - o.blocks[b].x));
     for (const i of ord) { if (grp[i] !== undefined) continue; const sz = [1, 1, 2, 3, 4, 6][Math.floor(Math.random() * 6)], id = G.length, base = o.blocks[i]; grp[i] = id; let n = 1;
@@ -3956,8 +3995,8 @@ const LAB_INFO = {
 if (Array.isArray(L.machines) && !L.machines.includes('press') && !L.machines.every(m => m === 'bollard')) L.machines.push('press'); // the press joins the stand lab
 if (Array.isArray(L.machines) && L.machines.length && L.machines.every(m => m === 'bollard') && !L.machines.includes('cannon')) { L.machines.push('cannon'); L.machines.push('stairs'); } // the wall cannon and the stairs join the cart hall
 if (Array.isArray(L.machines) && L.machines.includes('bollard') && !L.machines.includes('tub') && VEH === 'cart') L.machines.splice(L.machines.indexOf('bollard') + 1, 0, 'tub', 'mix'); // and so do the bathtub and the pick-anything mode
-const LAB = { machine: (L.machines || ['fart']).find(m => m !== 'bollard' && m !== 'tub') || 'mix', level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
-try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m] && sv.m !== 'bollard' && sv.m !== 'tub') LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press' || LAB.machine === 'cannon') LAB.level = Math.min(LAB.level, 5); if (LAB.machine === 'stairs') LAB.level = Math.min(LAB.level, 3); } catch (e) {} // (3 = the number of stair levels; the table is defined further down)
+const LAB = { machine: (L.machines || ['fart']).find(m => m !== 'bollard' && m !== 'tub' && m !== 'stairs') || 'mix', level: 1, phase: 'idle', t: 0, h: 0, v: 0, spin: 0, lost: 0, text: '', pending: 0, exploded: false };
+try { const sv = JSON.parse(localStorage.getItem('daggie-lab') || '{}'); if (LAB_INFO[sv.m] && sv.m !== 'bollard' && sv.m !== 'tub' && sv.m !== 'stairs') LAB.machine = sv.m; if (sv.l >= 1 && sv.l <= 100) LAB.level = sv.l; if (LAB.machine === 'bollard') LAB.level = Math.min(LAB.level, LAB_SPEEDS.length); if (LAB.machine === 'press' || LAB.machine === 'cannon') LAB.level = Math.min(LAB.level, 5); if (LAB.machine === 'stairs') LAB.level = Math.min(LAB.level, 3); } catch (e) {} // (3 = the number of stair levels; the table is defined further down)
 const REST_Y = STAND_H - BOARD_TOP, HEAD_TOP = STAND_H + 2.15;
 let LAB_YAW = 0, labBuilt = false, LEG = null;
 const GAS = [];
@@ -4277,7 +4316,7 @@ function buildLabUI() {
   p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div>';
   stage.appendChild(p);
   const chips = $('labChips');
-  for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
+  for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub' || m === 'stairs') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
   for (const b of p.querySelectorAll('.sm')) { if (Math.abs(Number(b.dataset.d)) === 10) b.style.display = 'none'; b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, LAB_MAX()); labSave(); labUI(); }; }
   $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, LAB_MAX()); labSave(); labUI(); };
   $('labGo').onclick = () => { initAudio(); labStart(); };
@@ -4316,7 +4355,7 @@ function labReset() {
 }
 function labStart() {
   resetRun(); // fresh Daggie on the stand
-  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; labBars(false);
+  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
@@ -5197,7 +5236,7 @@ function labStep(dt, now) {
     if (state === 'ride' && (P === 'roll' || P === 'crash')) labRec(dt);
     if (LAB_STREAKS) LAB_STREAKS.visible = P === 'roll' && state === 'ride' && LABCART.v >= 22.3; // 50 mph and up
     if (P === 'replay') { labDmg(true, LAB.dist || 0, 'DISTANCE', ' FT', 0); labReplayStep(dt, now); return; }
-    if (P === 'roll' && state === 'ride') { if (CART.pw[1] - BOLLARD_Z < 7 && faceMode !== 'scared') setFace('scared', 5000); if (CART.step(dt)) labImpact(); labCartPlace(); for (const w of wheels) w.rotation.x -= LABCART.v / WHEEL_R * dt; if (LABCART.hit) { LAB.phase = 'crash'; LAB.t = 0; } }
+    if (P === 'roll' && state === 'ride') { if (CART.pw[1] - BOLLARD_Z < 7 && faceMode !== 'scared') setFace('scared', 5000); if (CART.step(dt)) labImpact(); labCartPlace(); labWeave(dt); for (const w of wheels) w.rotation.x -= LABCART.v / WHEEL_R * dt; if (LABCART.hit) { LAB.phase = 'crash'; LAB.t = 0; } }
     else if (P === 'crash' && RAGSIM) { ragSimStep(dt); cartDebrisStep(dt); labDmg(true, LAB.dist = labDist(), 'DISTANCE', ' FT', 0); const k = RAGSIM.I.pel * 3, L2 = LABCART.box.toLocal(RAGSIM.core.x[k], RAGSIM.core.x[k + 1], RAGSIM.core.x[k + 2]); RAGSIM.maxY = Math.max(RAGSIM.maxY || 0, L2[1]); if (RAGSIM.t > 3.4 && (RAGSIM.t > 8 || labDebrisSettled())) { const txt = labBollardOutcome(); lastPop = 0; pop(txt.startsWith('stayed') ? 'HE STAYED IN!' : txt.startsWith('flew out but') ? 'HANGING ON!' : txt.startsWith('almost') ? 'SO CLOSE!' : 'YEETED!', 'green'); LAB.outTxt = txt; labReplayStart(); } }
     else if (P === 'done' && RAGSIM) { ragSimStep(dt); cartDebrisStep(dt); }
     return;
@@ -5302,6 +5341,7 @@ function labDone() {
   $('labRes').innerHTML = '';
   const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
   $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (labBol() && LAB.dist ? ' · FLEW ' + Math.round(LAB.dist).toLocaleString('en-US') + ' FT' : '')));
+  if (labBol()) labReset(); // the wreck is cleared: vehicle and obstacle stand at the start, the camera is back
   $('labPanel').hidden = false; labUI();
   lastPop = 0; pop(survived ? 'SURVIVED!' : lost >= 15 ? 'DESTROYED!' : 'DAMAGED!', survived ? 'green' : 'lilac');
 }
