@@ -31,7 +31,7 @@ const setLoad = (p, txt) => { $('loadBar').style.width = Math.round(p * 100) + '
 
 // ---------- renderer ----------
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-const PR = Math.min(2, window.devicePixelRatio || 1);
+const PR_MAX = Math.min(3, window.devicePixelRatio || 1); let PR = PR_MAX;
 renderer.setPixelRatio(PR);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.74;
@@ -48,6 +48,24 @@ const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, sat: { val
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: 'uniform sampler2D tDiffuse; uniform float sat, con, bri, curve, vig; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); vec3 col = mix(vec3(l), c.rgb, sat); float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b)); col = mix(vec3(dot(col, vec3(0.333))), col, 1.0 + 0.25 * (1.0 - (mx - mn))); col = (col - 0.5) * con + 0.5 + bri; vec3 cc = clamp(col, 0.0, 1.0); col = mix(col, cc * cc * (3.0 - 2.0 * cc), curve); col *= 1.0 - vig * smoothstep(0.38, 0.9, distance(vUv, vec2(0.5))); gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a); }' });
 composer.addPass(grade);
+
+// a sharper picture everywhere (this is what survives YouTube's compression): edge anti-aliasing (the post-processing chain has none of its own) and a light sharpen
+const FXAA_FRAG = ['uniform sampler2D tDiffuse; uniform vec2 px; varying vec2 vUv;',
+  'void main(){ vec3 luma = vec3(0.299, 0.587, 0.114);',
+  ' vec3 nw = texture2D(tDiffuse, vUv + vec2(-1.0, -1.0) * px).xyz; vec3 ne = texture2D(tDiffuse, vUv + vec2(1.0, -1.0) * px).xyz; vec3 sw = texture2D(tDiffuse, vUv + vec2(-1.0, 1.0) * px).xyz; vec3 se = texture2D(tDiffuse, vUv + vec2(1.0, 1.0) * px).xyz; vec3 m = texture2D(tDiffuse, vUv).xyz;',
+  ' float lNW = dot(nw, luma), lNE = dot(ne, luma), lSW = dot(sw, luma), lSE = dot(se, luma), lM = dot(m, luma);',
+  ' float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE))), lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));',
+  ' vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));',
+  ' float dirReduce = max((lNW + lNE + lSW + lSE) * (0.25 * (1.0 / 8.0)), 1.0 / 128.0);',
+  ' float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);',
+  ' dir = min(vec2(8.0), max(vec2(-8.0), dir * rcp)) * px;',
+  ' vec3 a = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).xyz + texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).xyz);',
+  ' vec3 b = a * 0.5 + 0.25 * (texture2D(tDiffuse, vUv + dir * -0.5).xyz + texture2D(tDiffuse, vUv + dir * 0.5).xyz);',
+  ' float lB = dot(b, luma); vec3 col = (lB < lMin || lB > lMax) ? a : b;',
+  ' vec3 blur = 0.25 * (texture2D(tDiffuse, vUv + vec2(px.x, 0.0)).xyz + texture2D(tDiffuse, vUv - vec2(px.x, 0.0)).xyz + texture2D(tDiffuse, vUv + vec2(0.0, px.y)).xyz + texture2D(tDiffuse, vUv - vec2(0.0, px.y)).xyz);',
+  ' col = clamp(col + (col - blur) * 0.32, 0.0, 1.0); gl_FragColor = vec4(col, 1.0); }'].join('\n');
+const fxaa = new ShaderPass({ uniforms: { tDiffuse: { value: null }, px: { value: new THREE.Vector2(1 / 800, 1 / 1600) } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: FXAA_FRAG });
+composer.addPass(fxaa);
 const LAB0 = MODE === 'lab'; if (LAB0) { grade.uniforms.sat.value = 1.42; grade.uniforms.con.value = 1.04; grade.uniforms.bri.value = -0.01; grade.uniforms.curve.value = 0.65; grade.uniforms.vig.value = 0.4; renderer.toneMappingExposure = 0.58; }
 // "Rec mode" (for iPhone screen recording): punchier picture, no UI while riding, lighter shadows for smoothness
 let REC_MODE = false; try { REC_MODE = localStorage.getItem('daggie-recmode') === '1'; } catch (e) {}
@@ -56,7 +74,7 @@ const GSAT = () => LAB_LOOK ? (REC_MODE ? 1.5 : 1.42) : REC_MODE ? 1.6 : 1.32;
 function applyRecMode() {
   grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = LAB_LOOK ? 1.04 : REC_MODE ? 1.18 : 1.12; grade.uniforms.bri.value = LAB_LOOK ? -0.01 : REC_MODE ? 0.03 : 0.01; grade.uniforms.curve.value = LAB_LOOK ? 0.65 : 0; grade.uniforms.vig.value = LAB_LOOK ? 0.4 : 0;
   renderer.toneMappingExposure = LAB_LOOK ? (REC_MODE ? 0.62 : 0.58) : REC_MODE ? 0.9 : 0.74;
-  const ms = REC_MODE ? 1024 : 2048;
+  const ms = 2048;
   if (typeof sunLight !== 'undefined' && sunLight.shadow.mapSize.x !== ms) { sunLight.shadow.mapSize.set(ms, ms); if (sunLight.shadow.map) { sunLight.shadow.map.dispose(); sunLight.shadow.map = null; } }
   document.getElementById('stage').classList.toggle('recmode', REC_MODE);
   if (typeof resize === 'function' && typeof camera !== 'undefined') try { resize(); } catch (e) {}
@@ -64,7 +82,7 @@ function applyRecMode() {
 function tex(w, h, draw, repeat) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16;
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
   return t;
 }
@@ -2672,12 +2690,17 @@ function camTargets(now, dt) {
   return 3;
 }
 function baseFov() { return stage.clientWidth / stage.clientHeight < 0.8 ? 72 : 58; }
+const ADAPT = { ema: 16.7, low: 0, t0: performance.now() };
+function adaptRes(dt, now) { // the picture starts at the phone's full native resolution; if the frame rate sags for a while it steps down a notch (never back up, so it does not flicker)
+  if (now - ADAPT.t0 < 6000) return; ADAPT.ema += (dt * 1000 - ADAPT.ema) * 0.05;
+  if (ADAPT.ema > 21 && PR > 1.5) { ADAPT.low += dt; if (ADAPT.low > 1.5) { PR = Math.max(1.5, PR - 0.25); ADAPT.low = 0; ADAPT.ema = 16.7; try { resize(); } catch (e) {} } } else ADAPT.low = 0;
+}
 function resize() {
   const W = stage.clientWidth, H = stage.clientHeight;
   let w = W, h = H;
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   canvas.style.left = Math.round((W - w) / 2) + 'px'; canvas.style.top = Math.round((H - h) / 2) + 'px';
-  renderer.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h);
+  renderer.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h); fxaa.uniforms.px.value.set(1 / (w * PR), 1 / (h * PR));
   camera.aspect = w / h; camera.fov = baseFov(); camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
@@ -2688,7 +2711,7 @@ let lastTs = 0;
 function frame(vts) {
   const now = performance.now(), fts = vts || now;
   { const on = state === 'intro' || state === 'ride' || state === 'passed' || state === 'crashed'; if (on !== stage.classList.contains('playing')) stage.classList.toggle('playing', on); }
-  const dt = lastTs ? Math.min(0.05, Math.max(0.001, (fts - lastTs) / 1000)) : 1 / 60; lastTs = fts;
+  const dt = lastTs ? Math.min(0.05, Math.max(0.001, (fts - lastTs) / 1000)) : 1 / 60; lastTs = fts; adaptRes(dt, now);
   if (state === 'replay') {
     replayFrame(dt);
     if (PLAY) PLAY.shotSnap = snapCam;
@@ -3772,7 +3795,7 @@ function pinkTexture() {
       const k = l; d[i] = Math.min(255, 255 * (0.98 * k + 0.35)); d[i + 1] = Math.min(255, 255 * (0.42 * k + 0.12)); d[i + 2] = Math.min(255, 255 * (0.66 * k + 0.2));
     } else if (l < 0.22) { d[i] = d[i] * 0.6 + 46; d[i + 1] = d[i + 1] * 0.5 + 14; d[i + 2] = d[i + 2] * 0.6 + 40; } // black -> deep plum
   }
-  g.putImageData(id, 0, 0); const t = new THREE.CanvasTexture(cv); t.flipY = bodyTex.flipY; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  g.putImageData(id, 0, 0); const t = new THREE.CanvasTexture(cv); t.flipY = bodyTex.flipY; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16; return t;
 }
 const penCv = document.createElement('canvas'); penCv.width = 320; penCv.height = 220;
 const penTex = new THREE.CanvasTexture(penCv); penTex.colorSpace = THREE.SRGBColorSpace; let penMood = 'idle', penKey = '';
@@ -4029,8 +4052,9 @@ function buildLab() {
   scene.fog = new THREE.Fog(0x2a2733, 60, 260);
   const conc = tex(512, 512, (g, w, h) => {
     g.fillStyle = '#6f6c70'; g.fillRect(0, 0, w, h);
-    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 26; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
-    g.strokeStyle = 'rgba(30,28,34,0.5)'; g.lineWidth = 4; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(w, x); g.stroke(); }
+    const id = g.getImageData(0, 0, w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 7; d[i] += n; d[i + 1] += n; d[i + 2] += n; } g.putImageData(id, 0, 0);
+    for (let i = 0; i < 46; i++) { const cx = Math.random() * w, cy = Math.random() * h, r = 30 + Math.random() * 70, rg = g.createRadialGradient(cx, cy, 1, cx, cy, r); rg.addColorStop(0, Math.random() < 0.5 ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)'); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(cx - r, cy - r, 2 * r, 2 * r); }
+    g.strokeStyle = 'rgba(30,28,34,0.34)'; g.lineWidth = 3; for (let x = 0; x <= w; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); g.beginPath(); g.moveTo(0, x); g.lineTo(w, x); g.stroke(); }
   });
   conc.wrapS = conc.wrapT = THREE.RepeatWrapping; conc.repeat.set(10, 10);
   conc.repeat.set(10, 58); const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 460), new THREE.MeshStandardMaterial({ map: conc, roughness: 0.92 }));
