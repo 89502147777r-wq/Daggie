@@ -1,6 +1,6 @@
 // Version of the game files on this device. version.json on GitHub always holds the newest number.
 // When they differ, a button offers a one-tap update. Always change BOTH when releasing.
-const BUILD = '10.30';
+const BUILD = '10.31';
 // The version is also printed on the loading screen (and goes away with it), so it never ends up in a recorded video.
 function showVer() {
   const l = document.getElementById('loader'); if (!l) return false; if (l.querySelector('.ver')) return true;

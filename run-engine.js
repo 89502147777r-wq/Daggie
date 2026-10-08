@@ -45,9 +45,9 @@ const bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), MODE === 'lab
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 // colour grade: punchier contrast and saturation so the feed thumbnail pops
-const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, sat: { value: 1.32 }, con: { value: 1.12 }, bri: { value: 0.01 }, curve: { value: 0 }, vig: { value: 0 } },
+const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, sat: { value: 1.32 }, con: { value: 1.12 }, bri: { value: 0.01 }, curve: { value: 0 }, vig: { value: 0 }, soft: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: 'uniform sampler2D tDiffuse; uniform float sat, con, bri, curve, vig; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); vec3 col = mix(vec3(l), c.rgb, sat); float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b)); col = mix(vec3(dot(col, vec3(0.333))), col, 1.0 + 0.25 * (1.0 - (mx - mn))); col = (col - 0.5) * con + 0.5 + bri; vec3 cc = clamp(col, 0.0, 1.0); col = mix(col, cc * cc * (3.0 - 2.0 * cc), curve); col *= 1.0 - vig * smoothstep(0.38, 0.9, distance(vUv, vec2(0.5))); gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a); }' });
+  fragmentShader: 'uniform sampler2D tDiffuse; uniform float sat, con, bri, curve, vig, soft; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722)); vec3 col; if (soft > 0.5) { col = max(mix(vec3(l), c.rgb, sat), 0.0); float m1 = max(col.r, max(col.g, col.b)); if (m1 > 1.0) col /= m1; vec3 sc = col * col * (3.0 - 2.0 * col); col = mix(col, sc, clamp((con - 1.0) * 2.0, 0.0, 1.0)); col = col + bri * (1.0 - col); } else { col = mix(vec3(l), c.rgb, sat); float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b)); col = mix(vec3(dot(col, vec3(0.333))), col, 1.0 + 0.25 * (1.0 - (mx - mn))); col = (col - 0.5) * con + 0.5 + bri; vec3 cc = clamp(col, 0.0, 1.0); col = mix(col, cc * cc * (3.0 - 2.0 * cc), curve); } col *= 1.0 - vig * smoothstep(0.38, 0.9, distance(vUv, vec2(0.5))); gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a); }' });
 composer.addPass(grade);
 
 // a sharper picture everywhere (this is what survives YouTube's compression): edge anti-aliasing (the post-processing chain has none of its own) and a light sharpen
@@ -76,13 +76,13 @@ const LAB0 = MODE === 'lab'; if (LAB0) { grade.uniforms.sat.value = 1.42; grade.
 let REC_MODE = false; try { REC_MODE = localStorage.getItem('daggie-recmode') === '1'; } catch (e) {}
 const LAB_LOOK = MODE === 'lab'; // the crash lab: darker, contrastier, richer colour, no blown highlights
 // three colour looks (saturated colour is what compression smears first, so the default is a notch calmer than before; VIVID is the old picture)
-const LOOKS = { lab: [{ n: 'NATURAL', sat: 1.12, con: 1.05, bri: 0, curve: 0.35, vig: 0.22, exp: 0.62, rsat: 1.2, rexp: 0.65 }, { n: 'BALANCED', sat: 1.26, con: 1.06, bri: 0, curve: 0.55, vig: 0.32, exp: 0.6, rsat: 1.34, rexp: 0.64 }, { n: 'VIVID', sat: 1.42, con: 1.04, bri: -0.01, curve: 0.65, vig: 0.4, exp: 0.58, rsat: 1.5, rexp: 0.62 }],
-  run: [{ n: 'NATURAL', sat: 1.1, con: 1.06, bri: 0, curve: 0, vig: 0, exp: 0.74, rsat: 1.2, rcon: 1.1, rbri: 0.02, rexp: 0.84 }, { n: 'BALANCED', sat: 1.22, con: 1.09, bri: 0.01, curve: 0, vig: 0, exp: 0.75, rsat: 1.36, rcon: 1.13, rbri: 0.025, rexp: 0.86 }, { n: 'VIVID', sat: 1.32, con: 1.12, bri: 0.01, curve: 0, vig: 0, exp: 0.74, rsat: 1.6, rcon: 1.18, rbri: 0.03, rexp: 0.9 }] };
-let LOOK_I = 1; try { const lv = localStorage.getItem('daggie-look'); if (lv !== null && +lv >= 0 && +lv <= 2) LOOK_I = +lv; } catch (e) {}
+const LOOKS = { lab: [{ n: 'NATURAL', sat: 1.12, con: 1.05, bri: 0, curve: 0.35, vig: 0.22, exp: 0.62, rsat: 1.2, rexp: 0.65 }, { n: 'BALANCED', sat: 1.26, con: 1.06, bri: 0, curve: 0.55, vig: 0.32, exp: 0.6, rsat: 1.34, rexp: 0.64 }, { n: 'VIVID', sat: 1.42, con: 1.04, bri: -0.01, curve: 0.65, vig: 0.4, exp: 0.58, rsat: 1.5, rexp: 0.62 }, { n: 'CLEAN', sat: 1.12, con: 1.06, bri: 0, curve: 0, vig: 0.16, exp: 0.62, rsat: 1.18, rexp: 0.64, soft: 1, noBloom: 1 }],
+  run: [{ n: 'NATURAL', sat: 1.1, con: 1.06, bri: 0, curve: 0, vig: 0, exp: 0.74, rsat: 1.2, rcon: 1.1, rbri: 0.02, rexp: 0.84 }, { n: 'BALANCED', sat: 1.22, con: 1.09, bri: 0.01, curve: 0, vig: 0, exp: 0.75, rsat: 1.36, rcon: 1.13, rbri: 0.025, rexp: 0.86 }, { n: 'VIVID', sat: 1.32, con: 1.12, bri: 0.01, curve: 0, vig: 0, exp: 0.74, rsat: 1.6, rcon: 1.18, rbri: 0.03, rexp: 0.9 }, { n: 'CLEAN', sat: 1.1, con: 1.06, bri: 0.01, curve: 0, vig: 0, exp: 0.75, rsat: 1.18, rcon: 1.1, rbri: 0.02, rexp: 0.84, soft: 1, noBloom: 1 }] };
+let LOOK_I = 3; try { const lv = localStorage.getItem('daggie-look2'); if (lv !== null && +lv >= 0 && +lv <= 3) LOOK_I = +lv; } catch (e) {}
 const LK = () => LOOKS[LAB_LOOK ? 'lab' : 'run'][LOOK_I];
 const GSAT = () => { const k = LK(); return REC_MODE ? (k.rsat || k.sat) : k.sat; };
 function applyRecMode() {
-  { const k = LK(); grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = LAB_LOOK ? k.con : REC_MODE ? k.rcon : k.con; grade.uniforms.bri.value = LAB_LOOK ? k.bri : REC_MODE ? k.rbri : k.bri; grade.uniforms.curve.value = k.curve; grade.uniforms.vig.value = k.vig; renderer.toneMappingExposure = REC_MODE ? k.rexp : k.exp; }
+  { const k = LK(); grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = LAB_LOOK ? k.con : REC_MODE ? k.rcon : k.con; grade.uniforms.bri.value = LAB_LOOK ? k.bri : REC_MODE ? k.rbri : k.bri; grade.uniforms.curve.value = k.curve; grade.uniforms.vig.value = k.vig; grade.uniforms.soft.value = k.soft ? 1 : 0; bloomPass.enabled = !k.noBloom; renderer.toneMappingExposure = REC_MODE ? k.rexp : k.exp; }
   const ms = 2048;
   if (typeof sunLight !== 'undefined' && sunLight.shadow.mapSize.x !== ms) { sunLight.shadow.mapSize.set(ms, ms); if (sunLight.shadow.map) { sunLight.shadow.map.dispose(); sunLight.shadow.map = null; } }
   document.getElementById('stage').classList.toggle('recmode', REC_MODE);
@@ -1998,10 +1998,10 @@ function startRecorder() {
   try {
     if (!window.MediaRecorder || !canvas.captureStream) throw new Error('unsupported');
     comp.width = canvas.width; comp.height = canvas.height; composite();
-    const stream = comp.captureStream(30); recTrack = null;
+    const stream = comp.captureStream(60); recTrack = null;
     initAudio(); if (AC) { OUT(); if (AUDIO_DEST) AUDIO_DEST.stream.getAudioTracks().forEach(t => stream.addTrack(t)); }
     const mime = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
-    recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 10e6 } : { videoBitsPerSecond: 10e6 });
+    recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 40e6 } : { videoBitsPerSecond: 40e6 });
     recChunks = []; recorder.ondataavailable = ev => { if (ev.data && ev.data.size) recChunks.push(ev.data); };
     recorder.start(250); return true;
   } catch (err) { recorder = null; lastPop = 0; pop('VIDEO NOT SUPPORTED HERE', 'lilac'); return false; }
@@ -2041,7 +2041,7 @@ function composite() {
   if (!recorder && comp.width === 0) return;
   const W = comp.width, H = comp.height, now = performance.now();
   cctx.drawImage(canvas, 0, 0, W, H);
-  if (recTrack) { if (now >= recNextT) { recNextT = Math.max(recNextT + 1000 / 30, now - 20); queueMicrotask(() => { try { recTrack && recTrack.requestFrame(); } catch (e) {} }); } }
+  if (recTrack) { if (now >= recNextT) { recNextT = Math.max(recNextT + 1000 / 60, now - 12); queueMicrotask(() => { try { recTrack && recTrack.requestFrame(); } catch (e) {} }); } }
   if ($('hook').classList.contains('show') && !stage.classList.contains('nohook')) { strokeText(L.title[0], W / 2, H * 0.14, W * 0.1, '#ffc41f'); strokeText(L.title[1], W / 2, H * 0.14 + W * 0.1, W * 0.088, '#ffffff'); }
   if (PLAY && PLAY.rew && PLAY.rew.u <= 0.72) {
     cctx.fillStyle = 'rgba(255,255,255,0.07)'; for (let i = 0; i < 4; i++) cctx.fillRect(0, Math.random() * H, W, H * rand(0.004, 0.03));
@@ -4382,7 +4382,7 @@ function buildLabUI() {
   $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labRec').onclick = () => { $('bLive').onclick(); labUI(); };
-  $('labLook').onclick = () => { LOOK_I = (LOOK_I + 1) % 3; try { localStorage.setItem('daggie-look', String(LOOK_I)); } catch (e) {} applyRecMode(); labUI(); };
+  $('labLook').onclick = () => { LOOK_I = (LOOK_I + 1) % 4; try { localStorage.setItem('daggie-look2', String(LOOK_I)); } catch (e) {} applyRecMode(); labUI(); };
   $('labQ').onclick = () => { QUAL.i = (QUAL.i + 1) % QUAL.opts.length; try { localStorage.setItem('daggie-q', QUAL.opts[QUAL.i]); } catch (e) {} ADAPT.cool = 0; ADAPT.low = 0; labUI(); };
   $('labFps').onclick = () => { FPS_ON = !FPS_ON; try { localStorage.setItem('daggie-fps', FPS_ON ? '1' : '0'); } catch (e) {} fpsShow(); labUI(); };
   stage.addEventListener('pointerdown', () => { if (LAB.replay) LAB.replay.skip = true; }); // tap to skip the replay
