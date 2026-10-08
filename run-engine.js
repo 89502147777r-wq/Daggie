@@ -55,16 +55,18 @@ const FXAA_FRAG = ['uniform sampler2D tDiffuse; uniform vec2 px; varying vec2 vU
   ' vec3 nw = texture2D(tDiffuse, vUv + vec2(-1.0, -1.0) * px).xyz; vec3 ne = texture2D(tDiffuse, vUv + vec2(1.0, -1.0) * px).xyz; vec3 sw = texture2D(tDiffuse, vUv + vec2(-1.0, 1.0) * px).xyz; vec3 se = texture2D(tDiffuse, vUv + vec2(1.0, 1.0) * px).xyz; vec3 m = texture2D(tDiffuse, vUv).xyz;',
   ' float lNW = dot(nw, luma), lNE = dot(ne, luma), lSW = dot(sw, luma), lSE = dot(se, luma), lM = dot(m, luma);',
   ' float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE))), lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));',
-  ' vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));',
-  ' float dirReduce = max((lNW + lNE + lSW + lSE) * (0.25 * (1.0 / 8.0)), 1.0 / 128.0);',
-  ' float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);',
-  ' dir = min(vec2(8.0), max(vec2(-8.0), dir * rcp)) * px;',
-  ' vec3 a = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).xyz + texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).xyz);',
-  ' vec3 b = a * 0.5 + 0.25 * (texture2D(tDiffuse, vUv + dir * -0.5).xyz + texture2D(tDiffuse, vUv + dir * 0.5).xyz);',
-  ' float lB = dot(b, luma); vec3 col = (lB < lMin || lB > lMax) ? a : b;',
+  ' vec3 col = m;',
+  ' if (lMax - lMin >= max(0.045, lMax * 0.14)) {',
+  '  vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));',
+  '  float dirReduce = max((lNW + lNE + lSW + lSE) * (0.25 * (1.0 / 8.0)), 1.0 / 128.0);',
+  '  float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);',
+  '  dir = min(vec2(8.0), max(vec2(-8.0), dir * rcp)) * px;',
+  '  vec3 a = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).xyz + texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).xyz);',
+  '  vec3 b = a * 0.5 + 0.25 * (texture2D(tDiffuse, vUv + dir * -0.5).xyz + texture2D(tDiffuse, vUv + dir * 0.5).xyz);',
+  '  float lB = dot(b, luma); col = (lB < lMin || lB > lMax) ? a : b; }',
   ' vec3 cN = texture2D(tDiffuse, vUv - vec2(0.0, px.y)).xyz; vec3 cS = texture2D(tDiffuse, vUv + vec2(0.0, px.y)).xyz; vec3 cW = texture2D(tDiffuse, vUv - vec2(px.x, 0.0)).xyz; vec3 cE = texture2D(tDiffuse, vUv + vec2(px.x, 0.0)).xyz;',
   ' vec3 mn = min(min(min(cN, cS), min(cW, cE)), col); vec3 mx = max(max(max(cN, cS), max(cW, cE)), col);',
-  ' vec3 amp = sqrt(clamp(min(mn, 1.0 - mx) / max(mx, vec3(0.0001)), 0.0, 1.0)); vec3 wgt = amp * (-1.0 / 6.0);',
+  ' vec3 amp = sqrt(clamp(min(mn, 1.0 - mx) / max(mx, vec3(0.0001)), 0.0, 1.0)); vec3 wgt = amp * (-1.0 / 5.2);',
   ' col = clamp((col + wgt * (cN + cS + cW + cE)) / (1.0 + 4.0 * wgt), 0.0, 1.0); gl_FragColor = vec4(col, 1.0); }'].join('\n');
 const fxaa = new ShaderPass({ uniforms: { tDiffuse: { value: null }, px: { value: new THREE.Vector2(1 / 800, 1 / 1600) } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: FXAA_FRAG });
 composer.addPass(fxaa);
@@ -72,10 +74,14 @@ const LAB0 = MODE === 'lab'; if (LAB0) { grade.uniforms.sat.value = 1.42; grade.
 // "Rec mode" (for iPhone screen recording): punchier picture, no UI while riding, lighter shadows for smoothness
 let REC_MODE = false; try { REC_MODE = localStorage.getItem('daggie-recmode') === '1'; } catch (e) {}
 const LAB_LOOK = MODE === 'lab'; // the crash lab: darker, contrastier, richer colour, no blown highlights
-const GSAT = () => LAB_LOOK ? (REC_MODE ? 1.5 : 1.42) : REC_MODE ? 1.6 : 1.32;
+// three colour looks (saturated colour is what compression smears first, so the default is a notch calmer than before; VIVID is the old picture)
+const LOOKS = { lab: [{ n: 'NATURAL', sat: 1.12, con: 1.05, bri: 0, curve: 0.35, vig: 0.22, exp: 0.62, rsat: 1.2, rexp: 0.65 }, { n: 'BALANCED', sat: 1.26, con: 1.06, bri: 0, curve: 0.55, vig: 0.32, exp: 0.6, rsat: 1.34, rexp: 0.64 }, { n: 'VIVID', sat: 1.42, con: 1.04, bri: -0.01, curve: 0.65, vig: 0.4, exp: 0.58, rsat: 1.5, rexp: 0.62 }],
+  run: [{ n: 'NATURAL', sat: 1.1, con: 1.06, bri: 0, curve: 0, vig: 0, exp: 0.74, rsat: 1.2, rcon: 1.1, rbri: 0.02, rexp: 0.84 }, { n: 'BALANCED', sat: 1.22, con: 1.09, bri: 0.01, curve: 0, vig: 0, exp: 0.75, rsat: 1.36, rcon: 1.13, rbri: 0.025, rexp: 0.86 }, { n: 'VIVID', sat: 1.32, con: 1.12, bri: 0.01, curve: 0, vig: 0, exp: 0.74, rsat: 1.6, rcon: 1.18, rbri: 0.03, rexp: 0.9 }] };
+let LOOK_I = 1; try { const lv = localStorage.getItem('daggie-look'); if (lv !== null && +lv >= 0 && +lv <= 2) LOOK_I = +lv; } catch (e) {}
+const LK = () => LOOKS[LAB_LOOK ? 'lab' : 'run'][LOOK_I];
+const GSAT = () => { const k = LK(); return REC_MODE ? (k.rsat || k.sat) : k.sat; };
 function applyRecMode() {
-  grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = LAB_LOOK ? 1.04 : REC_MODE ? 1.18 : 1.12; grade.uniforms.bri.value = LAB_LOOK ? -0.01 : REC_MODE ? 0.03 : 0.01; grade.uniforms.curve.value = LAB_LOOK ? 0.65 : 0; grade.uniforms.vig.value = LAB_LOOK ? 0.4 : 0;
-  renderer.toneMappingExposure = LAB_LOOK ? (REC_MODE ? 0.62 : 0.58) : REC_MODE ? 0.9 : 0.74;
+  { const k = LK(); grade.uniforms.sat.value = GSAT(); grade.uniforms.con.value = LAB_LOOK ? k.con : REC_MODE ? k.rcon : k.con; grade.uniforms.bri.value = LAB_LOOK ? k.bri : REC_MODE ? k.rbri : k.bri; grade.uniforms.curve.value = k.curve; grade.uniforms.vig.value = k.vig; renderer.toneMappingExposure = REC_MODE ? k.rexp : k.exp; }
   const ms = 2048;
   if (typeof sunLight !== 'undefined' && sunLight.shadow.mapSize.x !== ms) { sunLight.shadow.mapSize.set(ms, ms); if (sunLight.shadow.map) { sunLight.shadow.map.dispose(); sunLight.shadow.map = null; } }
   document.getElementById('stage').classList.toggle('recmode', REC_MODE);
@@ -2692,8 +2698,13 @@ function camTargets(now, dt) {
   return 3;
 }
 function baseFov() { return stage.clientWidth / stage.clientHeight < 0.8 ? 72 : 58; }
+let FPS_ON = false; try { FPS_ON = localStorage.getItem('daggie-fps') === '1'; } catch (e) {}
+const FPS = { box: null, n: 0, ms: 0, t0: 0 };
+function fpsShow() { if (!FPS.box) { const css = document.createElement('style'); css.textContent = '.fpsbox{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:30;pointer-events:none;font:700 12px/1.25 ui-monospace,Menlo,monospace;color:#7dff9a;background:rgba(0,0,0,.5);padding:4px 7px;border-radius:7px;white-space:pre}'; document.head.appendChild(css); FPS.box = document.createElement('div'); FPS.box.className = 'fpsbox'; stage.appendChild(FPS.box); } FPS.box.style.display = FPS_ON ? 'block' : 'none'; }
+function fpsTick(dt, now) { if (!FPS_ON || !FPS.box) return; FPS.n++; FPS.ms += dt * 1000; if (now - FPS.t0 >= 500) { const fps = Math.round(FPS.n * 1000 / (now - FPS.t0)); FPS.box.style.color = fps >= 55 ? '#7dff9a' : fps >= 40 ? '#ffd34d' : '#ff6b6b'; FPS.box.textContent = fps + ' FPS  ' + (FPS.ms / FPS.n).toFixed(1) + ' ms\nrender ' + PR.toFixed(2) + 'x' + (PR < PR_MAX ? '  (lowered from ' + PR_MAX.toFixed(2) + 'x)' : ''); FPS.n = 0; FPS.ms = 0; FPS.t0 = now; } }
+fpsShow();
 const ADAPT = { ema: 16.7, low: 0, t0: performance.now() };
-function adaptRes(dt, now) { // the picture starts at the phone's full native resolution; if the frame rate sags for a while it steps down a notch (never back up, so it does not flicker)
+function adaptRes(dt, now) { fpsTick(dt, now); // the picture starts at the phone's full native resolution; if the frame rate sags for a while it steps down a notch (never back up, so it does not flicker)
   if (now - ADAPT.t0 < 6000) return; ADAPT.ema += (dt * 1000 - ADAPT.ema) * 0.05;
   if (ADAPT.ema > 21 && PR > 1.5) { ADAPT.low += dt; if (ADAPT.low > 1.5) { PR = Math.max(1.5, PR - 0.25); ADAPT.low = 0; ADAPT.ema = 16.7; try { resize(); } catch (e) {} } } else ADAPT.low = 0;
 }
@@ -4339,7 +4350,7 @@ function buildLabUI() {
   stage.appendChild(g);
   const lv = document.createElement('div'); lv.className = 'lablvl'; lv.id = 'labLvl'; stage.appendChild(lv);
   const p = document.createElement('div'); p.className = 'labpanel'; p.id = 'labPanel';
-  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div>';
+  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div><div class="foot"><button id="labLook" type="button">Look</button><button id="labFps" type="button">FPS</button></div>';
   stage.appendChild(p);
   const chips = $('labChips');
   for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub' || m === 'stairs') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
@@ -4349,6 +4360,8 @@ function buildLabUI() {
   $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labRec').onclick = () => { $('bLive').onclick(); labUI(); };
+  $('labLook').onclick = () => { LOOK_I = (LOOK_I + 1) % 3; try { localStorage.setItem('daggie-look', String(LOOK_I)); } catch (e) {} applyRecMode(); labUI(); };
+  $('labFps').onclick = () => { FPS_ON = !FPS_ON; try { localStorage.setItem('daggie-fps', FPS_ON ? '1' : '0'); } catch (e) {} fpsShow(); labUI(); };
   stage.addEventListener('pointerdown', () => { if (LAB.replay) LAB.replay.skip = true; }); // tap to skip the replay
   labUI();
 }
@@ -4364,7 +4377,7 @@ function labUI() {
   $('labLvl').textContent = (labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : LAB.machine === 'stairs' ? 'LEVEL ' + LAB.level + ' · ' + STAIRS_STEPS[LAB.level - 1] + ' STEPS' : 'LEVEL ' + LAB.level).replace(' · ', '\n');
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
-  $('labRec').setAttribute('aria-pressed', String(REC_MODE));
+  $('labRec').setAttribute('aria-pressed', String(REC_MODE)); $('labLook').textContent = 'Look: ' + LK().n; $('labFps').setAttribute('aria-pressed', String(FPS_ON));
   if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
 }
 function labReset() {
