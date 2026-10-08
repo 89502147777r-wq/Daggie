@@ -41,7 +41,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 5000);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), MODE === 'lab' ? 0.09 : 0.15, 0.3, MODE === 'lab' ? 1.3 : 1.0));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), MODE === 'lab' ? 0.09 : 0.15, 0.3, MODE === 'lab' ? 1.3 : 1.0); { const bs = bloomPass.setSize.bind(bloomPass); bloomPass.setSize = (w, h) => bs(Math.max(64, Math.floor(w * 0.5)), Math.max(64, Math.floor(h * 0.5))); }
+composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 // colour grade: punchier contrast and saturation so the feed thumbnail pops
 const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, sat: { value: 1.32 }, con: { value: 1.12 }, bri: { value: 0.01 }, curve: { value: 0 }, vig: { value: 0 } },
@@ -1601,7 +1602,7 @@ function ping(t, f, dur, vol) { const o = AC.createOscillator(), o2 = AC.createO
 // ---------- sound that follows the physics: every piece that lands makes its own small sound, and the flight has wind ----------
 const DSND = { tokens: 25, last: 0 };
 function debrisHit(kind, v, size) { // v: speed at which the piece hit the floor (m/s), size: its largest dimension; at most ~45 of these a second so a phone can follow
-  if (!AC) return; const now = AC.currentTime; DSND.tokens = Math.min(25, DSND.tokens + Math.max(0, now - DSND.last) * 45); DSND.last = now; if (DSND.tokens < 1) return; DSND.tokens--; OUT();
+  if (!AC) return; const now = AC.currentTime; DSND.tokens = Math.min(10, DSND.tokens + Math.max(0, now - DSND.last) * 22); DSND.last = now; if (DSND.tokens < 1) return; DSND.tokens--; OUT();
   const t = now, vv = clamp(v / 8, 0.2, 1), sz = clamp(size, 0.05, 1.5); SND_WIDE = 0.7;
   try {
     if (kind === 'glass') { ping(t, clamp(4200 * Math.exp(rand(-0.5, 0.5)) / Math.pow(sz * 4, 0.35), 1500, 11000), rand(0.03, 0.12), (0.03 + 0.05 * vv) * 1.6); if (v > 4) noise(t, 0.012, 0.05 * vv, 'highpass', 6000, 3000, 0.7); }
@@ -2699,15 +2700,23 @@ function camTargets(now, dt) {
 }
 function baseFov() { return stage.clientWidth / stage.clientHeight < 0.8 ? 72 : 58; }
 let FPS_ON = false; try { FPS_ON = localStorage.getItem('daggie-fps') === '1'; } catch (e) {}
-const FPS = { box: null, n: 0, ms: 0, t0: 0 };
+const FPS = { box: null, n: 0, ms: 0, t0: 0, a: 0, b: 0, u: 0, r: 0, calls: 0, tris: 0 }; renderer.info.autoReset = false;
+function fpsMark(k) { const t = performance.now(); if (k === 0) FPS.a = t; else if (k === 1) { FPS.b = t; renderer.info.reset(); } else { FPS.u += FPS.b - FPS.a; FPS.r += t - FPS.b; const i = renderer.info.render; if (i.calls > FPS.calls) FPS.calls = i.calls; if (i.triangles > FPS.tris) FPS.tris = i.triangles; } }
 function fpsShow() { if (!FPS.box) { const css = document.createElement('style'); css.textContent = '.fpsbox{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:30;pointer-events:none;font:700 12px/1.25 ui-monospace,Menlo,monospace;color:#7dff9a;background:rgba(0,0,0,.5);padding:4px 7px;border-radius:7px;white-space:pre}'; document.head.appendChild(css); FPS.box = document.createElement('div'); FPS.box.className = 'fpsbox'; stage.appendChild(FPS.box); } FPS.box.style.display = FPS_ON ? 'block' : 'none'; }
-function fpsTick(dt, now) { if (!FPS_ON || !FPS.box) return; FPS.n++; FPS.ms += dt * 1000; if (now - FPS.t0 >= 500) { const fps = Math.round(FPS.n * 1000 / (now - FPS.t0)); FPS.box.style.color = fps >= 55 ? '#7dff9a' : fps >= 40 ? '#ffd34d' : '#ff6b6b'; FPS.box.textContent = fps + ' FPS  ' + (FPS.ms / FPS.n).toFixed(1) + ' ms\nrender ' + PR.toFixed(2) + 'x' + (PR < PR_MAX ? '  (lowered from ' + PR_MAX.toFixed(2) + 'x)' : ''); FPS.n = 0; FPS.ms = 0; FPS.t0 = now; } }
+function fpsTick(dt, now) { if (!FPS_ON || !FPS.box) return; FPS.n++; FPS.ms += dt * 1000; if (now - FPS.t0 >= 500) { const fps = Math.round(FPS.n * 1000 / (now - FPS.t0)); FPS.box.style.color = fps >= 55 ? '#7dff9a' : fps >= 40 ? '#ffd34d' : '#ff6b6b'; FPS.box.textContent = fps + ' FPS  ' + (FPS.ms / FPS.n).toFixed(1) + ' ms\nrender ' + PR.toFixed(2) + 'x  ' + (qFixed() ? 'LOCKED' : ADAPT.crash ? 'AUTO (crash)' : 'AUTO') + (PR < PR_MAX ? '  max ' + PR_MAX.toFixed(2) + 'x' : '') + '\nCPU  update ' + (FPS.u / FPS.n).toFixed(1) + '  draw ' + (FPS.r / FPS.n).toFixed(1) + ' ms\ncalls ' + FPS.calls + '  tris ' + Math.round(FPS.tris / 1000) + 'k'; FPS.u = 0; FPS.r = 0; FPS.calls = 0; FPS.tris = 0; FPS.n = 0; FPS.ms = 0; FPS.t0 = now; } }
 fpsShow();
-const ADAPT = { ema: 16.7, low: 0, t0: performance.now() };
-function adaptRes(dt, now) { fpsTick(dt, now); // the picture starts at the phone's full native resolution; if the frame rate sags for a while it steps down a notch (never back up, so it does not flicker)
-  if (now - ADAPT.t0 < 6000) return; ADAPT.ema += (dt * 1000 - ADAPT.ema) * 0.05;
-  if (ADAPT.ema > 21 && PR > 1.5) { ADAPT.low += dt; if (ADAPT.low > 1.5) { PR = Math.max(1.5, PR - 0.25); ADAPT.low = 0; ADAPT.ema = 16.7; try { resize(); } catch (e) {} } } else ADAPT.low = 0;
-}
+const QUAL = { opts: ['auto', '3', '2.5', '2', '1.5'], i: 0 }; try { const qk = QUAL.opts.indexOf(localStorage.getItem('daggie-q')); if (qk >= 0) QUAL.i = qk; } catch (e) {}
+const qFixed = () => QUAL.i === 0 ? 0 : +QUAL.opts[QUAL.i];
+function setPR(p) { p = Math.max(1.25, Math.min(PR_MAX, p)); if (Math.abs(p - PR) < 0.01) return; PR = p; try { resize(); } catch (e) {} }
+const ADAPT = { ema: 16.7, low: 0, hi: 0, cool: 0, noRaise: 0, lastUp: 0, t0: performance.now(), crash: false, saved: 0 };
+function crashBudget(on) { // the moment of the crash is the heaviest of all: just before it the resolution steps down a notch (a hitch now, not in the middle of the impact) and it comes back when the scene is reset
+  const A = ADAPT; if (qFixed()) return; if (on && !A.crash) { A.crash = true; A.saved = PR; setPR(Math.min(PR, 1.75)); } else if (!on && A.crash) { A.crash = false; setPR(A.saved); A.ema = 16.7; A.cool = 2; } }
+function adaptRes(dt, now) { fpsMark(0); // keeps the frame rate at 60: steps down quickly when it sags (and for the crash), creeps back up when there is room, and does not go back up where it failed before
+  fpsTick(dt, now); const A = ADAPT, fx = qFixed(); if (fx) { setPR(fx); return; }
+  if (A.crash || now - A.t0 < 5000) return; if (A.cool > 0) { A.cool -= dt; return; }
+  A.ema += (dt * 1000 - A.ema) * 0.12;
+  if (A.ema > 19.5) { A.low += dt; A.hi = 0; if (A.low > 0.45) { setPR(PR - (A.ema > 28 ? 0.5 : 0.25)); A.low = 0; A.ema = 16.7; A.cool = 1.2; if (now - A.lastUp < 9000) A.noRaise = now + 45000; } }
+  else { A.low = 0; if (A.ema < 17.4 && PR < PR_MAX && now > A.noRaise) { A.hi += dt; if (A.hi > 7) { setPR(PR + 0.125); A.hi = 0; A.lastUp = now; A.cool = 1.2; } } else A.hi = 0; } }
 function resize() {
   const W = stage.clientWidth, H = stage.clientHeight;
   let w = W, h = H;
@@ -2733,7 +2742,7 @@ function frame(vts) {
     camera.position.copy(camPos); camera.lookAt(camLook); if (PLAY && PLAY.roll) camera.rotateZ(PLAY.roll);
     const wf = PLAY ? PLAY.fov : baseFov(); if (Math.abs(camera.fov - wf) > 0.05) { camera.fov += (wf - camera.fov) * (PLAY && PLAY.shotSnap ? 1 : 0.25); camera.updateProjectionMatrix(); }
     sunLight.position.copy(camLook).addScaledVector(SUN, 40); sunLight.target.position.copy(camLook);
-    composer.render(); if (PLAY && PLAY.wantRec) { PLAY.wantRec = false; startRecorder(); } if (recorder) composite(); requestAnimationFrame(frame); return;
+    fpsMark(1); composer.render(); fpsMark(2); if (PLAY && PLAY.wantRec) { PLAY.wantRec = false; startRecorder(); } if (recorder) composite(); requestAnimationFrame(frame); return;
   }
   let ts = now < hitStopUntil ? 0.02 : now < slowUntil ? slowK : 1; if (manualSlow) ts = Math.min(ts, 0.35); // hit-stop: the picture almost freezes for a moment on a hard hit
   const sdt = dt * ts; simT += sdt;
@@ -2809,7 +2818,7 @@ function frame(vts) {
   $('dist').textContent = String(Math.round(R.maxS));
   if (rollGain && AC) rollGain.gain.setTargetAtTime(state === 'ride' && R.grounded ? Math.min(0.09, R.speed * 0.003) : 0, AC.currentTime, 0.05);
   recordFrame(dt);
-  composer.render();
+  fpsMark(1); composer.render(); fpsMark(2);
   if (liveWant && !PLAY) { liveWant = false; if (startRecorder()) { $('recDot').hidden = false; stage.classList.add('liverec'); } } // bottom bar hides while a ride is being recorded // start on a freshly drawn frame
   if (liveRecOn()) { composite(); if (liveStop && now >= liveStop) finishLiveRec(); }
   requestAnimationFrame(frame);
@@ -3165,7 +3174,7 @@ function labDentAt(y, z, v) {
 }
 const LABCART = { get box() { return CART.box; }, get cyls() { return CART.cyls; }, v: 0, hit: false };
 function labWeave(dt) { // a gentle swerve on the way in (the heading follows it); it fades out over the last metres, so the hit is always dead on the target
-  if (LABCART.hit) return; const W = LAB.weave || (LAB.weave = { A: rand(0.12, 0.42), f: rand(0.45, 0.9), ph: rand(0, 6.283), t: 0 }); W.t += dt;
+  if (LABCART.hit) return; if ((CART.pw[1] - BOLLARD_Z) / Math.max(LABCART.v, 1) < 0.9) crashBudget(true); const W = LAB.weave || (LAB.weave = { A: rand(0.12, 0.42), f: rand(0.45, 0.9), ph: rand(0, 6.283), t: 0 }); W.t += dt;
   const dz = CART.pw[1] - BOLLARD_Z, k = clamp((dz - 3.2) / 8, 0, 1), e = k * k * (3 - 2 * k), a = W.f * 6.283, arg = a * W.t + W.ph, x = W.A * e * Math.sin(arg), vx = W.A * e * a * Math.cos(arg);
   board.position.x += x; board.rotation.y = -Math.atan2(vx, Math.max(2, LABCART.v)) * 0.8; }
 function labCartPlace() { const w = CART.toWorld(0, 0, 0); board.position.set(w[0], w[1], w[2]); board.rotation.set(-CART.a, 0, 0); }
@@ -3419,6 +3428,7 @@ function obxGlassKit(m, fb, yoff) { /* the transparent half of a model: a tinted
   m.gl = { clean: T(), crack: T() }; m.gl.mat = new THREE.MeshStandardMaterial({ map: m.gl.clean, transparent: true, roughness: 0.04, metalness: 0.0, depthWrite: false, side: THREE.DoubleSide, envMap: (() => { try { return labEnv(); } catch (e) { return null; } })(), envMapIntensity: 1.3 }); m.hits = 0;
   return { geo, mat: m.gl.mat, fl: 0.5 }; }
 function obsGlassReset(id) { /* a new run: clean glass, no holes, no shards */ const M = OBX_MODELS[id || OBX.cur]; if (OBX.shards) OBX.shards.clear(); if (!M || !M.gl) return; M.hits = 0; M.gl.mat.map = M.gl.clean; const g = M.gl.crack.image.getContext('2d'); obxGlassBase(g, 1024, 1024); M.gl.crack.needsUpdate = true; }
+function obsShardSet() { if (!OBX.shards) { const sg = new THREE.BoxGeometry(1, 1, 1), sm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.1, depthWrite: false }); OBX.shards = new CanDebris(sg, sm, 80); OBX.shards.snd = 'glass'; OBX.shards.bnc = 0.2; OBX.shards.dragK = 0.4; OBX.shards.mesh.castShadow = false; } return OBX.shards; }
 function obsGlassAt(x, y, z, power) { /* power 0..1 at the point (x, y, z) of the obstacle's own frame: cracks the pane there; a hard one punches a hole and throws shards */
   const id = OBX.cur, spec = OBST[id], o = OBX.built[id], M = OBX_MODELS[id]; if (!spec || !spec.glass || !o || !M || !M.gl || power < 0.12) return;
   let pn = null, best = 0.3; for (const p of M.panes) { const d = Math.hypot(Math.max(p.bb[0] - x, 0, x - p.bb[1]), Math.max(p.bb[2] - y, 0, y - p.bb[3]), Math.max(p.bb[4] - z, 0, z - p.bb[5])); if (d < best) { best = d; pn = p; } } if (!pn || M.hits > 6) return; M.hits++;
@@ -3427,7 +3437,7 @@ function obsGlassAt(x, y, z, power) { /* power 0..1 at the point (x, y, z) of th
   if (power > 0.55) { const gm = o.kits[spec.glass.key].geo, a = gm.attributes.position.array, yl = y - spec.glass.yoff, R = 0.16 + 0.4 * power; let cut = 0; // the pane breaks out round the point
     for (let i = 0; i + 8 < a.length; i += 9) { const cx = (a[i] + a[i + 3] + a[i + 6]) / 3, cy = (a[i + 1] + a[i + 4] + a[i + 7]) / 3, cz = (a[i + 2] + a[i + 5] + a[i + 8]) / 3; if (Math.hypot(cx - x, cy - yl, cz - z) < R) { for (let k = 0; k < 3; k++) { a[i + k * 3] = cx; a[i + k * 3 + 1] = cy; a[i + k * 3 + 2] = cz; } cut++; } }
     gm.attributes.position.needsUpdate = true; gm.userData.dented = a.slice();
-    if (cut) { if (!OBX.shards) { const sg = new THREE.BoxGeometry(1, 1, 1), sm = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, roughness: 0.05, metalness: 0.1, depthWrite: false }); OBX.shards = new CanDebris(sg, sm, 80); OBX.shards.snd = 'glass'; OBX.shards.bnc = 0.2; OBX.shards.dragK = 0.4; OBX.shards.mesh.castShadow = false; }
+    if (cut) { obsShardSet();
       const nr = pn.nrm || [0, 0, 1], N = Math.round(5 + 16 * power), wx = LAB_LANE + x, wz = BOLLARD_Z + z; for (let i = 0; i < N; i++) { const sp = rand(0.5, 4 + 6 * power); OBX.shards.spawn(wx + rand(-R, R) * 0.6, y + rand(-R, R) * 0.6, wz + rand(-R, R) * 0.4, nr[0] * sp + rand(-2, 2), rand(0.5, 3 + 4 * power) + nr[1] * sp, nr[2] * sp + rand(-2, 2), rand(0.04, 0.12), 0.004, rand(0.03, 0.09), 99999, 0xc4dde8, false); }
       glassSound(1.15 - 0.3 * power); } }
 }
@@ -3591,7 +3601,7 @@ function obsPlace(id) { // every block back in its place, still
   if (OBX.dust) OBX.dust.clear(); OBX.cool = {}; OBX.psp = {};
   const o = obsBuild(id), sp = OBST[id], q = new THREE.Quaternion(), up = new V3(0, 1, 0), jit = sp.layout; 
   for (const t in o.kits) { const gm = o.kits[t].geo; if (gm.userData.orig) { gm.attributes.position.array.set(gm.userData.orig); gm.attributes.normal.array.set(gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; gm.userData.shown = false; } } // a new run: the dent is hammered out
-  obsGlassReset(id); if (OBX.frag) OBX.frag.clear(); OBX_ROCK.on = false; OBX_ROCK.id = ''; for (const t in o.sets) { o.sets[t].mesh.position.set(0, 0, 0); o.sets[t].mesh.quaternion.set(0, 0, 0, 1); } // a new run: the vehicle is back in place
+  obsGlassReset(id); if (OBX.frag) OBX.frag.clear(); if (OBST[id].glass) obsShardSet(); if (id === 'bricks') obsFragSet(); OBX_ROCK.on = false; OBX_ROCK.id = ''; for (const t in o.sets) { o.sets[t].mesh.position.set(0, 0, 0); o.sets[t].mesh.quaternion.set(0, 0, 0, 1); } // a new run: the vehicle is back in place
   for (const t in o.sets) o.sets[t].clear();
   for (const b of o.blocks) { const i = b.set.next; q.setFromAxisAngle(up, b.ry || 0); b.set.raw(LAB_LANE + b.x, b.y, BOLLARD_Z + b.z, 0, 0, 0, b.sx, b.sy, b.sz, 99999, b.col, true, q.x, q.y, q.z, q.w, 0, 0, 0); b.i = i; b.set.fl[i] = b.kit.fl; }
   for (const t in o.sets) { o.sets[t].mesh.visible = true; o.sets[t].mesh.instanceMatrix.needsUpdate = true; }
@@ -3669,11 +3679,11 @@ function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds,
   obsSound(sp.sound, st, v);
 }
 
+function obsFragSet() { if (!OBX.frag) { const cg = new THREE.IcosahedronGeometry(0.5, 0), pp = cg.attributes.position; for (let i = 0; i < pp.count; i++) { const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i), t = Math.sin(x * 91.7 + y * 31.3 + z * 57.1) * 43758.5453, n = 0.62 + 0.5 * (t - Math.floor(t)); pp.setXYZ(i, x * n, y * n, z * n); } cg.computeVertexNormals();
+    OBX.frag = new CanDebris(cg, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), 200); OBX.frag.snd = 'stone'; OBX.frag.bnc = 0.25; OBX.frag.dragK = 0.03; OBX.frag.mesh.castShadow = true; } return OBX.frag; }
 function brickBreak(b, g) { // a brick that does not survive: a couple of jagged chunks and some rubble, thrown the way its group was
   b.set.mesh.setMatrixAt(b.i, _cdZ); b.set.mesh.instanceMatrix.needsUpdate = true; b.set.life[b.i] = 0; b.set.mesh.visible = true;
-  if (!OBX.frag) { const cg = new THREE.IcosahedronGeometry(0.5, 0), pp = cg.attributes.position; for (let i = 0; i < pp.count; i++) { const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i), t = Math.sin(x * 91.7 + y * 31.3 + z * 57.1) * 43758.5453, n = 0.62 + 0.5 * (t - Math.floor(t)); pp.setXYZ(i, x * n, y * n, z * n); } cg.computeVertexNormals();
-    OBX.frag = new CanDebris(cg, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), 200); OBX.frag.snd = 'stone'; OBX.frag.bnc = 0.25; OBX.frag.dragK = 0.03; OBX.frag.mesh.castShadow = true; }
-  const F = OBX.frag, wx = LAB_LANE + b.x, wz = BOLLARD_Z + b.z, n = 3 + Math.floor(Math.random() * 3), cols = [0xb3523a, 0xa84630, 0xc2654b, 0x9b3f2b, 0xc9bfae];
+  const F = obsFragSet(), wx = LAB_LANE + b.x, wz = BOLLARD_Z + b.z, n = 3 + Math.floor(Math.random() * 3), cols = [0xb3523a, 0xa84630, 0xc2654b, 0x9b3f2b, 0xc9bfae];
   for (let i = 0; i < n; i++) { const big = i < 2, sz = big ? rand(0.12, 0.24) : rand(0.04, 0.1), c = cols[Math.floor(Math.random() * (big ? 4 : 5))];
     F.spawn(wx + rand(-0.15, 0.15), b.y + rand(-0.06, 0.06), wz + rand(-0.06, 0.06), g.v[0] + rand(-2.5, 2.5), g.v[1] + rand(-1, 2), g.v[2] + rand(-2, 2), sz * rand(0.8, 1.4), sz * rand(0.55, 1), sz * rand(0.8, 1.3), 99999, c, false);
     F.fl[(F.next + F.N - 1) % F.N] = sz * 0.4; } }
@@ -3720,12 +3730,14 @@ function mixPickUI() {
   stage.appendChild(el); MIX.el = el; MIX.upd.forEach(f => f());
 }
 function mixApply() { MIX.upd && MIX.upd.forEach(f => f()); if (LAB.machine !== 'mix') return; labVehicle(MIX.veh); obsApply(); board.visible = true; labCartReset(); }
+function warmDebris() { // every part that can fly is shown for one compile, so the shaders exist before the crash
+  try { const hid = [], on = m => { if (m && !m.visible) { hid.push(m); m.visible = true; } }; for (const d of CDEB.list) on(d.m); if (OBX.shards) on(OBX.shards.mesh); if (OBX.frag) on(OBX.frag.mesh); const o = OBX.built[OBX.cur]; if (o) for (const t in o.sets) on(o.sets[t].mesh); renderer.compile(scene, camera); for (const m of hid) m.visible = false; } catch (e) { /* a missing warm-up is only a hitch */ } }
 function labCartReset() {
   cartDebrisBuild(); cartDebrisReset();
   const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
   for (const w of wheels) w.visible = true; { const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
   CART.box.zf = CART.zf0; LABCART.hit = false; CART.place(BOLLARD_Z + CART.br + 14); CART.vz = 0; labCartPlace(); if (OBX.cur !== 'post' && labBol()) obsPlace(OBX.cur);
-  bollardFall(0); LAB.bollardTip = 0;
+  bollardFall(0); LAB.bollardTip = 0; warmDebris();
 }
 function labImpact() {
   const v = LABCART.v; LABCART.hit = true; CART.impact(v);
@@ -4284,6 +4296,7 @@ function labBars(on) { // the replay used to draw black bars over 24% of the scr
   stage.classList.toggle('replaying', on);
 }
 function labReplayStart() {
+  crashBudget(false); // the replay gets the full picture again
   const imp = LREC.impT ?? LREC.t;
   const from = Math.max(LREC.frames[0] ? LREC.frames[0][0] : 0, imp - 0.7), to = Math.min(LREC.t, imp + 2.6);
   const cage = board.getObjectByName('cage');
@@ -4350,7 +4363,7 @@ function buildLabUI() {
   stage.appendChild(g);
   const lv = document.createElement('div'); lv.className = 'lablvl'; lv.id = 'labLvl'; stage.appendChild(lv);
   const p = document.createElement('div'); p.className = 'labpanel'; p.id = 'labPanel';
-  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div><div class="foot"><button id="labLook" type="button">Look</button><button id="labFps" type="button">FPS</button></div>';
+  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div><div class="foot"><button id="labLook" type="button">Look</button><button id="labFps" type="button">FPS</button><button id="labQ" type="button">Res</button></div>';
   stage.appendChild(p);
   const chips = $('labChips');
   for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub' || m === 'stairs') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
@@ -4361,6 +4374,7 @@ function buildLabUI() {
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labRec').onclick = () => { $('bLive').onclick(); labUI(); };
   $('labLook').onclick = () => { LOOK_I = (LOOK_I + 1) % 3; try { localStorage.setItem('daggie-look', String(LOOK_I)); } catch (e) {} applyRecMode(); labUI(); };
+  $('labQ').onclick = () => { QUAL.i = (QUAL.i + 1) % QUAL.opts.length; try { localStorage.setItem('daggie-q', QUAL.opts[QUAL.i]); } catch (e) {} ADAPT.cool = 0; ADAPT.low = 0; labUI(); };
   $('labFps').onclick = () => { FPS_ON = !FPS_ON; try { localStorage.setItem('daggie-fps', FPS_ON ? '1' : '0'); } catch (e) {} fpsShow(); labUI(); };
   stage.addEventListener('pointerdown', () => { if (LAB.replay) LAB.replay.skip = true; }); // tap to skip the replay
   labUI();
@@ -4377,10 +4391,11 @@ function labUI() {
   $('labLvl').textContent = (labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : LAB.machine === 'stairs' ? 'LEVEL ' + LAB.level + ' · ' + STAIRS_STEPS[LAB.level - 1] + ' STEPS' : 'LEVEL ' + LAB.level).replace(' · ', '\n');
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
-  $('labRec').setAttribute('aria-pressed', String(REC_MODE)); $('labLook').textContent = 'Look: ' + LK().n; $('labFps').setAttribute('aria-pressed', String(FPS_ON));
+  $('labRec').setAttribute('aria-pressed', String(REC_MODE)); $('labLook').textContent = 'Look: ' + LK().n; $('labFps').setAttribute('aria-pressed', String(FPS_ON)); $('labQ').textContent = 'Res: ' + (QUAL.i ? QUAL.opts[QUAL.i] + 'x' : 'AUTO');
   if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
 }
 function labReset() {
+  crashBudget(false);
   if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z); // before the build: the posters are photographed facing the camera
   if (!labBuilt) buildLab();
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
