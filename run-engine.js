@@ -30,7 +30,7 @@ const $ = id => document.getElementById(id);
 const setLoad = (p, txt) => { $('loadBar').style.width = Math.round(p * 100) + '%'; if (txt) $('loadTxt').textContent = txt; };
 
 // ---------- renderer ----------
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 const PR_MAX = Math.min(3, window.devicePixelRatio || 1), AUTO_MAX = Math.min(2.0, PR_MAX); let PR = AUTO_MAX;
 renderer.setPixelRatio(PR);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -63,7 +63,7 @@ const FXAA_FRAG = ['uniform sampler2D tDiffuse; uniform vec2 px; uniform float a
   ' if (aa > 0.5) { float lMin = min(lM, min(min(lN, lS), min(lW, lE))), lMax = max(lM, max(max(lN, lS), max(lW, lE)));',
   '  if (lMax - lMin > max(0.06, lMax * 0.18)) { float wH = abs(lW - lE), wV = abs(lN - lS); vec3 a = wH > wV ? 0.5 * (cN + cS) : 0.5 * (cW + cE); col = mix(m, 0.5 * (m + a), 0.55); } }',
   ' float lAvg = 0.25 * (lN + lS + lW + lE), lMn = min(min(lN, lS), min(lW, lE)), lMx = max(max(lN, lS), max(lW, lE));',
-  ' float l0 = dot(col, luma); float l1 = l0 + (l0 - lAvg) * 0.28; l1 = clamp(l1, min(lMn, l0), max(lMx, l0));',
+  ' float l0 = dot(col, luma); float l1 = l0 + (l0 - lAvg) * 0.36; l1 = clamp(l1, min(lMn, l0), max(lMx, l0));',
   ' col = col * (l1 / max(l0, 0.0001));',
   ' gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0); }'].join('\n');
 const fxaa = new ShaderPass({ uniforms: { tDiffuse: { value: null }, px: { value: new THREE.Vector2(1 / 800, 1 / 1600) }, aa: { value: msaaOK ? 0 : 1 } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: FXAA_FRAG });
@@ -2700,17 +2700,22 @@ let FPS_ON = false; try { FPS_ON = localStorage.getItem('daggie-fps') === '1'; }
 const FPS = { box: null, n: 0, ms: 0, t0: 0, a: 0, b: 0, u: 0, r: 0, calls: 0, tris: 0 }; renderer.info.autoReset = false;
 function fpsMark(k) { const t = performance.now(); if (k === 0) FPS.a = t; else if (k === 1) { FPS.b = t; renderer.info.reset(); } else { FPS.u += FPS.b - FPS.a; FPS.r += t - FPS.b; const i = renderer.info.render; if (i.calls > FPS.calls) FPS.calls = i.calls; if (i.triangles > FPS.tris) FPS.tris = i.triangles; } }
 function fpsShow() { if (!FPS.box) { const css = document.createElement('style'); css.textContent = '.fpsbox{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:30;pointer-events:none;font:700 12px/1.25 ui-monospace,Menlo,monospace;color:#7dff9a;background:rgba(0,0,0,.5);padding:4px 7px;border-radius:7px;white-space:pre}'; document.head.appendChild(css); FPS.box = document.createElement('div'); FPS.box.className = 'fpsbox'; stage.appendChild(FPS.box); } FPS.box.style.display = FPS_ON ? 'block' : 'none'; }
-function fpsTick(dt, now) { if (!FPS_ON || !FPS.box) return; FPS.n++; FPS.ms += dt * 1000; if (now - FPS.t0 >= 500) { const fps = Math.round(FPS.n * 1000 / (now - FPS.t0)); FPS.box.style.color = fps >= 55 ? '#7dff9a' : fps >= 40 ? '#ffd34d' : '#ff6b6b'; FPS.box.textContent = fps + ' FPS  ' + (FPS.ms / FPS.n).toFixed(1) + ' ms\nrender ' + PR.toFixed(2) + 'x  ' + (qFixed() ? 'LOCKED' : ADAPT.crash ? 'AUTO (crash)' : 'AUTO') + (!qFixed() && PR < AUTO_MAX ? '  max ' + AUTO_MAX.toFixed(2) + 'x' : '') + '\nCPU  update ' + (FPS.u / FPS.n).toFixed(1) + '  draw ' + (FPS.r / FPS.n).toFixed(1) + ' ms\ncalls ' + FPS.calls + '  tris ' + Math.round(FPS.tris / 1000) + 'k  AA ' + (msaaOK ? 'MSAA' : 'edge'); FPS.u = 0; FPS.r = 0; FPS.calls = 0; FPS.tris = 0; FPS.n = 0; FPS.ms = 0; FPS.t0 = now; } }
+function fpsTick(dt, now) { if (!FPS_ON || !FPS.box) return; FPS.n++; FPS.ms += dt * 1000; if (now - FPS.t0 >= 500) { const fps = Math.round(FPS.n * 1000 / (now - FPS.t0)); FPS.box.style.color = fps >= 55 ? '#7dff9a' : fps >= 40 ? '#ffd34d' : '#ff6b6b'; FPS.box.textContent = fps + ' FPS  ' + (FPS.ms / FPS.n).toFixed(1) + ' ms\nrender ' + PR.toFixed(2) + 'x  ' + (qFixed() ? 'LOCKED' : ADAPT.crash ? 'AUTO (crash)' : 'AUTO') + (!qFixed() && PR < AUTO_MAX ? '  max ' + AUTO_MAX.toFixed(2) + 'x' : '') + '\nCPU  update ' + (FPS.u / FPS.n).toFixed(1) + '  draw ' + (FPS.r / FPS.n).toFixed(1) + ' ms\ncalls ' + FPS.calls + '  tris ' + Math.round(FPS.tris / 1000) + 'k  AA ' + (AA_ON ? 'MSAA' : 'none/edge'); FPS.u = 0; FPS.r = 0; FPS.calls = 0; FPS.tris = 0; FPS.n = 0; FPS.ms = 0; FPS.t0 = now; } }
 fpsShow();
 const QUAL = { opts: ['auto', '3', '2.5', '2', '1.5'], i: 0 }; try { const qk = QUAL.opts.indexOf(localStorage.getItem('daggie-q')); if (qk >= 0) QUAL.i = qk; } catch (e) {}
 const qFixed = () => QUAL.i === 0 ? 0 : +QUAL.opts[QUAL.i];
-function setPR(p) { p = Math.max(1.25, Math.min(PR_MAX, p)); if (Math.abs(p - PR) < 0.01) return; PR = p; try { resize(); } catch (e) {} }
-const ADAPT = { ema: 16.7, low: 0, hi: 0, cool: 0, noRaise: 0, lastUp: 0, t0: performance.now(), crash: false, saved: 0 };
+let AA_ON = msaaOK;
+function setPR(p) { p = Math.max(1.25, Math.min(PR_MAX, p)); if (Math.abs(p - PR) < 0.01) return; PR = p;
+  try { const ms = msaaOK && p <= 2.001 ? 4 : 0; AA_ON = ms > 0; if (composer.renderTarget1.samples !== ms) for (const rt of [composer.renderTarget1, composer.renderTarget2]) { rt.samples = ms; rt.dispose(); } fxaa.uniforms.aa.value = ms === 0 && p < 2.5 ? 1 : 0; } catch (e) { /* keep what we have */ }
+  try { resize(); } catch (e) {} }
+const ADAPT = { ema: 16.7, low: 0, hi: 0, cool: 0, noRaise: 0, lastUp: 0, t0: performance.now(), crash: false, saved: 0, idle: false, runPR: 0 };
+function idleSharp(on) { // in the menu: native resolution; when the run starts: back to the governor's
+  const A = ADAPT; if (qFixed()) return; if (on && !A.idle) { A.idle = true; A.runPR = PR; setPR(PR_MAX); } else if (!on && A.idle) { A.idle = false; setPR(A.runPR || AUTO_MAX); A.ema = 16.7; A.cool = 1.5; A.low = 0; } }
 function crashBudget(on) { // the moment of the crash is the heaviest of all: just before it the resolution steps down a notch (a hitch now, not in the middle of the impact) and it comes back when the scene is reset
   const A = ADAPT; if (qFixed()) return; if (on && !A.crash) { A.crash = true; A.saved = PR; setPR(Math.min(PR, 1.75)); } else if (!on && A.crash) { A.crash = false; setPR(A.saved); A.ema = 16.7; A.cool = 2; } }
 function adaptRes(dt, now) { fpsMark(0); // keeps the frame rate at 60: steps down quickly when it sags (and for the crash), creeps back up when there is room, and does not go back up where it failed before
   fpsTick(dt, now); const A = ADAPT, fx = qFixed(); if (fx) { setPR(fx); return; }
-  if (PR > AUTO_MAX) { setPR(AUTO_MAX); return; } if (A.crash || now - A.t0 < 5000) return; if (A.cool > 0) { A.cool -= dt; return; }
+  if (A.idle) return; if (PR > AUTO_MAX) { setPR(AUTO_MAX); return; } if (A.crash || now - A.t0 < 5000) return; if (A.cool > 0) { A.cool -= dt; return; }
   A.ema += (dt * 1000 - A.ema) * 0.12;
   if (A.ema > 19.5) { A.low += dt; A.hi = 0; if (A.low > 0.45) { setPR(PR - (A.ema > 28 ? 0.5 : 0.25)); A.low = 0; A.ema = 16.7; A.cool = 1.2; if (now - A.lastUp < 9000) A.noRaise = now + 45000; } }
   else { A.low = 0; if (A.ema < 17.4 && PR < AUTO_MAX && now > A.noRaise) { A.hi += dt; if (A.hi > 7) { setPR(PR + 0.125); A.hi = 0; A.lastUp = now; A.cool = 1.2; } } else A.hi = 0; } }
@@ -4401,7 +4406,7 @@ function labUI() {
   if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
 }
 function labReset() {
-  crashBudget(false);
+  crashBudget(false); idleSharp(true);
   if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z); // before the build: the posters are photographed facing the camera
   if (!labBuilt) buildLab();
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
@@ -4414,6 +4419,7 @@ function labReset() {
   setFace('idle', 0); snapCam = true;
 }
 function labStart() {
+  idleSharp(false);
   resetRun(); // fresh Daggie on the stand
   LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
