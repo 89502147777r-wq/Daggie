@@ -31,7 +31,7 @@ const setLoad = (p, txt) => { $('loadBar').style.width = Math.round(p * 100) + '
 
 // ---------- renderer ----------
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-const PR_MAX = Math.min(3, window.devicePixelRatio || 1); let PR = PR_MAX;
+const PR_MAX = Math.min(3, window.devicePixelRatio || 1), AUTO_MAX = Math.min(2.5, PR_MAX); let PR = AUTO_MAX;
 renderer.setPixelRatio(PR);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.74;
@@ -2703,7 +2703,7 @@ let FPS_ON = false; try { FPS_ON = localStorage.getItem('daggie-fps') === '1'; }
 const FPS = { box: null, n: 0, ms: 0, t0: 0, a: 0, b: 0, u: 0, r: 0, calls: 0, tris: 0 }; renderer.info.autoReset = false;
 function fpsMark(k) { const t = performance.now(); if (k === 0) FPS.a = t; else if (k === 1) { FPS.b = t; renderer.info.reset(); } else { FPS.u += FPS.b - FPS.a; FPS.r += t - FPS.b; const i = renderer.info.render; if (i.calls > FPS.calls) FPS.calls = i.calls; if (i.triangles > FPS.tris) FPS.tris = i.triangles; } }
 function fpsShow() { if (!FPS.box) { const css = document.createElement('style'); css.textContent = '.fpsbox{position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:30;pointer-events:none;font:700 12px/1.25 ui-monospace,Menlo,monospace;color:#7dff9a;background:rgba(0,0,0,.5);padding:4px 7px;border-radius:7px;white-space:pre}'; document.head.appendChild(css); FPS.box = document.createElement('div'); FPS.box.className = 'fpsbox'; stage.appendChild(FPS.box); } FPS.box.style.display = FPS_ON ? 'block' : 'none'; }
-function fpsTick(dt, now) { if (!FPS_ON || !FPS.box) return; FPS.n++; FPS.ms += dt * 1000; if (now - FPS.t0 >= 500) { const fps = Math.round(FPS.n * 1000 / (now - FPS.t0)); FPS.box.style.color = fps >= 55 ? '#7dff9a' : fps >= 40 ? '#ffd34d' : '#ff6b6b'; FPS.box.textContent = fps + ' FPS  ' + (FPS.ms / FPS.n).toFixed(1) + ' ms\nrender ' + PR.toFixed(2) + 'x  ' + (qFixed() ? 'LOCKED' : ADAPT.crash ? 'AUTO (crash)' : 'AUTO') + (PR < PR_MAX ? '  max ' + PR_MAX.toFixed(2) + 'x' : '') + '\nCPU  update ' + (FPS.u / FPS.n).toFixed(1) + '  draw ' + (FPS.r / FPS.n).toFixed(1) + ' ms\ncalls ' + FPS.calls + '  tris ' + Math.round(FPS.tris / 1000) + 'k'; FPS.u = 0; FPS.r = 0; FPS.calls = 0; FPS.tris = 0; FPS.n = 0; FPS.ms = 0; FPS.t0 = now; } }
+function fpsTick(dt, now) { if (!FPS_ON || !FPS.box) return; FPS.n++; FPS.ms += dt * 1000; if (now - FPS.t0 >= 500) { const fps = Math.round(FPS.n * 1000 / (now - FPS.t0)); FPS.box.style.color = fps >= 55 ? '#7dff9a' : fps >= 40 ? '#ffd34d' : '#ff6b6b'; FPS.box.textContent = fps + ' FPS  ' + (FPS.ms / FPS.n).toFixed(1) + ' ms\nrender ' + PR.toFixed(2) + 'x  ' + (qFixed() ? 'LOCKED' : ADAPT.crash ? 'AUTO (crash)' : 'AUTO') + (!qFixed() && PR < AUTO_MAX ? '  max ' + AUTO_MAX.toFixed(2) + 'x' : '') + '\nCPU  update ' + (FPS.u / FPS.n).toFixed(1) + '  draw ' + (FPS.r / FPS.n).toFixed(1) + ' ms\ncalls ' + FPS.calls + '  tris ' + Math.round(FPS.tris / 1000) + 'k'; FPS.u = 0; FPS.r = 0; FPS.calls = 0; FPS.tris = 0; FPS.n = 0; FPS.ms = 0; FPS.t0 = now; } }
 fpsShow();
 const QUAL = { opts: ['auto', '3', '2.5', '2', '1.5'], i: 0 }; try { const qk = QUAL.opts.indexOf(localStorage.getItem('daggie-q')); if (qk >= 0) QUAL.i = qk; } catch (e) {}
 const qFixed = () => QUAL.i === 0 ? 0 : +QUAL.opts[QUAL.i];
@@ -2713,10 +2713,10 @@ function crashBudget(on) { // the moment of the crash is the heaviest of all: ju
   const A = ADAPT; if (qFixed()) return; if (on && !A.crash) { A.crash = true; A.saved = PR; setPR(Math.min(PR, 1.75)); } else if (!on && A.crash) { A.crash = false; setPR(A.saved); A.ema = 16.7; A.cool = 2; } }
 function adaptRes(dt, now) { fpsMark(0); // keeps the frame rate at 60: steps down quickly when it sags (and for the crash), creeps back up when there is room, and does not go back up where it failed before
   fpsTick(dt, now); const A = ADAPT, fx = qFixed(); if (fx) { setPR(fx); return; }
-  if (A.crash || now - A.t0 < 5000) return; if (A.cool > 0) { A.cool -= dt; return; }
+  if (PR > AUTO_MAX) { setPR(AUTO_MAX); return; } if (A.crash || now - A.t0 < 5000) return; if (A.cool > 0) { A.cool -= dt; return; }
   A.ema += (dt * 1000 - A.ema) * 0.12;
   if (A.ema > 19.5) { A.low += dt; A.hi = 0; if (A.low > 0.45) { setPR(PR - (A.ema > 28 ? 0.5 : 0.25)); A.low = 0; A.ema = 16.7; A.cool = 1.2; if (now - A.lastUp < 9000) A.noRaise = now + 45000; } }
-  else { A.low = 0; if (A.ema < 17.4 && PR < PR_MAX && now > A.noRaise) { A.hi += dt; if (A.hi > 7) { setPR(PR + 0.125); A.hi = 0; A.lastUp = now; A.cool = 1.2; } } else A.hi = 0; } }
+  else { A.low = 0; if (A.ema < 17.4 && PR < AUTO_MAX && now > A.noRaise) { A.hi += dt; if (A.hi > 7) { setPR(PR + 0.125); A.hi = 0; A.lastUp = now; A.cool = 1.2; } } else A.hi = 0; } }
 function resize() {
   const W = stage.clientWidth, H = stage.clientHeight;
   let w = W, h = H;
@@ -3108,9 +3108,9 @@ function ragStart(vel, impactV) { // turn the posed body into a physics body mov
   for (const p of parts) { const q = RAG_PARTS[p.name]; if (!q) continue; ragBasis(now[q[0]], now[q[1]], now[q[2]], now[q[3]], _rm1); _rm0.copy(restB[p.name]).transpose(); _rm1.multiply(_rm0); const rec = new THREE.Quaternion().setFromRotationMatrix(_rm1); corr[p.name] = rec.invert().multiply(p.getWorldQuaternion(new THREE.Quaternion())); }
   for (const p of parts) scene.attach(p);
   core.onBreak = g => { const k = I[{ armL: 'shL', armR: 'shR', legL: 'hipL', legR: 'hipR', head: 'neck' }[g]] * 3, pos = new V3(core.x[k], core.x[k + 1], core.x[k + 2]);
-    for (let i = 0; i < 16; i++) spawnDrop(pos.clone(), new V3(rand(-2, 2), rand(0.5, 3), rand(-2, 2)), rand(0.012, 0.024)); burst(pos, 90, SPARK, 10); ripSound();
-    lastPop = 0; pop({ armL: 'ARM OFF!', armR: 'ARM OFF!', legL: 'LEG OFF!', legR: 'LEG OFF!', head: 'HEADLESS!' }[g], 'lilac'); setFace('hit', 1500); };
-  core.onRelease = () => { lastPop = 0; pop('LET GO!', 'lilac'); setFace('scared', 1500); };
+    for (let i = 0; i < 16; i++) spawnDrop(pos.clone(), new V3(rand(-2, 2), rand(0.5, 3), rand(-2, 2)), rand(0.012, 0.024)); burst(pos, 50, SPARK, 10); ripSound();
+    setFace('hit', 1500); };
+  core.onRelease = () => { setFace('scared', 1500); };
   RAGSIM = { core, I, rest, restB, corr, t: 0, seatY, fast };
 }
 // sparks off his metal body: scraping along the floor, hard knocks and torn limbs. Called every frame after the physics.
@@ -3435,8 +3435,8 @@ function obsGlassAt(x, y, z, power) { /* power 0..1 at the point (x, y, z) of th
   const t = pn.uv(x, y, z), r = pn.rect, S = 1024, px = (r[0] + clamp(t[0], 0, 1) * (r[2] - r[0])) * S, py = (1 - (r[1] + clamp(t[1], 0, 1) * (r[3] - r[1]))) * S, g = M.gl.crack.image.getContext('2d');
   obxCrack(g, px, py, (r[2] - r[0]) * S * 0.5, power); M.gl.crack.needsUpdate = true; M.gl.mat.map = M.gl.crack;
   if (power > 0.55) { const gm = o.kits[spec.glass.key].geo, a = gm.attributes.position.array, yl = y - spec.glass.yoff, R = 0.16 + 0.4 * power; let cut = 0; // the pane breaks out round the point
-    for (let i = 0; i + 8 < a.length; i += 9) { const cx = (a[i] + a[i + 3] + a[i + 6]) / 3, cy = (a[i + 1] + a[i + 4] + a[i + 7]) / 3, cz = (a[i + 2] + a[i + 5] + a[i + 8]) / 3; if (Math.hypot(cx - x, cy - yl, cz - z) < R) { for (let k = 0; k < 3; k++) { a[i + k * 3] = cx; a[i + k * 3 + 1] = cy; a[i + k * 3 + 2] = cz; } cut++; } }
-    gm.attributes.position.needsUpdate = true; gm.userData.dented = a.slice();
+    for (let i = 0; i + 8 < a.length; i += 9) { const cx = (a[i] + a[i + 3] + a[i + 6]) / 3, cy = (a[i + 1] + a[i + 4] + a[i + 7]) / 3, cz = (a[i + 2] + a[i + 5] + a[i + 8]) / 3; if (Math.hypot(cx - x, cy - yl, cz - z) < R) { for (let k = 0; k < 3; k++) { a[i + k * 3] = cx; a[i + k * 3 + 1] = cy; a[i + k * 3 + 2] = cz; } (gm.userData.holes || (gm.userData.holes = [])).push(i, cx, cy, cz); cut++; } }
+    gm.attributes.position.needsUpdate = true;
     if (cut) { obsShardSet();
       const nr = pn.nrm || [0, 0, 1], N = Math.round(5 + 16 * power), wx = LAB_LANE + x, wz = BOLLARD_Z + z; for (let i = 0; i < N; i++) { const sp = rand(0.5, 4 + 6 * power); OBX.shards.spawn(wx + rand(-R, R) * 0.6, y + rand(-R, R) * 0.6, wz + rand(-R, R) * 0.4, nr[0] * sp + rand(-2, 2), rand(0.5, 3 + 4 * power) + nr[1] * sp, nr[2] * sp + rand(-2, 2), rand(0.04, 0.12), 0.004, rand(0.03, 0.09), 99999, 0xc4dde8, false); }
       glassSound(1.15 - 0.3 * power); } }
@@ -3556,7 +3556,7 @@ function obxDrawTire(g, w, h, T, bump) { /* the tyre skin: dusty rubber, embosse
     g.font = '700 20px Arial, sans-serif'; g.fillText('TUBELESS  RADIAL', w * 0.46 + flip * w * 0.5 - (flip ? w : 0), cy - 4); if (!bump && !flip) { g.fillStyle = '#d8c64a'; g.beginPath(); g.arc(w * 0.7, cy, 9, 0, 6.283); g.fill(); } }
   // the bead and the inner liner are plain black rubber
   if (!bump) { const [y0, y1] = band(0, T.lowSide[0]); g.fillStyle = 'rgba(8,8,8,0.55)'; g.fillRect(0, y0, w, y1 - y0); const [z0, z1] = band(T.upSide[1], 1); g.fillRect(0, z0, w, z1 - z0); } }
-function obxTireKit() { const T = obxTireProfile(), geo = new THREE.LatheGeometry(T.pts.map(([r, y]) => new THREE.Vector2(r, y)), 44), uv = geo.attributes.uv, n = T.pts.length;
+function obxTireKit() { const T = obxTireProfile(), geo = new THREE.LatheGeometry(T.pts.map(([r, y]) => new THREE.Vector2(r, y)), 32), uv = geo.attributes.uv, n = T.pts.length;
   for (let i = 0; i < uv.count; i++) uv.setY(i, T.v[Math.min(n - 1, Math.round(uv.getY(i) * (n - 1)))]);
   const map = tex(1024, 512, (g, w, h) => obxDrawTire(g, w, h, T, false)), bumpMap = tex(1024, 512, (g, w, h) => obxDrawTire(g, w, h, T, true));
   return { geo, mat: new THREE.MeshStandardMaterial({ map, bumpMap, bumpScale: 3, roughness: 0.88, metalness: 0, side: THREE.DoubleSide }), fl: 0.12 }; }
@@ -3600,24 +3600,34 @@ function obsBuild(id) {
 function obsPlace(id) { // every block back in its place, still
   if (OBX.dust) OBX.dust.clear(); OBX.cool = {}; OBX.psp = {};
   const o = obsBuild(id), sp = OBST[id], q = new THREE.Quaternion(), up = new V3(0, 1, 0), jit = sp.layout; 
-  for (const t in o.kits) { const gm = o.kits[t].geo; if (gm.userData.orig) { gm.attributes.position.array.set(gm.userData.orig); gm.attributes.normal.array.set(gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; gm.userData.shown = false; } } // a new run: the dent is hammered out
+  for (const t in o.kits) { const gm = o.kits[t].geo; if (gm.userData.orig) { gm.attributes.position.array.set(gm.userData.orig); gm.attributes.normal.array.set(gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; gm.userData.shown = false; gm.userData.holes = []; gm.userData.dentD = 0; } } if (OBST[id].dent) for (const part of OBST[id].dent.parts) if (o.kits[part]) obsDentPrep(o.kits[part].geo, OBST[id].dent); // a new run: the dent is hammered out, the next one is prepared
   obsGlassReset(id); if (OBX.frag) OBX.frag.clear(); if (OBST[id].glass) obsShardSet(); if (id === 'bricks') obsFragSet(); OBX_ROCK.on = false; OBX_ROCK.id = ''; for (const t in o.sets) { o.sets[t].mesh.position.set(0, 0, 0); o.sets[t].mesh.quaternion.set(0, 0, 0, 1); } // a new run: the vehicle is back in place
   for (const t in o.sets) o.sets[t].clear();
   for (const b of o.blocks) { const i = b.set.next; q.setFromAxisAngle(up, b.ry || 0); b.set.raw(LAB_LANE + b.x, b.y, BOLLARD_Z + b.z, 0, 0, 0, b.sx, b.sy, b.sz, 99999, b.col, true, q.x, q.y, q.z, q.w, 0, 0, 0); b.i = i; b.set.fl[i] = b.kit.fl; }
   for (const t in o.sets) { o.sets[t].mesh.visible = true; o.sets[t].mesh.instanceMatrix.needsUpdate = true; }
 }
+function obsDentPrep(geo, A) { // done once, in the menu: which vertices a dent can ever touch and how far each moves (that depends only on where the vertex is), so the crash itself loops over those few only
+  const U = geo.userData; if (U.dentIdx) return; const pos = geo.attributes.position, nor = geo.attributes.normal, a = pos.array, n = pos.count;
+  if (!U.orig) { U.orig = a.slice(); U.origN = nor.array.slice(); }
+  const idx = [], bw = [], hit = new Uint8Array(n);
+  for (let i = 0; i < n; i++) { const k = i * 3, x = a[k], y = a[k + 1], z = a[k + 2]; if (!A.mask(x, y, z)) continue; const dx = (x - A.cx) / A.sx, dy = (y - A.cy) / A.sy, w = Math.exp(-(dx * dx + dy * dy) * 0.5); if (w < 0.02) continue;
+    const f = Math.pow(clamp((z - A.z0) / (A.z1 - A.z0), 0, 1), 1.3), t = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453, nz = 0.8 + 0.3 * (t - Math.floor(t)) + 0.15 * Math.sin(x * 9 + z * 4) * Math.sin(y * 7 + x * 3); idx.push(i); bw.push(w * f * nz); hit[i] = 1; }
+  const tri = []; for (let i = 0; i + 2 < n; i += 3) if (hit[i] || hit[i + 1] || hit[i + 2]) tri.push(i);
+  U.dentIdx = Int32Array.from(idx); U.dentBW = Float32Array.from(bw); U.dentTri = Int32Array.from(tri); U.dentD = 0; U.holes = [];
+}
+function obsDentApply(geo, on) { // crumple the prepared vertices to the stored depth (on) or put everything back (off); the glass holes go with it
+  const U = geo.userData, pos = geo.attributes.position, nor = geo.attributes.normal, a = pos.array, na = nor.array, o = U.orig; if (!U.dentIdx) return; const ix = U.dentIdx, bw = U.dentBW, tr = U.dentTri, D = U.dentD, h = U.holes;
+  if (on) { for (let j = 0; j < ix.length; j++) { const k = ix[j] * 3; a[k] = o[k]; a[k + 1] = o[k + 1]; a[k + 2] = o[k + 2] - D * bw[j]; }
+    for (let q = 0; q < tr.length; q++) { const p = tr[q] * 3, ux = a[p + 3] - a[p], uy = a[p + 4] - a[p + 1], uz = a[p + 5] - a[p + 2], vx = a[p + 6] - a[p], vy = a[p + 7] - a[p + 1], vz = a[p + 8] - a[p + 2]; let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l; for (let r = 0; r < 3; r++) { na[p + r * 3] = nx; na[p + r * 3 + 1] = ny; na[p + r * 3 + 2] = nz; } } // crumpled metal is faceted: a flat normal on every triangle that moved
+    for (let q = 0; q < h.length; q += 4) { const i = h[q]; for (let r = 0; r < 3; r++) { a[i + r * 3] = h[q + 1]; a[i + r * 3 + 1] = h[q + 2]; a[i + r * 3 + 2] = h[q + 3]; } } }
+  else { for (let j = 0; j < ix.length; j++) { const k = ix[j] * 3; a[k] = o[k]; a[k + 1] = o[k + 1]; a[k + 2] = o[k + 2]; }
+    for (let q = 0; q < tr.length; q++) { const p = tr[q] * 3; for (let r = 0; r < 9; r++) na[p + r] = U.origN[p + r]; }
+    for (let q = 0; q < h.length; q += 4) { const i = h[q]; for (let r = 0; r < 9; r++) a[i + r] = o[i + r]; } }
+  pos.needsUpdate = true; nor.needsUpdate = true; U.shown = on;
+}
 function obsDeform(v) { // a heavy obstacle is not a rock: the front of the truck / the side of the car (and its glass) crumples, deeper the faster the hit; the vehicle and the cylinders sink into the dent by the same depth
   const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], A = sp && sp.dent; if (!A || !o) return 0; const D = clamp(A.min + v * A.k, 0, A.max);
-  for (const part of A.parts) { const kit = o.kits[part]; if (!kit) continue; const geo = kit.geo, pos = geo.attributes.position, nor = geo.attributes.normal, a = pos.array, na = nor.array;
-    if (!geo.userData.orig) { geo.userData.orig = a.slice(); geo.userData.origN = na.slice(); }
-    const n = pos.count, hit = new Uint8Array(n);
-    for (let i = 0; i < n; i++) { const k = i * 3, x = a[k], y = a[k + 1], z = a[k + 2]; if (!A.mask(x, y, z)) continue; const dx = (x - A.cx) / A.sx, dy = (y - A.cy) / A.sy, w = Math.exp(-(dx * dx + dy * dy) * 0.5); if (w < 0.02) continue;
-      const f = Math.pow(clamp((z - A.z0) / (A.z1 - A.z0), 0, 1), 1.3), t = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453, nz = 0.8 + 0.3 * (t - Math.floor(t)) + 0.15 * Math.sin(x * 9 + z * 4) * Math.sin(y * 7 + x * 3);
-      a[k + 2] = z - D * w * f * nz; hit[i] = 1; }
-    for (let i = 0; i + 2 < n; i += 3) if (hit[i] || hit[i + 1] || hit[i + 2]) { // crumpled metal is faceted: a flat normal on every triangle that moved
-      const p = i * 3, ux = a[p + 3] - a[p], uy = a[p + 4] - a[p + 1], uz = a[p + 5] - a[p + 2], vx = a[p + 6] - a[p], vy = a[p + 7] - a[p + 1], vz = a[p + 8] - a[p + 2];
-      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nzz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nzz) || 1; nx /= l; ny /= l; nzz /= l; for (let q = 0; q < 3; q++) { na[p + q * 3] = nx; na[p + q * 3 + 1] = ny; na[p + q * 3 + 2] = nzz; } }
-    pos.needsUpdate = true; nor.needsUpdate = true; geo.userData.dented = a.slice(); geo.userData.dentedN = na.slice(); geo.userData.shown = true; }
+  for (const part of A.parts) { const kit = o.kits[part]; if (!kit) continue; const geo = kit.geo; obsDentPrep(geo, A); geo.userData.dentD = D; obsDentApply(geo, true); }
   for (let j = 0; j < (A.shiftN || 0); j++) if (CART.cyls[j]) CART.cyls[j].z -= D;
   CART.pw[1] -= D * 0.9; labCartPlace(); board.updateMatrixWorld(true);
   obsGlassCart(v); if (v >= 8) obsFx(sp, v, 1);
@@ -3644,8 +3654,7 @@ function obsRockStep(dt) {
 }
 function obsDentShow(dented) { // the replay: the vehicle is whole before the hit, crumpled (glass cracked) after it
   const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], A = sp && sp.dent; if (!A || !o) return;
-  for (const part of A.parts) { const gm = o.kits[part] && o.kits[part].geo; if (!gm || !gm.userData.dented || gm.userData.shown === dented) continue; gm.userData.shown = dented;
-    gm.attributes.position.array.set(dented ? gm.userData.dented : gm.userData.orig); gm.attributes.normal.array.set(dented ? gm.userData.dentedN : gm.userData.origN); gm.attributes.position.needsUpdate = true; gm.attributes.normal.needsUpdate = true; }
+  for (const part of A.parts) { const gm = o.kits[part] && o.kits[part].geo; if (!gm || !gm.userData.dentIdx || !gm.userData.dentD || gm.userData.shown === dented) continue; obsDentApply(gm, dented); }
   const M = OBX_MODELS[OBX.cur]; if (M && M.gl) M.gl.mat.map = dented && M.hits ? M.gl.crack : M.gl.clean;
 }
 function obsApply() { // choose the obstacle for this machine, give the vehicle's physics its strengths, show it and hide the rest
