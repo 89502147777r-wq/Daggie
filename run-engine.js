@@ -2710,13 +2710,14 @@ function setPR(p) { p = Math.max(1.25, Math.min(PR_MAX, p)); if (Math.abs(p - PR
   try { resize(); } catch (e) {} }
 const ADAPT = { ema: 16.7, low: 0, hi: 0, cool: 0, noRaise: 0, lastUp: 0, t0: performance.now(), crash: false, saved: 0, idle: false, runPR: 0 };
 function idleSharp(on) { // in the menu: native resolution; when the run starts: back to the governor's
-  const A = ADAPT; if (qFixed()) return; if (on && !A.idle) { A.idle = true; A.runPR = PR; setPR(PR_MAX); } else if (!on && A.idle) { A.idle = false; setPR(A.runPR || AUTO_MAX); A.ema = 16.7; A.cool = 1.5; A.low = 0; } }
+  const A = ADAPT; if (qFixed()) return; if (on && !A.idle) { A.idle = true; let r = PR; if (A.worst) { if (A.worst > 21 && r > 1.5) r = Math.max(1.5, r - (A.worst > 28 ? 0.5 : 0.25)); else if (A.worst < 17.8 && r < AUTO_MAX) r = Math.min(AUTO_MAX, r + 0.125); A.worst = 0; } A.runPR = r; setPR(PR_MAX); } else if (!on && A.idle) { A.idle = false; setPR(A.runPR || AUTO_MAX); A.ema = 16.7; A.cool = 1.5; A.low = 0; } }
 function crashBudget(on) { // the moment of the crash is the heaviest of all: just before it the resolution steps down a notch (a hitch now, not in the middle of the impact) and it comes back when the scene is reset
   const A = ADAPT; if (qFixed()) return; if (on && !A.crash) { A.crash = true; A.saved = PR; setPR(Math.min(PR, 1.75)); } else if (!on && A.crash) { A.crash = false; setPR(A.saved); A.ema = 16.7; A.cool = 2; } }
 function adaptRes(dt, now) { fpsMark(0); // keeps the frame rate at 60: steps down quickly when it sags (and for the crash), creeps back up when there is room, and does not go back up where it failed before
   fpsTick(dt, now); const A = ADAPT, fx = qFixed(); if (fx) { setPR(fx); return; }
   if (A.idle) return; if (PR > AUTO_MAX) { setPR(AUTO_MAX); return; } if (A.crash || now - A.t0 < 5000) return; if (A.cool > 0) { A.cool -= dt; return; }
   A.ema += (dt * 1000 - A.ema) * 0.12;
+  if (MODE === 'lab') { if (LAB.phase === 'roll' || LAB.phase === 'crash') A.worst = Math.max(A.worst || 0, A.ema); return; } // in the lab only measured here; the resolution is adjusted between runs, in the menu
   if (A.ema > 19.5) { A.low += dt; A.hi = 0; if (A.low > 0.45) { setPR(PR - (A.ema > 28 ? 0.5 : 0.25)); A.low = 0; A.ema = 16.7; A.cool = 1.2; if (now - A.lastUp < 9000) A.noRaise = now + 45000; } }
   else { A.low = 0; if (A.ema < 17.4 && PR < AUTO_MAX && now > A.noRaise) { A.hi += dt; if (A.hi > 7) { setPR(PR + 0.125); A.hi = 0; A.lastUp = now; A.cool = 1.2; } } else A.hi = 0; } }
 function resize() {
@@ -3176,7 +3177,7 @@ function labDentAt(y, z, v) {
 }
 const LABCART = { get box() { return CART.box; }, get cyls() { return CART.cyls; }, v: 0, hit: false };
 function labWeave(dt) { // a gentle swerve on the way in (the heading follows it); it fades out over the last metres, so the hit is always dead on the target
-  if (LABCART.hit) return; if ((CART.pw[1] - BOLLARD_Z) / Math.max(LABCART.v, 1) < 0.9) crashBudget(true); const W = LAB.weave || (LAB.weave = { A: rand(0.12, 0.42), f: rand(0.45, 0.9), ph: rand(0, 6.283), t: 0 }); W.t += dt;
+  if (LABCART.hit) return; const W = LAB.weave || (LAB.weave = { A: rand(0.12, 0.42), f: rand(0.45, 0.9), ph: rand(0, 6.283), t: 0 }); W.t += dt;
   const dz = CART.pw[1] - BOLLARD_Z, k = clamp((dz - 3.2) / 8, 0, 1), e = k * k * (3 - 2 * k), a = W.f * 6.283, arg = a * W.t + W.ph, x = W.A * e * Math.sin(arg), vx = W.A * e * a * Math.cos(arg);
   board.position.x += x; board.rotation.y = -Math.atan2(vx, Math.max(2, LABCART.v)) * 0.8; }
 function labCartPlace() { const w = CART.toWorld(0, 0, 0); board.position.set(w[0], w[1], w[2]); board.rotation.set(-CART.a, 0, 0); }
@@ -4418,7 +4419,10 @@ function labReset() {
   cannonShow(LAB.machine === 'cannon'); stairsShow(LAB.machine === 'stairs');
   setFace('idle', 0); snapCam = true;
 }
-function labStart() {
+function labStart() { // the buffers are rebuilt on the still picture, not while the vehicle starts to move
+  if (LAB.starting) return; if (ADAPT.idle && !qFixed()) { LAB.starting = true; idleSharp(false); requestAnimationFrame(() => requestAnimationFrame(() => { LAB.starting = false; labStartNow(); })); return; } labStartNow();
+}
+function labStartNow() {
   idleSharp(false);
   resetRun(); // fresh Daggie on the stand
   LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; labBars(false);
@@ -5386,7 +5390,7 @@ function labCamBase(now, dt) {
   if (m === 'cannon') return cannonCam();
   if (m === 'stairs') return stairsCam();
   if (labBol()) {
-    if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, z + 2.4); wantLook.set(LAB_LANE, 0.9, z - 2.2); return 30; } // a tracking shot beside the cart
+    if (!RAGSIM) { const z = board.position.z; wantPos.set(LAB_LANE + 3.2, 1.25, z + 2.4); wantLook.set(LAB_LANE, 0.9, z - 2.2); return 150; } // a tracking shot beside the cart
     // follow the body; while it is near the post keep the cart in the shot too
     const c = RAGSIM.core, k = RAGSIM.I.pel * 3, px = c.x[k], py = c.x[k + 1], pz = c.x[k + 2], far = clamp((BOLLARD_Z - pz) / 15, 0, 1);
     const fz = lerp((pz + BOLLARD_Z) / 2, pz, far), d = 3.6 + Math.min(5, Math.abs(pz - BOLLARD_Z) * 0.18) * (1 - far) + far * 1.2;
