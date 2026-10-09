@@ -3338,7 +3338,7 @@ function wordwallLayout(txt) { const cols = wordwallGrid(txt), C = cols.length, 
 function wordwallSpec(txt) { /* the collision profile is as deep as the two layers of blocks and has no gaps between its cylinders (a thin wall of small blocks used to let a rider slip through); neighbours overlap a little, not a lot (a deep overlap makes the rider's joints fight each other) */ const cols = wordwallGrid(txt), C = cols.length, cs = clamp(6.2 / C, 0.28, 0.55), r = Math.max(cs * 0.9, 0.3), hw = Math.min(C * cs / 2, 1.8), n = Math.max(3, Math.ceil(hw * 2 / (r * 1.7)) + 1), sp = OBST.wordwall; sp.cyls = Array.from({ length: n }, (_, i) => ({ dx: -hw + i * (2 * hw / (n - 1)), r })); sp.h = 7 * cs; sp.r = r; WW.cs = cs; }
 function wordwallRebuild() { wordwallSpec(MIX.txt); const o = OBX.built.wordwall; if (o) { for (const t in o.sets) { scene.remove(o.sets[t].mesh); try { o.sets[t].mesh.dispose(); } catch (e) { /* gone anyway */ } } delete OBX.built.wordwall; } }
 
-const OBS_ORDER = ['post', 'truck', 'car', 'tires', 'barrels', 'bricks', 'barrier', 'wordwall'];
+const OBS_ORDER = ['post', 'truck', 'car', 'hatch', 'tires', 'barrels', 'bricks', 'barrier', 'wordwall'];
 if (!OBS_ORDER.includes(MIX.obs)) MIX.obs = 'truck'; /* a saved choice that no longer exists */
 // strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
 const OBST = {
@@ -3351,6 +3351,12 @@ const OBST = {
     glass: { key: 'carg', yoff: 0.75, cart: [[-0.1, 1.05, 0.8]] },
     dent: { parts: ['car', 'carg'], k: 0.02, min: 0.05, max: 0.95, cx: -0.1, cy: -0.2, sx: 0.95, sy: 0.45, z0: 0.0, z1: 0.9, shiftN: 5, mask: (x, y, z) => z > 0.05 && Math.abs(x) < 2.3 && !(Math.abs(x) > 1.0 && z > 0.55 && y < -0.05) },
     layout() { return [{ t: 'car', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }, { t: 'carg', x: 0, y: 0.75, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
+  hatch: { absorb: 2400, hard: 5, fx: 'dust', name: 'HATCHBACK (SIDEWAYS)', r: 0.95, cyls: [[-1.7, 1.03], [-1.0, 1.3], [-0.2, 1.5], [0.6, 1.5], [1.4, 1.4]].map(([dx, h]) => ({ dx, r: 0.95, rim: 0.95, h })), h: 1.52, bend: 9999, knock: 9999, tumble: 12, solid: true, kick: 0.35, lift: 0.45, sound: 'car', pop: 'CAR HIT!', rider: { up: 1.15, om: 0.7, crash: 0, cap: 11 }, rock: { parts: ['hatch', 'hatchg'], slide: 0.035, tilt: 0.004, tiltMax: 0.22, tau: 0.6, w: 9, py: 0, pz: 0 },
+    glass: { key: 'hatchg', yoff: 0, cart: [[-0.1, 1.25, 0.95]] },
+    dent: { parts: ['hatch', 'hatchg'], k: 0.02, min: 0.05, max: 0.95, cx: -0.1, cy: 0.62, sx: 0.95, sy: 0.5, z0: 0.0, z1: 1.0, shiftN: 5, mask: (x, y, z) => z > 0.05 && Math.abs(x) < 2.3 },
+    wheels(v) { hatchWheelsOff(v); },
+    layout() { const b = [{ t: 'hatch', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }, { t: 'hatchg', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }];
+      if (HATCH.state === 2) for (const w of HATCH.meta.wheels) b.push({ t: w.side > 0 ? 'hwP' : 'hwN', x: w.x, y: w.y, z: w.z, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }); return b; } },
   tires: { absorb: 600, hard: 6, fx: 'splash', name: 'TIRE STACK', r: 0.35, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.35 })), h: 1.9, bend: 3, knock: 11, tumble: 40, solid: false, kick: 0.55, lift: 0.9, sound: 'tires', pop: 'TIRES EVERYWHERE!',
     layout() { const b = []; for (let p = 0; p < 3; p++) for (let i = 0; i < 8; i++) b.push({ t: 'tire', x: (p - 1) * 0.7 + rand(-0.015, 0.015), y: 0.12 + i * 0.235, z: rand(-0.015, 0.015), sx: 1, sy: 1, sz: 1, ry: rand(0, 6), col: 0xffffff - Math.floor(rand(0, 6)) * 0x080808 }); return b; } },
   boxes: { absorb: 40, hard: 99, fx: 'paper', name: 'CARDBOARD BOXES', r: 0.3, cyls: [-0.9, -0.3, 0.3, 0.9].map(dx => ({ dx, r: 0.3 })), h: 1.8, bend: 2, knock: 4, tumble: 60, solid: false, kick: 0.85, lift: 1, sound: 'box', pop: 'BOXES EVERYWHERE!',
@@ -3591,7 +3597,34 @@ function obxBrickDraw(g, w, h, C, bump) { /* a brick face with a recessed mortar
 function obxBrickKit(k) { const C = OBX_BRICKS[k], map = tex(256, 128, (g, w, h) => obxBrickDraw(g, w, h, C, false)), bumpMap = tex(256, 128, (g, w, h) => obxBrickDraw(g, w, h, C, true));
   return { geo: new RoundedBoxGeometry(1, 1, 1, 2, 0.035), mat: new THREE.MeshStandardMaterial({ map, bumpMap, bumpScale: 2.2, roughness: 0.93, color: 0xffffff }), fl: 0.1 }; }
 function OBX_MERGE(parts, fb) { /* if the parts cannot be merged the obstacle is still there, as a plain block, and the game does not stop */ let g = null; try { g = mergeGeometries(parts); } catch (e) { g = null; } return g || fb; }
+// ---------- the hatchback: a real model (hatch.bin + hatch.jpg), simplified from a 500 000-triangle original to about 45 000 ----------
+const HATCH = { state: 0, meta: null, geo: {}, tex: null, mat: null, matW: null };
+function hatchParse(buf) { const dv = new DataView(buf); if (dv.getUint32(0, true) !== 0x48435448) throw new Error('hatch.bin is not a hatchback file'); const jl = dv.getUint32(8, true), meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 12, jl))), base = 12 + jl, G = {};
+  for (const k of ['body', 'glass', 'wheelP', 'wheelN']) { const m = meta[k], g = new THREE.BufferGeometry(), q = new Int8Array(buf, base + m.nrm.off, m.nrm.n), nf = new Float32Array(m.nrm.n); for (let i = 0; i < nf.length; i++) nf[i] = q[i] / 127;
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(buf, base + m.pos.off, m.pos.n), 3)); g.setAttribute('normal', new THREE.BufferAttribute(nf, 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(buf, base + m.uv.off, m.uv.n), 2));
+    g.setIndex(new THREE.BufferAttribute(m.idx32 ? new Uint32Array(buf, base + m.idx.off, m.idx.n) : new Uint16Array(buf, base + m.idx.off, m.idx.n), 1)); G[k] = g; }
+  return { meta, G }; }
+function obsDrop(id) { /* forget a built obstacle completely (its meshes leave the scene), so that it is built again from scratch */ const o = OBX.built[id]; if (o) { for (const t in o.sets) { scene.remove(o.sets[t].mesh); try { o.sets[t].mesh.dispose(); } catch (e) { /* gone anyway */ } } delete OBX.built[id]; } }
+function hatchLoad() {
+  if (HATCH.state !== 0) return; HATCH.state = 1;
+  const tl = new Promise((res, rej) => new THREE.TextureLoader().load('hatch.jpg?v=1', res, undefined, rej));
+  Promise.all([fetch('hatch.bin?v=1').then(r => { if (!r.ok) throw new Error('hatch.bin ' + r.status); return r.arrayBuffer(); }), tl]).then(([buf, tx]) => {
+    const { meta, G } = hatchParse(buf); tx.flipY = false; tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 16; tx.needsUpdate = true;
+    HATCH.meta = meta; HATCH.tex = tx; HATCH.geo.body = G.body.toNonIndexed(); HATCH.geo.glass = G.glass.toNonIndexed(); HATCH.geo.wheelP = G.wheelP; HATCH.geo.wheelN = G.wheelN; // a dent works on triangles that stand on their own
+    HATCH.mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.4, metalness: 0.3, envMapIntensity: 1.15 }); HATCH.matW = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.38, metalness: 0.55, envMapIntensity: 1.2 });
+    const pn = p => { const w = Math.max(1e-6, p.bb[p.type === 'x' ? 1 : 5] - p.bb[p.type === 'x' ? 0 : 4]), h = Math.max(1e-6, p.bb[3] - p.bb[2]); return p.type === 'x' ? (x, y) => [(x - p.bb[0]) / w, (y - p.bb[2]) / h] : (x, y, z) => [(z - p.bb[4]) / w, (y - p.bb[2]) / h]; };
+    OBX_MODELS.hatch = { body: [], glass: [HATCH.geo.glass], panes: meta.panes.map(p => ({ bb: p.bb, rect: p.rect, nrm: p.nrm, uv: pn(p) })) };
+    HATCH.state = 2; hatchReady(); }).catch(e => { HATCH.state = -1; console.warn('the hatchback model was not loaded', e); }); }
+function hatchReady() { obsDrop('hatch'); if (OBX.cur === 'hatch' && LAB.machine === 'mix') { try { mixApply(); } catch (e) { /* the next change of the menu will do it */ } } }
+const HATCH_NOTHING = () => ({ geo: new THREE.BoxGeometry(0.05, 0.05, 0.05), mat: new THREE.MeshBasicMaterial({ visible: false }), fl: 0.05 });
+function hatchWheelsOff(v) { /* a hard hit tears wheels off: the near ones first, the far ones only at very high speed */
+  const o = OBX.built.hatch; if (!o) return; let n = 0; for (const b of o.blocks) { if (b.t !== 'hwP' && b.t !== 'hwN') continue; const p = clamp((v - 10) / 26, 0, 1) * (b.t === 'hwP' ? 1 : 0.3); if (Math.random() < p) { b.set.launch(b.i, (b.x < 0 ? -1 : 1) * rand(0.5, 3.5), rand(2.5, 6) + v * 0.05, -v * rand(0.22, 0.45), rand(-7, 7), rand(-7, 7), rand(-7, 7)); n++; } }
+  if (n) burst(new V3(LAB_LANE, 0.4, BOLLARD_Z), 14 + n * 6, [[1.4, 1.2, 1.0], [2, 1.7, 1.2]], 4 + v * 0.08); }
 const OBS_KIT = {
+  hatch: () => HATCH.state === 2 ? { geo: HATCH.geo.body, mat: HATCH.mat, fl: 0.5 } : { geo: new THREE.BoxGeometry(4.5, 1.5, 2).translate(0, 0.75, 0), mat: new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.6 }), fl: 0.5 },
+  hatchg: () => HATCH.state === 2 ? obxGlassKit(OBX_MODELS.hatch, new THREE.BoxGeometry(0.05, 0.05, 0.05), 0) : HATCH_NOTHING(),
+  hwP: () => HATCH.state === 2 ? { geo: HATCH.geo.wheelP, mat: HATCH.matW, fl: 0.36 } : HATCH_NOTHING(),
+  hwN: () => HATCH.state === 2 ? { geo: HATCH.geo.wheelN, mat: HATCH.matW, fl: 0.36 } : HATCH_NOTHING(),
   truck: () => ({ geo: OBX_MERGE(obxModel('truck').body, new THREE.BoxGeometry(2.5, 3, 7).translate(0, 1.5, -3.4)), mat: obxMat(0.6, 0.28), fl: 0.5 }),
   truckg: () => obxGlassKit(obxModel('truck'), new THREE.BoxGeometry(0.1, 0.1, 0.1), 0),
   car: () => { const geo = OBX_MERGE(obxModel('car').body, new THREE.BoxGeometry(4.5, 1.5, 1.8).translate(0, 0.75, 0)); geo.translate(0, -0.75, 0); return { geo, mat: obxMat(0.22, 0.55), fl: 0.45 }; },
@@ -3609,7 +3642,7 @@ const OBS_KIT = {
 function obsBuild(id) {
   if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
   for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
-  for (const t in by) { const tk = /^(barrel|brick)\d$/.test(t) ? t.slice(0, -1) : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { cube: 'box', box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass' }[tk]; set.dragK = { cube: 0.1, box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02 }[tk]; set.bnc = { cube: 0.3, box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15 }[tk]; if (t === 'truckg' || t === 'carg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
+  for (const t in by) { const tk = /^(barrel|brick)\d$/.test(t) ? t.slice(0, -1) : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { cube: 'box', box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass', hatch: 'metal', hatchg: 'glass', hwP: 'box', hwN: 'box' }[tk]; set.dragK = { cube: 0.1, box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02, hatch: 0.02, hatchg: 0.02, hwP: 0.02, hwN: 0.02 }[tk]; set.bnc = { cube: 0.3, box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15, hatch: 0.15, hatchg: 0.15, hwP: 0.4, hwN: 0.4 }[tk]; if (t === 'truckg' || t === 'carg' || t === 'hatchg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
   return (OBX.built[id] = out);
 }
 function obsPlace(id) { // every block back in its place, still
@@ -3700,7 +3733,7 @@ function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds,
     b.set.launch(b.i, dx * rand(0.8, 3) * (0.4 + v * 0.03) + rand(-1, 1), (rand(1.2, 3.5) + v * 0.12 * sp.lift) * near, -v * k, rand(-1, 1) * (5 + v * 0.3), rand(-1, 1) * (5 + v * 0.3), rand(-1, 1) * (5 + v * 0.3));
   }
   const at = new V3(LAB_LANE, 0.6, BOLLARD_Z); if (flown) { burst(at, 30 + flown * 2, sp.splash || [[1.4, 1.2, 1.0], [2, 1.7, 1.2]], 4 + v * 0.1); }
-  obsSound(sp.sound, st, v);
+  obsSound(sp.sound, st, v); if (sp.wheels) sp.wheels(v);
 }
 
 function obsFragSet() { if (!OBX.frag) { const cg = new THREE.IcosahedronGeometry(0.5, 0), pp = cg.attributes.position; for (let i = 0; i < pp.count; i++) { const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i), t = Math.sin(x * 91.7 + y * 31.3 + z * 57.1) * 43758.5453, n = 0.62 + 0.5 * (t - Math.floor(t)); pp.setXYZ(i, x * n, y * n, z * n); } cg.computeVertexNormals();
@@ -3757,7 +3790,7 @@ function mixPickUI() { // three small cards in one row: VEHICLE, OBSTACLE, PLACE
   MIX.upd = [mk('veh', 'VEHICLE', VEH_ORDER, k => VEH_DEFS[k].name), mk('obs', 'OBSTACLE', OBS_ORDER, k => OBST[k].name), mk('loc', 'PLACE', LOC.order, k => LOCS[k].name)];
   stage.appendChild(el); MIX.el = el; MIX.upd.forEach(f => f());
 }
-function mixApply() { MIX.upd && MIX.upd.forEach(f => f()); if (LAB.machine !== 'mix') return; locApply(MIX.loc); labVehicle(MIX.veh); obsApply(); board.visible = true; labCartReset(); }
+function mixApply() { MIX.upd && MIX.upd.forEach(f => f()); if (LAB.machine !== 'mix') return; if (MIX.obs === 'hatch') hatchLoad(); locApply(MIX.loc); labVehicle(MIX.veh); obsApply(); board.visible = true; labCartReset(); }
 function warmDebris() { // every part that can fly is shown for one compile, so the shaders exist before the crash
   try { const hid = [], on = m => { if (m && !m.visible) { hid.push(m); m.visible = true; } }; for (const d of CDEB.list) on(d.m); if (OBX.shards) on(OBX.shards.mesh); if (OBX.frag) on(OBX.frag.mesh); const o = OBX.built[OBX.cur]; if (o) for (const t in o.sets) on(o.sets[t].mesh); renderer.compile(scene, camera); for (const m of hid) m.visible = false; } catch (e) { /* a missing warm-up is only a hitch */ } }
 function labCartReset() {
@@ -4697,7 +4730,7 @@ function labReset() {
   crashBudget(false); idleSharp(true);
   if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z); // before the build: the posters are photographed facing the camera
   if (!labBuilt) buildLab();
-  locApply(labBol() ? MIX.loc : 'hall');
+  locApply(labBol() ? MIX.loc : 'hall'); if (labBol() && HATCH.state === 0) setTimeout(hatchLoad, 4000);
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
   drone.visible = false; BB.free = false; RAGSIM = null;
   if (labBol()) { labVehicle(labVehKind()); obsApply(); board.visible = true; labCartReset(); mixPickVis(true); } else { mixPickVis(false); board.visible = false; board.position.set(0, -50, 0); daggie.position.y = BOARD_TOP; }
