@@ -3328,10 +3328,25 @@ function labVehicle(kind) {
 // ---------- obstacles for the crash hall: the steel post, or anything that can be hit (blocks that fly apart) ----------
 const labBol = () => LAB.machine === 'bollard' || LAB.machine === 'tub' || LAB.machine === 'mix'; // all the crash-hall machines
 const labVehKind = () => (LAB.machine === 'tub' ? 'tub' : LAB.machine === 'mix' ? MIX.veh : 'cart');
-const MIX = { veh: 'cart', obs: 'post', loc: 'hall', el: null };
-try { const sv = JSON.parse(localStorage.getItem('daggie-mix') || '{}'); if (VEH_DEFS[sv.veh]) MIX.veh = sv.veh; if (sv.obs) MIX.obs = sv.obs; if (typeof sv.loc === 'string') MIX.loc = sv.loc; } catch (e) { /* the first time */ }
-const OBS_ORDER = ['post', 'truck', 'car', 'tires', 'barrels', 'bricks', 'barrier'];
+const MIX = { veh: 'cart', obs: 'post', loc: 'hall', txt: '67', el: null };
+try { const sv = JSON.parse(localStorage.getItem('daggie-mix') || '{}'); if (VEH_DEFS[sv.veh]) MIX.veh = sv.veh; if (sv.obs) MIX.obs = sv.obs; if (typeof sv.loc === 'string') MIX.loc = sv.loc; if (typeof sv.txt === 'string') MIX.txt = sv.txt; } catch (e) { /* the first time */ }
+// ---------- WORD WALL: any word or number as a wall of big coloured blocks (a new trend = a new text, in a few seconds) ----------
+const WW_FONT = { A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'], B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'], C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'], D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'], E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'], F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'], G: ['.###.', '#...#', '#....', '#.###', '#...#', '#...#', '.###.'], H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'], I: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '#####'], J: ['..###', '...#.', '...#.', '...#.', '...#.', '#..#.', '.##..'], K: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'], L: ['#....', '#....', '#....', '#....', '#....', '#....', '#####'], M: ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'], N: ['#...#', '##..#', '#.#.#', '#..##', '#...#', '#...#', '#...#'], O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'], P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'], Q: ['.###.', '#...#', '#...#', '#...#', '#.#.#', '#..#.', '.##.#'], R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'], S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'], T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'], U: ['#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'], V: ['#...#', '#...#', '#...#', '#...#', '#...#', '.#.#.', '..#..'], W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'], X: ['#...#', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '#...#'], Y: ['#...#', '#...#', '.#.#.', '..#..', '..#..', '..#..', '..#..'], Z: ['#####', '....#', '...#.', '..#..', '.#...', '#....', '#####'],
+  0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'], 1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'], 2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'], 3: ['####.', '....#', '....#', '.###.', '....#', '....#', '####.'], 4: ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'], 5: ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'], 6: ['.###.', '#....', '#....', '####.', '#...#', '#...#', '.###.'], 7: ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'], 8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'], 9: ['.###.', '#...#', '#...#', '.####', '....#', '....#', '.###.'],
+  '!': ['..#..', '..#..', '..#..', '..#..', '..#..', '.....', '..#..'], '?': ['.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'], '-': ['.....', '.....', '.....', '#####', '.....', '.....', '.....'], '+': ['.....', '..#..', '..#..', '#####', '..#..', '..#..', '.....'], '.': ['.....', '.....', '.....', '.....', '.....', '.....', '..#..'] };
+const WW = { cs: 0.5 }, WW_PAL = [0xff3b30, 0x2f6bff, 0xffd60a, 0x34c759, 0xff7a00, 0xbf5af2];
+function wordwallClean(txt) { return String(txt || '').toUpperCase().replace(/[^A-Z0-9!?+\-. ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 10) || '67'; }
+function wordwallGrid(txt) { const t = wordwallClean(txt), cols = []; let gi = 0; for (const ch of t) { if (ch === ' ') { cols.push({ g: -1, bits: [0, 0, 0, 0, 0, 0, 0] }, { g: -1, bits: [0, 0, 0, 0, 0, 0, 0] }); continue; } const gl = WW_FONT[ch] || WW_FONT['?']; for (let c = 0; c < 5; c++) cols.push({ g: gi, bits: gl.map(r => r[c] === '#' ? 1 : 0) }); cols.push({ g: -1, bits: [0, 0, 0, 0, 0, 0, 0] }); gi++; } while (cols.length && cols[cols.length - 1].g === -1) cols.pop(); return cols; }
+function wordwallLayout(txt) { const cols = wordwallGrid(txt), C = cols.length, cs = clamp(6.2 / C, 0.28, 0.55), b = []; WW.cs = cs;
+  cols.forEach((col, ci) => col.bits.forEach((on, r) => { if (!on) return; const base = WW_PAL[col.g % WW_PAL.length], j = 0.94 + rand(0, 0.12), ch = sh => Math.min(255, ((base >> sh) & 255) * j) | 0, cc = (ch(16) << 16) | (ch(8) << 8) | ch(0);
+    for (let layer = 0; layer < 2; layer++) b.push({ t: 'cube', x: (ci - (C - 1) / 2) * cs, y: cs * (0.5 + (6 - r)), z: -layer * cs, sx: cs * 0.97, sy: cs * 0.97, sz: cs * 0.97, ry: 0, col: cc }); }));
+  return b; }
+function wordwallSpec(txt) { /* the collision profile is as deep as the two layers of blocks and has no gaps between its cylinders (a thin wall of small blocks used to let a rider slip through); neighbours overlap a little, not a lot (a deep overlap makes the rider's joints fight each other) */ const cols = wordwallGrid(txt), C = cols.length, cs = clamp(6.2 / C, 0.28, 0.55), r = Math.max(cs * 0.9, 0.3), hw = Math.min(C * cs / 2, 1.8), n = Math.max(3, Math.ceil(hw * 2 / (r * 1.7)) + 1), sp = OBST.wordwall; sp.cyls = Array.from({ length: n }, (_, i) => ({ dx: -hw + i * (2 * hw / (n - 1)), r })); sp.h = 7 * cs; sp.r = r; WW.cs = cs; }
+function wordwallRebuild() { wordwallSpec(MIX.txt); const o = OBX.built.wordwall; if (o) { for (const t in o.sets) { scene.remove(o.sets[t].mesh); try { o.sets[t].mesh.dispose(); } catch (e) { /* gone anyway */ } } delete OBX.built.wordwall; } }
+
+const OBS_ORDER = ['post', 'truck', 'car', 'tires', 'barrels', 'bricks', 'barrier', 'wordwall'];
 if (!OBS_ORDER.includes(MIX.obs)) MIX.obs = 'truck'; /* a saved choice that no longer exists */
+MIX.txt = wordwallClean(MIX.txt); wordwallSpec(MIX.txt);
 // strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
 const OBST = {
   post: { name: 'STEEL POST', r: BOLLARD_R, h: BOLLARD_H, bend: 10, knock: 30, tumble: 10, solid: false },
@@ -3355,6 +3370,8 @@ const OBST = {
     layout() { const b = []; for (let row = 0; row < 8; row++) { const odd = row % 2; const xs = odd ? [-1.125, -0.75, -0.25, 0.25, 0.75, 1.125] : [-1, -0.5, 0, 0.5, 1]; for (const x of xs) { const half = odd && Math.abs(x) > 1; b.push({ t: 'brick' + Math.floor(rand(0, 4)), x: half ? Math.sign(x) * 1.125 : x, y: 0.1 + row * 0.2, z: 0, sx: half ? 0.25 : 0.5, sy: 0.2, sz: 0.25, ry: 0, col: 0xffffff - Math.floor(rand(0, 8)) * 0x0a0a0a }); } } return b; } },
   barrier: { absorb: 0, hard: 3.8, fx: 'dust', name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, solidMax: 55, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
     layout() { return [{ t: 'barrier', x: 0, y: 0, z: 0, sx: 2.2, sy: 1, sz: 1, ry: 0, col: 0xb9b9b3 }]; } },
+  wordwall: { absorb: 650, hard: 5, fx: 'dust', name: 'WORD WALL', r: 0.25, cyls: [-1, 0, 1].map(dx => ({ dx, r: 0.28 })), h: 3.85, bend: 9, knock: 20, tumble: 16, solid: false, kick: 0.8, lift: 1.0, sound: 'barrel', pop: 'WALL DESTROYED!',
+    layout() { return wordwallLayout(MIX.txt); } },
   pins: { absorb: 12, hard: 99, fx: 'none', name: 'BOWLING PINS', r: 0.15, cyls: [{ dx: 0, r: 0.15 }], h: 0.6, bend: 1, knock: 2.5, tumble: 80, solid: false, kick: 1.0, lift: 1.4, sound: 'pins', pop: 'STRIKE!',
     layout() { const b = []; for (let k = 0; k < 4; k++) for (let j = 0; j <= k; j++) b.push({ t: 'pin', x: (j - k / 2) * 0.3, y: 0, z: -k * 0.27, sx: 0.55, sy: 0.55, sz: 0.55, ry: 0, col: 0xffffff }); return b; } },
 };
@@ -3586,6 +3603,7 @@ const OBS_KIT = {
   car: () => { const geo = OBX_MERGE(obxModel('car').body, new THREE.BoxGeometry(4.5, 1.5, 1.8).translate(0, 0.75, 0)); geo.translate(0, -0.75, 0); return { geo, mat: obxMat(0.22, 0.55), fl: 0.45 }; },
   carg: () => obxGlassKit(obxModel('car'), new THREE.BoxGeometry(0.1, 0.1, 0.1), 0.75),
   tire: () => obxTireKit(),
+  cube: () => ({ geo: new RoundedBoxGeometry(1, 1, 1, 3, 0.07), mat: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0.02, map: tex(64, 64, (g, w, h) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ececec'; g.fillRect(7, 7, w - 14, h - 14); g.fillStyle = 'rgba(255,255,255,0.9)'; g.fillRect(7, 7, w - 14, 3); g.fillRect(7, 7, 3, h - 14); }) }), fl: WW.cs * 0.485 }),
   box: () => { const map = tex(256, 256, (g, w, h) => { g.fillStyle = '#c99a62'; g.fillRect(0, 0, w, h); for (let i = 0; i < 400; i++) { g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '120,80,40' : '255,230,180') + ',0.08)'; g.fillRect(Math.random() * w, Math.random() * h, 22, 1); } g.fillStyle = 'rgba(214,190,130,0.85)'; g.fillRect(0, h * 0.46, w, h * 0.08); g.fillStyle = 'rgba(60,40,20,0.7)'; g.font = '700 22px Arial'; g.fillText('FRAGILE', 18, 44); g.fillRect(w - 80, h - 70, 56, 40); g.strokeStyle = 'rgba(80,50,20,0.6)'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); }); return { geo: new RoundedBoxGeometry(1, 1, 1, 2, 0.03), mat: new THREE.MeshStandardMaterial({ map, roughness: 0.9 }), fl: 0.22 }; },
   melon: () => { const map = tex(128, 128, (g, w, h) => { g.fillStyle = '#4a9a47'; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 12) { g.fillStyle = 'rgba(20,70,25,0.55)'; g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + 8, h * 0.3, x - 6, h * 0.6, x + 4, h); g.lineTo(x + 9, h); g.bezierCurveTo(x, h * 0.6, x + 14, h * 0.3, x + 6, 0); g.fill(); } }); return { geo: new THREE.SphereGeometry(0.5, 16, 12), mat: new THREE.MeshStandardMaterial({ map, roughness: 0.4, metalness: 0.05 }), fl: 0.19 }; },
   barrel: () => { const pts = []; const prof = [[0, -0.5], [0.46, -0.5], [0.5, -0.46], [0.5, -0.38], [0.46, -0.34], [0.5, -0.3], [0.5, -0.02], [0.46, 0.02], [0.5, 0.06], [0.5, 0.3], [0.46, 0.34], [0.5, 0.38], [0.5, 0.46], [0.46, 0.5], [0, 0.5]]; for (const [r, y] of prof) pts.push(new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 24); return { geo, mat: new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.55, color: 0xffffff, envMap: (() => { try { return labEnv(); } catch (e) { return null; } })(), envMapIntensity: 0.7 }), fl: 0.29 }; },
@@ -3597,7 +3615,7 @@ const OBS_KIT = {
 function obsBuild(id) {
   if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
   for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
-  for (const t in by) { const tk = /^(barrel|brick)\d$/.test(t) ? t.slice(0, -1) : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass' }[tk]; set.dragK = { box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02 }[tk]; set.bnc = { box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15 }[tk]; if (t === 'truckg' || t === 'carg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
+  for (const t in by) { const tk = /^(barrel|brick)\d$/.test(t) ? t.slice(0, -1) : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { cube: 'box', box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass' }[tk]; set.dragK = { cube: 0.1, box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02 }[tk]; set.bnc = { cube: 0.3, box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15 }[tk]; if (t === 'truckg' || t === 'carg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
   return (OBX.built[id] = out);
 }
 function obsPlace(id) { // every block back in its place, still
@@ -3671,7 +3689,7 @@ function obsStep(dt) { obsRockStep(dt); if (OBX.frag) OBX.frag.step(dt); if (OBX
 function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds, gives, or is destroyed
   const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], st = v >= sp.knock ? 2 : v >= sp.bend ? 1 : 0, p = clamp((v - sp.bend) / Math.max(1, sp.knock - sp.bend) * 0.8 + 0.2, 0.2, 0.95); if (!o) return;
   obsFx(sp, v, st);
-  const go = o.blocks.map(() => st !== 0 && !(st === 1 && Math.random() > p && o.blocks.length > 1)), drop = [], stack = b => /^(brick|barrel)\d$/.test(b.t);
+  const go = o.blocks.map(() => st !== 0 && !(st === 1 && Math.random() > p && o.blocks.length > 1)), drop = [], stack = b => /^(brick|barrel)\d$|^cube$/.test(b.t);
   if (st === 1) { const order = o.blocks.map((b, i) => i).sort((a, b) => o.blocks[a].y - o.blocks[b].y); // bottom up: a brick or a barrel whose support was thrown away drops instead of hanging in the air
     for (const i of order) { const b = o.blocks[i]; if (go[i] || !stack(b) || b.y - b.sy / 2 < 0.06) continue; let ok = false; for (let j = 0; j < o.blocks.length && !ok; j++) { const r = o.blocks[j]; if (go[j] || j === i || !stack(r)) continue; const dy = b.y - r.y; if (dy > 0.02 && dy < Math.max(b.sy, r.sy) * 1.35 && Math.abs(b.x - r.x) < (b.sx + r.sx) * 0.45) ok = true; } if (!ok) { go[i] = true; drop[i] = true; } } }
   const brickWall = o.blocks.length > 0 && /^brick\d$/.test(o.blocks[0].t), grp = [], G = [];
@@ -3736,7 +3754,7 @@ function obsSound(kind, st, v) {
 function mixPickVis(on) { const el = MIX.el; if (!el) { if (!on || LAB.machine !== 'mix') return; mixPickUI(); } MIX.el.style.display = on && LAB.machine === 'mix' ? 'flex' : 'none'; }
 function mixPickUI() {
   const el = document.createElement('div'); el.id = 'mixPick'; el.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 200px);z-index:8;display:none;flex-direction:column;gap:8px;width:min(86vw,340px);font:700 15px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;pointer-events:auto';
-  const mk = (key, cap, list, names) => { const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:8px;background:rgba(14,16,30,.74);border:2px solid rgba(255,255,255,.55);border-radius:14px;padding:6px 8px'; const mid = document.createElement('div'); mid.style.cssText = 'flex:1;text-align:center;line-height:1.1;letter-spacing:1px'; const b = d => { const x = document.createElement('div'); x.textContent = d < 0 ? '‹' : '›'; x.style.cssText = 'width:42px;height:38px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;user-select:none;-webkit-user-select:none'; x.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); const i = (list.indexOf(MIX[key]) + d + list.length) % list.length; MIX[key] = list[i]; try { localStorage.setItem('daggie-mix', JSON.stringify({ veh: MIX.veh, obs: MIX.obs, loc: MIX.loc })); } catch (x2) { /* private mode */ } mixApply(); }); return x; };
+  const mk = (key, cap, list, names) => { const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:8px;background:rgba(14,16,30,.74);border:2px solid rgba(255,255,255,.55);border-radius:14px;padding:6px 8px'; const mid = document.createElement('div'); mid.style.cssText = 'flex:1;text-align:center;line-height:1.1;letter-spacing:1px'; const b = d => { const x = document.createElement('div'); x.textContent = d < 0 ? '‹' : '›'; x.style.cssText = 'width:42px;height:38px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;user-select:none;-webkit-user-select:none'; x.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); const i = (list.indexOf(MIX[key]) + d + list.length) % list.length; MIX[key] = list[i]; try { localStorage.setItem('daggie-mix', JSON.stringify({ veh: MIX.veh, obs: MIX.obs, loc: MIX.loc, txt: MIX.txt })); } catch (x2) { /* private mode */ } mixApply(); }); return x; };
     row.append(b(-1), mid, b(1)); el.appendChild(row); return () => { mid.innerHTML = '<span style="font-size:11px;opacity:.75;letter-spacing:2px">' + cap + '</span><br>' + names(MIX[key]); }; };
   MIX.upd = [mk('veh', 'VEHICLE', VEH_ORDER, k => VEH_DEFS[k].name), mk('obs', 'OBSTACLE', OBS_ORDER, k => OBST[k].name), mk('loc', 'LOCATION', LOC.order, k => LOCS[k].name)];
   stage.appendChild(el); MIX.el = el; MIX.upd.forEach(f => f());
@@ -3752,7 +3770,7 @@ function labCartReset() {
   bollardFall(0); LAB.bollardTip = 0; warmDebris();
 }
 function labImpact() {
-  const v = LABCART.v; LABCART.hit = true; CART.impact(v);
+  const v = LABCART.v; LAB.impV = v; say(['Oh no.', 'That is going to hurt.', 'Brace for impact.', 'Here it comes.'][Math.floor(Math.random() * 4)], 0.8, 1.05, true); LABCART.hit = true; CART.impact(v);
   const dd = OBX.cur === 'post' || OBST[OBX.cur].solid ? labDent(v) : 0; CART.box.zf = CART.zf0 + dd * CART_S * 0.75; /* a soft obstacle does not crumple the cart */ // the crumpled front wires are a wall further back now
   if (OBX.cur !== 'post') { obsDeform(v); obsRockStart(v); }
   const vR = OBX.cur !== 'post' && CART.knocked ? v * Math.sqrt(Math.max(0.05, 1 - (OBST[OBX.cur].absorb || 0) / (v * v))) : v; // an obstacle that is destroyed takes some of his speed
@@ -4560,18 +4578,20 @@ function buildLabUI() {
   stage.appendChild(g);
   const lv = document.createElement('div'); lv.className = 'lablvl'; lv.id = 'labLvl'; stage.appendChild(lv);
   const p = document.createElement('div'); p.className = 'labpanel'; p.id = 'labPanel';
-  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div><div class="foot"><button id="labLook" type="button">Look</button><button id="labFps" type="button">FPS</button><button id="labQ" type="button">Res</button></div>';
+  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labRec" type="button">Rec mode</button><button id="labNext" type="button">Next level ▶</button></div><div class="foot"><button id="labLook" type="button">Look</button><button id="labFps" type="button">FPS</button><button id="labQ" type="button">Res</button></div><div class="foot"><button id="labTxt" type="button">Text</button><button id="labVoice" type="button">Voice</button></div>';
   stage.appendChild(p);
   const chips = $('labChips');
   for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub' || m === 'stairs') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
   for (const b of p.querySelectorAll('.sm')) { if (Math.abs(Number(b.dataset.d)) === 10) b.style.display = 'none'; b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, LAB_MAX()); labSave(); labUI(); }; }
   $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, LAB_MAX()); labSave(); labUI(); };
-  $('labGo').onclick = () => { initAudio(); labStart(); };
+  $('labGo').onclick = () => { initAudio(); sayUnlock(); labStart(); };
   $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labRec').onclick = () => { $('bLive').onclick(); labUI(); };
   $('labLook').onclick = () => { LOOK_I = (LOOK_I + 1) % 4; try { localStorage.setItem('daggie-look2', String(LOOK_I)); } catch (e) {} applyRecMode(); labUI(); };
   $('labQ').onclick = () => { QUAL.i = (QUAL.i + 1) % QUAL.opts.length; try { localStorage.setItem('daggie-q', QUAL.opts[QUAL.i]); } catch (e) {} ADAPT.cool = 0; ADAPT.low = 0; labUI(); };
+  $('labTxt').onclick = () => { const t = prompt('WORD WALL text (letters, numbers, ! ? - + .)', MIX.txt); if (t === null) return; const c = wordwallClean(t); MIX.txt = c; try { localStorage.setItem('daggie-mix', JSON.stringify({ veh: MIX.veh, obs: MIX.obs, loc: MIX.loc, txt: MIX.txt })); } catch (e) { /* not saved */ } wordwallRebuild(); mixApply(); labUI(); };
+  $('labVoice').onclick = () => { VOICE_ON = !VOICE_ON; try { localStorage.setItem('daggie-voice', VOICE_ON ? '1' : '0'); } catch (e) { /* ok */ } if (VOICE_ON) { sayUnlock(); say('Blackie is ready.'); } labUI(); };
   $('labFps').onclick = () => { FPS_ON = !FPS_ON; try { localStorage.setItem('daggie-fps', FPS_ON ? '1' : '0'); } catch (e) {} fpsShow(); labUI(); };
   stage.addEventListener('pointerdown', () => { if (LAB.replay) LAB.replay.skip = true; }); // tap to skip the replay
   labUI();
@@ -4588,7 +4608,7 @@ function labUI() {
   $('labLvl').textContent = (labBol() ? 'LEVEL ' + LAB.level + ' · ' + LAB_SPEEDS[LAB.level - 1] + ' MPH' : LAB.machine === 'press' ? 'LEVEL ' + LAB.level + ' · ' + PRESS_TONS[LAB.level - 1] + ' TONS' : LAB.machine === 'cannon' ? 'LEVEL ' + LAB.level + ' · ' + CANNON_MPH[LAB.level - 1] + ' MPH' : LAB.machine === 'stairs' ? 'LEVEL ' + LAB.level + ' · ' + STAIRS_STEPS[LAB.level - 1] + ' STEPS' : 'LEVEL ' + LAB.level).replace(' · ', '\n');
   $('labRange').value = String(LAB.level);
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
-  $('labRec').setAttribute('aria-pressed', String(REC_MODE)); $('labLook').textContent = 'Look: ' + LK().n; $('labFps').setAttribute('aria-pressed', String(FPS_ON)); $('labQ').textContent = 'Res: ' + (QUAL.i ? QUAL.opts[QUAL.i] + 'x' : 'AUTO');
+  $('labRec').setAttribute('aria-pressed', String(REC_MODE)); $('labLook').textContent = 'Look: ' + LK().n; $('labFps').setAttribute('aria-pressed', String(FPS_ON)); $('labQ').textContent = 'Res: ' + (QUAL.i ? QUAL.opts[QUAL.i] + 'x' : 'AUTO'); $('labTxt').hidden = !(labBol() && MIX.obs === 'wordwall'); $('labTxt').textContent = 'Text: ' + MIX.txt; $('labVoice').setAttribute('aria-pressed', String(VOICE_ON)); $('labVoice').textContent = 'Voice: ' + (VOICE_ON ? 'ON' : 'OFF');
   if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
 }
 function labReset() {
@@ -4611,7 +4631,7 @@ function labStart() { // the buffers are rebuilt on the still picture, not while
 function labStartNow() {
   idleSharp(false);
   resetRun(); // fresh Daggie on the stand
-  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; labBars(false);
+  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; LAB.aura = 0; LAB.six7 = false; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
@@ -4638,7 +4658,19 @@ function labPancake() {
   for (let i = 0; i < 14; i++) { const a = rand(0, TAU), r = rand(STAND_R + 0.2, STAND_R + 3); spawnSplat(Math.cos(a) * r, Math.sin(a) * r, rand(0.2, 0.5)); }
   if (!reduceMotion) shake = 0.8;
 }
-function labFinish(text) { LAB.text = text; LAB.phase = 'done'; if (state === 'ride') { state = 'lab'; stateT = performance.now(); LAB.pending = performance.now() + 1400; } }
+// ---------- AURA and the announcer ----------
+let VOICE_ON = true; try { VOICE_ON = localStorage.getItem('daggie-voice') !== '0'; } catch (e) { /* default on */ }
+const VOICE = { voice: null };
+function say(text, pitch, rate, urgent) { if (!VOICE_ON || typeof speechSynthesis === 'undefined') return; try { if (urgent) speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.pitch = pitch || 0.85; u.rate = rate || 1.02; u.volume = 1;
+    if (!VOICE.voice) { const vs = speechSynthesis.getVoices(); VOICE.voice = vs.find(v => /^en[-_]US/i.test(v.lang) && /daniel|alex|aaron|fred|arthur|male/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang)) || null; } if (VOICE.voice) u.voice = VOICE.voice; speechSynthesis.speak(u); } catch (e) { /* no voice on this device */ } }
+function sayUnlock() { if (!VOICE_ON || typeof speechSynthesis === 'undefined') return; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { /* ok */ } } // the first speech must start from a tap
+function labAura() { /* Blackie farms aura from the crash, Daggie pays for it; exactly six-seven feet is the jackpot */
+  const ft = Math.round(LAB.dist || 0), torn = LAB.lost || 0, mph = Math.round((LAB.impV || 0) * 2.237), surv = LAB.text === 'survived' || String(LAB.text).indexOf('stayed in the ') === 0, six7 = ft >= 66 && ft <= 68, broke = !!CART.knocked;
+  let a = ft * 10 + torn * 2500 + (broke ? 5000 : 0) + mph * 40; if (surv) a = Math.round(a * 0.4); if (six7) a += 67000; a = Math.max(100, Math.round(a / 10) * 10); LAB.aura = a; LAB.six7 = six7;
+  const lines = []; if (six7) lines.push('Six... seven!'); else { if (torn >= 3) lines.push('Daggie is falling apart.'); else if (surv) lines.push('Somehow, he survived.'); else if (ft > 150) lines.push('What a flight.'); if (broke) lines.push('Obstacle destroyed.'); }
+  lines.push('Blackie gains ' + a + ' aura.'); setTimeout(() => say(lines.join(' '), six7 ? 1.2 : 0.85, six7 ? 0.9 : 1.02, true), 900); }
+
+function labFinish(text) { if (labBol()) { LAB.text = text; labAura(); } LAB.text = text; LAB.phase = 'done'; if (state === 'ride') { state = 'lab'; stateT = performance.now(); LAB.pending = performance.now() + 1400; } }
 function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(kind); LAB.lost = 15; }
 
 // ---------- wall cannon: 15 walls from thin glass to a vault door; the cannon's power decides how many he breaks ----------
@@ -5596,10 +5628,10 @@ function labDone() {
   const survived = LAB.text === 'survived' || String(LAB.text).indexOf('stayed in the ') === 0, lost = labBol() ? 0 : cause ? 15 : LAB.lost;
   $('labRes').innerHTML = '';
   const b = document.createElement('b'); b.textContent = 'LEVEL ' + LAB.level + ' · ' + LAB_INFO[LAB.machine].title + ': ';
-  $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (labBol() && LAB.dist ? ' · FLEW ' + Math.round(LAB.dist).toLocaleString('en-US') + ' FT' : '')));
+  $('labRes').append(b, document.createTextNode((survived ? 'SURVIVED' : (LAB.text || 'destroyed') + (lost ? ' (' + lost + '/15 parts off)' : '')) + (labBol() && LAB.dist ? ' · FLEW ' + Math.round(LAB.dist).toLocaleString('en-US') + ' FT' : '') + (labBol() && LAB.aura ? ' · BLACKIE +' + LAB.aura.toLocaleString('en-US') + ' AURA' : '')));
   if (labBol()) labReset(); // the wreck is cleared: vehicle and obstacle stand at the start, the camera is back
   $('labPanel').hidden = false; labUI();
-  lastPop = 0; pop(survived ? 'SURVIVED!' : lost >= 15 ? 'DESTROYED!' : 'DAMAGED!', survived ? 'green' : 'lilac');
+  lastPop = 0; if (labBol() && LAB.aura) pop(LAB.six7 ? 'SIX SEVEN!' : 'DAGGIE \u2212' + LAB.aura.toLocaleString('en-US') + ' AURA', 'lilac'); else pop(survived ? 'SURVIVED!' : lost >= 15 ? 'DESTROYED!' : 'DAMAGED!', survived ? 'green' : 'lilac');
 }
 
 setLoad(1, 'Ready');
