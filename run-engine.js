@@ -3346,7 +3346,6 @@ function wordwallRebuild() { wordwallSpec(MIX.txt); const o = OBX.built.wordwall
 
 const OBS_ORDER = ['post', 'truck', 'car', 'tires', 'barrels', 'bricks', 'barrier', 'wordwall'];
 if (!OBS_ORDER.includes(MIX.obs)) MIX.obs = 'truck'; /* a saved choice that no longer exists */
-MIX.txt = wordwallClean(MIX.txt); wordwallSpec(MIX.txt);
 // strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
 const OBST = {
   post: { name: 'STEEL POST', r: BOLLARD_R, h: BOLLARD_H, bend: 10, knock: 30, tumble: 10, solid: false },
@@ -3375,6 +3374,7 @@ const OBST = {
   pins: { absorb: 12, hard: 99, fx: 'none', name: 'BOWLING PINS', r: 0.15, cyls: [{ dx: 0, r: 0.15 }], h: 0.6, bend: 1, knock: 2.5, tumble: 80, solid: false, kick: 1.0, lift: 1.4, sound: 'pins', pop: 'STRIKE!',
     layout() { const b = []; for (let k = 0; k < 4; k++) for (let j = 0; j <= k; j++) b.push({ t: 'pin', x: (j - k / 2) * 0.3, y: 0, z: -k * 0.27, sx: 0.55, sy: 0.55, sz: 0.55, ry: 0, col: 0xffffff }); return b; } },
 };
+MIX.txt = wordwallClean(MIX.txt); wordwallSpec(MIX.txt); // after OBST exists (this call used to sit above it and stopped the game at start-up)
 const OBX = { cur: 'post', built: {} };
 function OBX_PART(g, col, x, y, z, rx, ry, rz, gr) { /* one coloured part of a merged model: vertex colours (with grime: patchy dirt, darker towards the ground), so a whole truck is one draw call */ g = g.index ? g.toNonIndexed() : g; if (rx || ry || rz) { g.rotateX(rx || 0); g.rotateY(ry || 0); g.rotateZ(rz || 0); } g.translate(x, y, z);
   const n = g.attributes.position.count, c = new Float32Array(n * 3), k = new THREE.Color(col), G = gr === undefined ? 0.1 : gr, pa = g.attributes.position.array;
