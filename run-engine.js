@@ -19,6 +19,17 @@ const BODY = L.body || VEH; // 'car': the cart's mesh is swapped for a little ra
 const VMAX = L.vmax || 34, ACCEL = L.accel || 0; // top speed (m/s) and extra push per second: CAR levels keep getting faster
 const SLOPE_K = L.slopeK || 0.8; // how hard a downhill pulls (the skyscraper ramp pulls harder: about 200 mph at the bottom)
 const RUSH = !!L.rush; // speed show: speed lines, a big speedometer, rumble and mph milestones
+// HD look (level option hd: true): a real car model, HDRI light and reflections, scanned PBR surfaces, a body that crumples where it is hit.
+// Car: "Car Concept" by Eric Chadwick, Darmstadt Graphics Group GmbH, CC BY 4.0 (KhronosGroup glTF-Sample-Assets), roof and logos removed for the game.
+// Light: "Venice Sunset" HDRI from Poly Haven (CC0). Files: car-concept.bin (gzipped glb), venice_sunset_1k.hdr, tex/*.jpg
+const HD_ASSETS = { car: 'car-concept.bin?v=1', hdr: 'venice_sunset_1k.hdr?v=1' };
+const HD_LOAD = L.hd ? (async () => {
+  const [{ GLTFLoader }, { RGBELoader }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js')]);
+  const car = (async () => { const res = await fetch(HD_ASSETS.car); if (!res.ok) throw new Error('car HTTP ' + res.status); const buf = await new Response(res.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer(); return new GLTFLoader().parseAsync(buf, ''); })();
+  const [gl, env, maps] = await Promise.all([car, new RGBELoader().loadAsync(HD_ASSETS.hdr), hdMaps()]);
+  return { car: gl.scene, env, maps };
+})() : null;
+if (HD_LOAD) HD_LOAD.catch(() => {}); // a failed download falls back to the old look (handled where it is awaited)
 var CREC = { on: false, t: 0, frames: [], ev: [], play: null }; // instant replay of the wall cannon: Daggie per frame, plus a time-stamped log of everything else
 const CART_S = 1.35; // the player's cart is scaled up so a life-size robot can sit in it
 const V3 = THREE.Vector3, TAU = Math.PI * 2, Y = new V3(0, 1, 0);
@@ -225,6 +236,11 @@ async function loadTexBlob() {
 }
 let MODEL, TEX_BLOB;
 try { [MODEL, TEX_BLOB] = await Promise.all([loadModel(), loadTexBlob()]); } catch (e) { $('loadTxt').textContent = 'Could not load Daggie. Check the connection and reopen the page.'; throw e; }
+let HDA = null; // the HD assets, once loaded (null: the normal look)
+if (HD_LOAD) { setLoad(0.9, 'Loading the car…'); try { HDA = await HD_LOAD; } catch (e) { console.warn('HD assets failed, using the normal look', e); } }
+if (HDA) { hdEnvironment(); // credits on the loading screen (it goes away with it, so it never ends up in a recorded video)
+  const l = $('loader'), c = document.createElement('div'); c.textContent = 'Car: “Car Concept” by Eric Chadwick, Darmstadt Graphics Group, CC BY 4.0 (Khronos glTF Sample Assets, modified) · HDRI: Poly Haven, CC0';
+  c.style.cssText = 'position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 42px);text-align:center;font:500 11px/1.35 ui-sans-serif,system-ui,sans-serif;color:rgba(25,35,70,.62);pointer-events:none;z-index:5'; if (l) l.appendChild(c); }
 setLoad(0.93, 'Building the test track…');
 { const hk = $('hook'); hk.textContent = ''; for (const t of L.title) { const sp = document.createElement('span'); sp.textContent = t; hk.appendChild(sp); } }
 // ---------- LED face ----------
@@ -447,6 +463,15 @@ const asphalt = tex(512, 1024, (g, w, h) => {
 });
 asphalt.wrapS = asphalt.wrapT = THREE.RepeatWrapping;
 const roadMat = new THREE.MeshStandardMaterial({ map: TH === 'city' ? roofTex() : asphalt, roughness: 0.88, metalness: 0.02 });
+// HD: asphalt tiled every 3 m (road UVs in metres), painted lines as their own strips so they stay crisp
+const HD_ROAD = HDA ? hdMat('asphalt', [1 / 3, 1 / 3]) : null;
+const HD_PAINT = HD_ROAD ? [0xf1f0ea, 0xffc21a].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })) : null;
+function hdLines(s0, s1) {
+  const geo = [[], []], quad = (k, x, w, a, b) => { const P = geo[k]; for (let s = a; s < b - 1e-6; s += 0.5) { const e = Math.min(b, s + 0.5), h0 = (trackH(Math.min(s, s1 - 1e-3)) ?? 0) + 0.006, h1 = (trackH(Math.min(e, s1 - 1e-3)) ?? 0) + 0.006; P.push(x - w, h0, -s, x + w, h0, -s, x - w, h1, -e, x + w, h0, -s, x + w, h1, -e, x - w, h1, -e); } };
+  for (const sd of [-1, 1]) quad(1, sd * (HALF - 0.37), 0.075, s0, s1);
+  for (const x of [-HALF / 3, HALF / 3]) for (let a = Math.ceil(s0 / 3) * 3 + 0.4; a < s1; a += 3) quad(0, x, 0.06, a, Math.min(s1, a + 1.8));
+  geo.forEach((P, k) => { if (!P.length) return; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.computeVertexNormals(); const m = new THREE.Mesh(g, HD_PAINT[k]); m.receiveShadow = true; scene.add(m); });
+}
 const steel = new THREE.MeshStandardMaterial({ color: 0x8a9099, metalness: 0.85, roughness: 0.35 });
 const darkSteel = new THREE.MeshStandardMaterial({ color: 0x3b3f47, metalness: 0.7, roughness: 0.5 });
 const stripeTex = tex(256, 64, (g, w, h) => { g.fillStyle = '#ffc21a'; g.fillRect(0, 0, w, h); g.fillStyle = '#16141c'; for (let i = -2; i < 12; i++) { g.beginPath(); g.moveTo(i * 32, 0); g.lineTo(i * 32 + 16, 0); g.lineTo(i * 32 + 16 + h, h); g.lineTo(i * 32 + h, h); g.fill(); } });
@@ -455,14 +480,14 @@ function stripeMat(len) { const t = stripeTex.clone(); t.needsUpdate = true; t.w
 function sign(text, bg, fg, w = 512, h = 128) { return new THREE.MeshStandardMaterial({ map: tex(w, h, (g) => { g.fillStyle = bg; g.fillRect(0, 0, w, h); g.strokeStyle = fg; g.lineWidth = 10; g.strokeRect(8, 8, w - 16, h - 16); g.fillStyle = fg; g.font = '700 ' + Math.round(h * 0.52) + 'px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 4); }), roughness: 0.5, emissive: 0xffffff, emissiveIntensity: 0.05 }); }
 function roadStrip(s0, s1, bare) {
   const pos = [], uv = [], idx = []; let n = 0;
-  for (let s = s0; s <= s1 + 1e-6; s += 0.5) { const h = trackH(Math.min(s, s1 - 1e-3)) ?? 0; pos.push(-HALF, h, -s, HALF, h, -s); uv.push(0, s / 12, 1, s / 12); if (n) { const a = (n - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } n++; }
+  for (let s = s0; s <= s1 + 1e-6; s += 0.5) { const h = trackH(Math.min(s, s1 - 1e-3)) ?? 0; pos.push(-HALF, h, -s, HALF, h, -s); if (HD_ROAD) uv.push(-HALF, s, HALF, s); else uv.push(0, s / 12, 1, s / 12); if (n) { const a = (n - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } n++; }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, roadMat); m.receiveShadow = true; scene.add(m);
+  const m = new THREE.Mesh(g, HD_ROAD || roadMat); m.receiveShadow = true; scene.add(m); if (HD_ROAD) hdLines(s0, s1);
   if (bare) return;
   const L = s1 - s0, mid = (s0 + s1) / 2, flat = !(s0 >= RAMP0 - 1 && s1 <= RAMP1 + 1);
   if (flat && TH === 'city') { // each road piece is the roof of a building; gaps are the alleys between them
     const bw = HALF * 2 + 1.4, bh = 46; const bld = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, L), facadeMat(bw, bh)); bld.position.set(0, -bh / 2 - 0.02, -mid); bld.receiveShadow = true; scene.add(bld);
-    const conc = new THREE.MeshStandardMaterial({ color: 0xa39c94, roughness: 0.9 });
+    const conc = hdMat('concrete', [L / 4, 0.25]) || new THREE.MeshStandardMaterial({ color: 0xa39c94, roughness: 0.9 });
     for (const sd of [-1, 1]) { const par = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.55, L), conc); par.position.set(sd * (HALF + 0.3), 0.27, -mid); par.castShadow = true; par.receiveShadow = true; scene.add(par);
       for (let q = s0 + 6; q < s1 - 4; q += 17) { const ac = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 1.3), new THREE.MeshStandardMaterial({ color: 0xc9ccd1, metalness: 0.4, roughness: 0.5 })); ac.position.set(sd * (HALF + 1.2), 0.4, -q); ac.castShadow = true; scene.add(ac); } }
   } else if (flat) {
@@ -499,7 +524,7 @@ function megaRamp(s0, s1) {
   const legM = new THREE.MeshStandardMaterial({ color: 0x8a9099, metalness: 0.85, roughness: 0.35 }), GROUND = TH === 'city' ? 46 : 80;
   if (TH === 'city') { // the start deck sits on the roof of a skyscraper
     const bw = 30, bd = 44, top = DROP.h - 0.9, bh = top + 46, sk = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), facadeMat(bw, bh)); sk.position.set(0, top - bh / 2, -(s0 - bd / 2 + 4)); sk.receiveShadow = true; scene.add(sk);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.6, bd + 0.6), new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 0.9 })); roof.position.set(0, top - 0.3, sk.position.z); scene.add(roof);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.6, bd + 0.6), hdMat('concrete', [(bw + 0.6) / 4, (bd + 0.6) / 4]) || new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 0.9 })); roof.position.set(0, top - 0.3, sk.position.z); scene.add(roof);
     for (const sd of [-1, 1]) { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 22, 8), steel); ant.position.set(sd * 11, top + 11, sk.position.z + 10); scene.add(ant); const bl = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), neon(0xff2a2a, 4)); bl.position.set(sd * 11, top + 22.2, sk.position.z + 10); scene.add(bl); }
   }
   const tg = []; // all legs and braces merged into one mesh: a tall tower has hundreds of them
@@ -653,7 +678,7 @@ if (VEH === 'cart') buildCart(); else if (VEH === 'skate') {
   }
 }
 const BOARD_TOP = VEH === 'cart' ? 0.4 * CART_S + 0.012 : 0.135 + 0.026;
-const WHEEL_R = BODY === 'car' ? 0.33 : VEH === 'cart' ? 0.06 * CART_S : 0.056;
+const WHEEL_R = BODY === 'car' ? (HDA ? 0.384 : 0.33) : VEH === 'cart' ? 0.06 * CART_S : 0.056;
 // supermarket cart: chrome wire basket, red handle, four casters. Origin on the floor, front faces -z.
 function makeCartMesh(S, wheelsOut) {
   const root = new THREE.Group(), g = new THREE.Group(); g.scale.setScalar(S); root.add(g);
@@ -791,6 +816,149 @@ function makeCarMesh(wheelsOut) {
   g.children.forEach(o => { if (o.isMesh && !brk.includes(o) && o.geometry && o.geometry.attributes.position.count > 20) root.userData.parts.push({ o, name: 'body', hp: 99, det: false, c: zone(o), home: o.position.clone(), rot: o.rotation.clone(), dmg: 0 }); }); // the rest only dents
   return root;
 }
+// ---------- HD look: HDRI light, scanned surfaces, the real car and a body that crumples ----------
+// PBR surface sets (diffuse, OpenGL normal, roughness) in tex/: a set that fails to load is simply left out
+async function hdMaps() {
+  const HD_SETS = { asphalt: 'asphalt', concrete: 'concrete', metal: 'metal' }; // (inside: this runs before the module gets this far)
+  const ld = new THREE.TextureLoader(), one = (u, srgb) => ld.loadAsync(u).then(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; }, () => null);
+  const out = {};
+  await Promise.all(Object.entries(HD_SETS).map(async ([k, n]) => { const [map, normalMap, roughnessMap] = await Promise.all([one('tex/' + n + '_diff.jpg?v=1', true), one('tex/' + n + '_nor.jpg?v=1'), one('tex/' + n + '_rough.jpg?v=1')]); if (map) out[k] = { map, normalMap, roughnessMap }; }));
+  return out;
+}
+// a PBR material from a set, tiled every `size` metres on geometry whose UVs are in metres (or `rep` repeats)
+function hdMat(set, rep, extra) {
+  const S = HDA && HDA.maps[set]; if (!S) return null;
+  const o = Object.assign({ roughness: 1, metalness: 0 }, extra || {}); delete o.ns; const m = new THREE.MeshStandardMaterial(o);
+  for (const k of ['map', 'normalMap', 'roughnessMap']) if (S[k]) { const t = S[k].clone(); t.needsUpdate = true; t.repeat.set(rep[0], rep[1]); m[k] = t; }
+  if (m.normalMap && extra && extra.ns) m.normalScale.setScalar(extra.ns); // the sets use OpenGL normal maps, which is what three expects
+  return m;
+}
+function hdEnvironment() { // sunset HDRI: the light and every reflection on the car come from a real place
+  const pm = new THREE.PMREMGenerator(renderer); HDA.env.mapping = THREE.EquirectangularReflectionMapping;
+  scene.environment = pm.fromEquirectangular(HDA.env).texture; pm.dispose(); HDA.env.dispose();
+  hemi.intensity = 0.35; sunLight.intensity *= 0.85;
+}
+// glass, paint that scrapes to bare metal where it is hit (attribute aDmg, 0..1 per vertex)
+function hdPaint(m) {
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = 'attribute float aDmg;\nvarying float vDmg;\nvarying vec3 vDp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvDmg = aDmg; vDp = position;');
+    sh.fragmentShader = 'varying float vDmg;\nvarying vec3 vDp;\nfloat hdN(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }\n' + sh.fragmentShader
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat hdS = smoothstep(0.12, 0.9, vDmg); float hdA = hdN(vDp * 70.0), hdB = hdN(vDp * vec3(9.0, 160.0, 9.0) + hdA);\nfloat hdBare = hdS * step(0.8 - 0.3 * hdS, hdB * 0.65 + hdA * 0.35);\ndiffuseColor.rgb = mix(diffuseColor.rgb * (1.0 - 0.4 * hdS), mix(vec3(0.4, 0.41, 0.43), vec3(0.1), hdA * 0.7), hdBare);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.5, hdS);')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.9, hdBare);')
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat *= 1.0 - hdS;\n#endif');
+  };
+  m.customProgramCacheKey = () => 'hdpaint'; m.needsUpdate = true;
+}
+// the car: the glb faces +z with its roof cut off (a targa: the viewer sees Daggie at the wheel); it is turned to face -z like the game's other cars
+function makeHDCar(wheelsOut) {
+  const root = new THREE.Group(), g = new THREE.Group(); root.add(g);
+  const car = HDA.car; car.rotation.y = Math.PI; g.add(car);
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0x0b0f14, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.3, envMapIntensity: 1.8, side: THREE.DoubleSide, depthWrite: false });
+  const lights = [], paints = new Set();
+  car.traverse(o => { if (!o.isMesh) return; o.castShadow = !/^Interior|Wipers|Handle|Gasket/.test(o.name); o.receiveShadow = true; const m = o.material; // the cabin's little parts cast no shadow: fewer draw calls on phones
+    if (m.name === 'Glass') { o.material = glass; o.castShadow = false; }
+    else if (/^Paint|^Panel Sides/.test(m.name)) { paints.add(m); m.envMapIntensity = 1.25; }
+    if (/light/i.test(m.name) && m.emissiveIntensity !== undefined && !lights.includes(m)) lights.push(m); });
+  for (const m of paints) hdPaint(m);
+  root.updateMatrixWorld(true);
+  const brk = [], parts = [], at = (o, n) => { const p = new THREE.Group(); p.name = n; p.position.copy(g.worldToLocal(o.getWorldPosition(new V3()))); g.add(p); p.updateMatrixWorld(true); p.attach(o); return p; };
+  const box = o => new THREE.Box3().setFromObject(o).applyMatrix4(new THREE.Matrix4().copy(root.matrixWorld).invert());
+  const part = (o, name, hp) => { const c = box(o).getCenter(new V3()); parts.push({ o, name, hp, det: true, c, home: o.position.clone(), rot: o.rotation.clone(), dmg: 0 }); brk.push(o); return o; };
+  // wheels on axle pivots along the car's x axis: the engine spins them, a hard hit tears them off
+  const steer = [];
+  for (const n of ['WheelFrontL', 'WheelFrontR', 'WheelRearL', 'WheelRearR']) { const w = car.getObjectByName(n); if (!w) continue; const piv = at(w, n + 'Axle'); piv.rotation.order = 'YXZ'; if (/Front/.test(n)) steer.push(piv); wheelsOut.push(piv); part(piv, 'wheel', 1.25); }
+  // mirrors come off first, then doors, the hood and the engine cover
+  for (const sd of ['L', 'R']) { const door = car.getObjectByName('BodyDoor' + sd + 'Color1'); if (!door) continue;
+    const ms = ['Mirror', 'MirrorColor1', 'MirrorColor2'].map(k => car.getObjectByName('BodyDoor' + sd + k)).filter(Boolean);
+    if (ms.length) { const mg = new THREE.Group(); mg.position.copy(door.worldToLocal(ms[0].getWorldPosition(new V3()))); door.add(mg); mg.updateMatrixWorld(true); for (const m of ms) mg.attach(m); part(mg, 'mirror', 0.22); }
+    part(door, 'door', 0.95); }
+  const hood = car.getObjectByName('BodyHood'); if (hood) part(hood, 'hood', 0.8);
+  const hatch = car.getObjectByName('BodyRearPanelsColor1'); if (hatch) part(hatch, 'hatch', 1.0);
+  // every body mesh can dent: keep its rest shape, normals and a scrape amount per vertex
+  const dent = [];
+  car.traverse(o => { if (!o.isMesh || o.material === glass || /Wheel|Tire|Rim/.test(o.name + (o.parent && o.parent.name))) return; let a = o; while (a && !/Axle$/.test(a.name)) a = a.parent; if (a) return;
+    const ge = o.geometry = o.geometry.clone(), n = ge.attributes.position.count; if (!ge.attributes.normal) ge.computeVertexNormals(); // own copy: identical parts may share one geometry in the file
+    ge.userData.p0 = ge.attributes.position.array.slice(); ge.userData.n0 = ge.attributes.normal.array.slice(); ge.userData.disp = new Float32Array(n);
+    ge.setAttribute('aDmg', new THREE.BufferAttribute(new Float32Array(n), 1)); ge.computeBoundingSphere(); dent.push(o); });
+  const ws = car.getObjectByName('BodyWindshield');
+  const hdl = lights.map(m => ({ m, e: m.emissiveIntensity, front: /Head/i.test(m.name) }));
+  root.userData = { hd: true, steer, g, flames: [], pieces: [], extras: [], brk, parts, dent, ws, lights: hdl, wsC: ws ? box(ws).getCenter(new V3()) : new V3(0, 1, -0.9) };
+  return root;
+}
+// a dent: everything within R of point P (car space) is pushed along D by up to `depth`, with a crumpled, uneven edge; power scrapes the paint
+const _hm = new THREE.Matrix4(), _hmi = new THREE.Matrix4(), _hp = new V3(), _hd = new V3(), _hv = new V3();
+function hdDent(P, D, R, depth, power) {
+  const U = CART_ROOT.userData; CART_ROOT.updateMatrixWorld(true); const rootInv = new THREE.Matrix4().copy(CART_ROOT.matrixWorld).invert(), seed = Math.random() * 100;
+  for (const o of U.dent) {
+    if (!CART_ROOT.getObjectById(o.id)) continue; // on a part that has come off
+    _hm.multiplyMatrices(rootInv, o.matrixWorld); _hmi.copy(_hm).invert();
+    _hp.copy(P).applyMatrix4(_hmi); _hd.copy(D).transformDirection(_hmi);
+    const ge = o.geometry, bs = ge.boundingSphere; if (bs.center.distanceTo(_hp) > bs.radius + R) continue;
+    const a = ge.attributes.position.array, dm = ge.attributes.aDmg.array, disp = ge.userData.disp; let hit = false;
+    for (let i = 0, j = 0; i < a.length; i += 3, j++) {
+      const dx = a[i] - _hp.x, dy = a[i + 1] - _hp.y, dz = a[i + 2] - _hp.z, d2 = dx * dx + dy * dy + dz * dz; if (d2 > R * R) continue;
+      const t = 1 - Math.sqrt(d2) / R, f = t * t * (3 - 2 * t), wr = 1 + 0.45 * Math.sin(a[i] * 21 + seed) * Math.sin(a[i + 1] * 17 - seed) * Math.sin(a[i + 2] * 25 + seed * 0.5);
+      const k = depth * f * wr; a[i] += _hd.x * k; a[i + 1] += _hd.y * k; a[i + 2] += _hd.z * k;
+      // the panel bunches up around the dent instead of just sinking: a little sideways squeeze toward the centre
+      const sq = 0.22 * depth * f / R; a[i] -= dx * sq; a[i + 1] -= dy * sq * 0.5; a[i + 2] -= dz * sq;
+      disp[j] += Math.abs(k); dm[j] = Math.min(1, dm[j] + f * f * power * 0.8); hit = true; }
+    if (!hit) continue;
+    ge.attributes.position.needsUpdate = true; ge.attributes.aDmg.needsUpdate = true; ge.computeVertexNormals();
+    const nn = ge.attributes.normal.array, n0 = ge.userData.n0; // untouched panels keep their smooth factory normals, bent ones get the creased new ones
+    for (let i = 0, j = 0; i < nn.length; i += 3, j++) { const w = Math.min(1, disp[j] / 0.02); if (w >= 1) continue; _hv.set(n0[i] + (nn[i] - n0[i]) * w, n0[i + 1] + (nn[i + 1] - n0[i + 1]) * w, n0[i + 2] + (nn[i + 2] - n0[i + 2]) * w).normalize(); nn[i] = _hv.x; nn[i + 1] = _hv.y; nn[i + 2] = _hv.z; }
+    ge.attributes.normal.needsUpdate = true; ge.computeBoundingSphere();
+  }
+}
+// an impact at P (car space) pushing along D: dents, scrapes, parts torn off, glass, lights
+function hdImpact(P, D, power) {
+  const U = CART_ROOT.userData; if (power < 0.02) return; power = Math.min(power, 1.4);
+  const R = 0.4 + power * 0.6, depth = Math.min(0.42, 0.03 + power * 0.32);
+  hdDent(P, D.clone().normalize(), R, depth, power);
+  if (power > 0.5) hdDent(P.clone().addScaledVector(D, 0.3), D, R * 1.5, depth * 0.25, power * 0.3); // the whole side gives a little, not just the spot
+  for (const p of U.parts) { if (p.off) continue; const w = clamp(1 - p.c.distanceTo(P) / (R + 1.1), 0, 1); if (!w) continue; p.dmg += power * w * rand(0.9, 1.5) * 1.6; if (p.dmg > p.hp) carPartOff(p); }
+  if (U.ws && U.ws.visible && (power > 0.75 || (power > 0.22 && U.wsC.distanceTo(P) < R + 0.7))) hdShatter();
+  for (const l of U.lights) if (l.m.emissiveIntensity > 0 && power > 0.12 && (l.front ? P.z < -1.4 : P.z > 1.4)) { l.m.emissiveIntensity = 0; burst(CART_ROOT.localToWorld(P.clone()), 12, SPARK, 4); }
+  const wp = CART_ROOT.localToWorld(P.clone()); burst(wp, Math.round(14 + power * 50), SPARK, 4 + power * 6);
+}
+function hdHitAt(worldP, power) { // something hit the car near a world point (the hammer head): find the spot on the body and the push direction
+  CART_ROOT.updateMatrixWorld(true); const q = CART_ROOT.worldToLocal(worldP.clone()), c = new V3(clamp(q.x, -1.02, 1.02), clamp(q.y, 0.2, 1.05), clamp(q.z, -2.15, 2.2));
+  const D = c.clone().sub(q); if (D.lengthSq() < 1e-4) D.set(-Math.sign(q.x) || 1, 0, 0); hdImpact(c, D.normalize(), power);
+}
+function hdGroundHit(power) { // tumbling: the corner nearest the road takes it (roof, pillars, a fender), pushed up into the car
+  CART_ROOT.updateMatrixWorld(true); let best = null, by = 1e9; const v = new V3();
+  for (const x of [-1, 1]) for (const y of [0.25, 1.05]) for (const z of [-2, -0.6, 0.6, 2]) { v.set(x, y, z); CART_ROOT.localToWorld(v); if (v.y < by) { by = v.y; best = new V3(x, y, z); } }
+  const up = CART_ROOT.worldToLocal(CART_ROOT.getWorldPosition(new V3()).add(Y)).sub(CART_ROOT.worldToLocal(CART_ROOT.getWorldPosition(new V3()))).normalize();
+  best.x *= 1.02; hdImpact(best, up, power);
+}
+// the windshield bursts into shards that tumble off the car
+const HDG = { list: [], mesh: null };
+function hdShatter() {
+  const U = CART_ROOT.userData, ws = U.ws; ws.visible = false; glassSound(1);
+  if (!HDG.mesh) { const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0.09, 0.02, 0, 0.03, 0.08, 0], 3)); gg.computeVertexNormals();
+    HDG.mesh = new THREE.InstancedMesh(gg, new THREE.MeshPhysicalMaterial({ color: 0x9fb8c4, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.55, side: THREE.DoubleSide, envMapIntensity: 2.5 }), 90); HDG.mesh.frustumCulled = false; scene.add(HDG.mesh); }
+  ws.updateMatrixWorld(true); const pa = ws.geometry.attributes.position, wv = BB.free ? BB.v : new V3(R.xv, R.vy, -R.speed);
+  HDG.list.length = 0;
+  for (let i = 0; i < 90; i++) { const p = new V3().fromBufferAttribute(pa, (Math.random() * pa.count) | 0).applyMatrix4(ws.matrixWorld);
+    HDG.list.push({ p, v: wv.clone().multiplyScalar(rand(0.4, 0.95)).add(new V3(rand(-3, 3), rand(1, 5), rand(-3, 3))), q: new THREE.Quaternion().random(), w: new V3(rand(-20, 20), rand(-20, 20), rand(-20, 20)), s: rand(0.35, 1.1), rest: false }); }
+  HDG.mesh.count = HDG.list.length; hdShardStep(0);
+}
+const _hq = new THREE.Quaternion(), _hM = new THREE.Matrix4(), _hS = new V3();
+function hdShardStep(dt) {
+  if (!HDG.mesh || !HDG.mesh.count) return;
+  HDG.list.forEach((d, i) => { if (!d.rest && dt) { d.v.y -= 9.8 * dt; d.p.addScaledVector(d.v, dt); _hq.setFromAxisAngle(_hS.copy(d.w).normalize(), d.w.length() * dt); d.q.premultiply(_hq);
+      const fl = floorAt(d.p.x, d.p.z); if (d.p.y < fl + 0.01 && d.p.y > fl - 0.6) { d.p.y = fl + 0.01; d.v.y *= -0.25; d.v.x *= 0.6; d.v.z *= 0.6; d.w.multiplyScalar(0.5); if (d.v.lengthSq() < 0.2) d.rest = true; } if (d.p.y < -89) d.rest = true; }
+    HDG.mesh.setMatrixAt(i, _hM.compose(d.p, d.q, _hS.setScalar(d.s))); });
+  HDG.mesh.instanceMatrix.needsUpdate = true;
+}
+function hdReset() { // the car is whole again: rest shapes, clean paint, glass, lights
+  const U = CART_ROOT && CART_ROOT.userData; if (!U || !U.hd) return;
+  for (const o of U.dent) { const ge = o.geometry; ge.attributes.position.array.set(ge.userData.p0); ge.attributes.normal.array.set(ge.userData.n0); ge.attributes.aDmg.array.fill(0); ge.userData.disp.fill(0);
+    ge.attributes.position.needsUpdate = ge.attributes.normal.needsUpdate = ge.attributes.aDmg.needsUpdate = true; ge.computeBoundingSphere(); }
+  if (U.ws) U.ws.visible = true; for (const l of U.lights) l.m.emissiveIntensity = l.e;
+  for (const p of U.parts) p.o.visible = true;
+  HDG.list.length = 0; if (HDG.mesh) HDG.mesh.count = 0;
+}
 var CART_ROOT; // var, not let: buildCart() is called earlier in the file (line ~508) and a let would still be unreachable there
 // the race car takes damage: every hit dents the panels near it (bumps hit the front, rails the side, tumbling everything);
 // a part that has taken too much comes off and bounces down the road on its own
@@ -811,10 +979,13 @@ function carPartOff(p) {
   rec.v.addScaledVector(out, rand(2, 6)); rec.v.y += rand(1.5, 4); CBRK.list.push(rec); CBRK.on = true;
   burst(o.getWorldPosition(new V3()), 30, SPARK, 6); clank(4);
   if (state === 'ride' && p.name === 'wheel') { R.lean = (R.lean || 0) + (p.c.x > 0 ? 0.09 : -0.09); R.wild += 0.4; } // down on that corner: it scrapes and pulls
-  if (state === 'ride') { lastPop = 0; pop({ wheel: 'WHEEL OFF!', fwing: 'WING GONE!', rwing: 'SPOILER GONE!', nose: 'NOSE OFF!', pod: 'PANEL OFF!', cover: 'HOOD OFF!', hoop: 'ROLL BAR OFF!' }[p.name] || 'CRUNCH!', 'green'); }
+  if (state === 'ride') { lastPop = 0; pop({ wheel: 'WHEEL OFF!', fwing: 'WING GONE!', rwing: 'SPOILER GONE!', nose: 'NOSE OFF!', pod: 'PANEL OFF!', cover: 'HOOD OFF!', hoop: 'ROLL BAR OFF!', door: 'DOOR OFF!', hood: 'HOOD OFF!', hatch: 'TRUNK OFF!', mirror: 'MIRROR OFF!' }[p.name] || 'CRUNCH!', 'green'); }
 }
 function carHit(power, sx = 0, fz = 0) { // power about 0.1 for a bump at speed, 1 for a crash at 200 mph
   if (BODY !== 'car' || !CART_ROOT || !CART_ROOT.userData.parts || power < 0.02) return;
+  if (CART_ROOT.userData.hd) { // the real car: the same hit lands on a spot of its body (front, a side, or the top)
+    const P = fz > 0 ? new V3(rand(-0.7, 0.7), rand(0.3, 0.7), -2.1) : fz < 0 ? new V3(rand(-0.7, 0.7), rand(0.35, 0.75), 2.15) : sx ? new V3(sx * 1.02, rand(0.3, 0.8), rand(-1.6, 1.6)) : new V3(rand(-0.8, 0.8), 0.95, rand(-1.4, 1.4));
+    hdImpact(P, fz > 0 ? new V3(0, 0.15, 1) : fz < 0 ? new V3(0, 0.15, -1) : sx ? new V3(-sx, 0.1, 0) : new V3(0, -1, 0), power * 1.4); return; }
   for (const p of CART_ROOT.userData.parts) { if (p.off) continue;
     const w = 0.3 + (sx && Math.sign(p.c.x) === sx && Math.abs(p.c.x) > 0.3 ? 0.9 : 0) + (fz > 0 && p.c.z < -0.6 ? 0.9 : 0) + (fz < 0 && p.c.z > 0.6 ? 0.9 : 0);
     const d = power * w * rand(0.4, 1.2); p.dmg += d;
@@ -831,11 +1002,12 @@ function carBreakStep(dt) {
     if (o.position.y < -89) d.rest = true; }
 }
 function carBreakReset() {
+  hdReset();
   for (const d of CBRK.list) d.par.add(d.o); CBRK.list.length = 0; CBRK.on = false;
   if (CART_ROOT && CART_ROOT.userData.parts) for (const p of CART_ROOT.userData.parts) { p.off = false; p.dmg = 0; p.o.position.copy(p.home); p.o.rotation.copy(p.rot);
     const g = p.o.isMesh && p.o.geometry; if (g && g.userData.orig) { g.attributes.position.array.set(g.userData.orig); g.attributes.position.needsUpdate = true; g.computeVertexNormals(); } }
 }
-function buildCart() { CART_ROOT = BODY === 'car' ? makeCarMesh(wheels) : makeCartMesh(CART_S, wheels); board.add(CART_ROOT); }
+function buildCart() { CART_ROOT = BODY === 'car' ? (HDA ? makeHDCar(wheels) : makeCarMesh(wheels)) : makeCartMesh(CART_S, wheels); board.add(CART_ROOT); }
 // ---------- more obstacles ----------
 const hazard = (len) => stripeMat(len);
 const OBS = { balls: [], presses: [], barrels: [], hurdles: [], sweepers: [], walls: [], oils: [], tramps: [], spikes: [], fans: [], cones: [] };
@@ -850,7 +1022,7 @@ for (const [s, ph] of L.balls) addBall(s, ph);
 // 1b. giant hammer: a steel head on a long shaft, swinging across the road like a pendulum (level option L.hammers = [[s, phase], ...])
 function addHammer(s, ph = 0, k = 1) { const L = 9.6 * k, piv = L + (k > 1 ? 2.3 : 1.6); // the giant one hangs low enough to hit the car frame2(s, piv + 0.3, 9.2 * k);
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.17 * k, 0.17 * k, 1, 12), new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.7 })); shaft.castShadow = true; scene.add(shaft);
-  const head = new THREE.Group(); const hm = new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.85, roughness: 0.35 });
+  const head = new THREE.Group(); const hm = hdMat('metal', [3, 1], { color: 0x6b7078, metalness: 0.9 }) || new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.85, roughness: 0.35 });
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.6, 28), hm); body.rotation.z = Math.PI / 2; body.castShadow = true; head.add(body);
   for (const sd of [-1, 1]) { const face = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.86, 0.22, 28), new THREE.MeshStandardMaterial({ color: 0xe0322b, metalness: 0.4, roughness: 0.4 })); face.rotation.z = Math.PI / 2; face.position.x = sd * 1.25; head.add(face);
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.3, 28), hazard(2.6)); band.rotation.z = Math.PI / 2; band.position.x = sd * 0.55; head.add(band); }
@@ -2401,6 +2573,9 @@ function limbIK(A, B, C, target, pole, P) {
 function levelPart(n, P, extra) { parentQ(n, _iqp); _iq.copy(_iqp).invert().multiply(rootQ); if (extra) _iq.multiply(extra); _iE.setFromQuaternion(_iq, 'XYZ'); P[n] = [_iE.x, _iE.y, _iE.z]; }
 // seated in the basket, in model space where y = 0 is the basket floor
 const CART_SEAT = new V3(0, 0.17, 0.32); let CART_RIM_Y = BODY === 'car' ? 0.48 : (1.02 - 0.4) * CART_S, CART_RIM_X = BODY === 'car' ? 0.15 : (0.32 + 0.03) * CART_S, CART_RIM_Z = BODY === 'car' ? -0.28 : -0.06; // in the car the hands hold the steering wheel // both change when the bathtub is in use (labVehicle)
+const HD_SEAT = !!(CART_ROOT && CART_ROOT.userData.hd); // the real car: Daggie in its centre driving seat, hands on its wheel, feet down at the pedals
+if (HD_SEAT) { CART_SEAT.set(0, 0.47 - BOARD_TOP, -0.28); CART_RIM_Y = 0.68 - BOARD_TOP; CART_RIM_X = 0.15; CART_RIM_Z = -0.96; }
+const hdZ = dz => !HD_SEAT ? dz : dz > 0 ? Math.max(0, dz - 2.35) : Math.min(0, dz + 1.9); // the long car: the gap from its nose or tail, not its middle
 function poseCart(t) {
   if (PEDAL && PEDAL.use) pedalStep(t);
   if (state === 'intro') {
@@ -2427,7 +2602,7 @@ function poseCart(t) {
   rootPos.set(CART_SEAT.x + sx - hp.x, CART_SEAT.y - comp * 0.09 + rat + (air ? 0.03 : 0) - hp.y, CART_SEAT.z - hp.z); runFK(P);
   for (const s of ['L', 'R']) {
     const sd = SIDE[s];
-    let ft = new V3(sd * 0.17, ANKLE_REST.y + rat * 0.5 + (air ? 0.02 : 0), -0.3); if (PEDAL && PEDAL.use && PEDAL.crank) { const ph = PEDAL.phase + (sd > 0 ? 0 : Math.PI); ft = new V3(sd * PEDAL.px, PEDAL.cy - PEDAL.r * Math.cos(ph) + 0.015 + ANKLE_REST.y - 0.012, PEDAL.cz + PEDAL.r * Math.sin(ph)); } // on a trike each foot rides its pedal
+    let ft = HD_SEAT ? new V3(sd * 0.16, ANKLE_REST.y - 0.33 + rat * 0.5, -1.18) : new V3(sd * 0.17, ANKLE_REST.y + rat * 0.5 + (air ? 0.02 : 0), -0.3); if (PEDAL && PEDAL.use && PEDAL.crank) { const ph = PEDAL.phase + (sd > 0 ? 0 : Math.PI); ft = new V3(sd * PEDAL.px, PEDAL.cy - PEDAL.r * Math.cos(ph) + 0.015 + ANKLE_REST.y - 0.012, PEDAL.cz + PEDAL.r * Math.sin(ph)); } // on a trike each foot rides its pedal
     limbIK('thigh' + s, 'shin' + s, 'foot' + s, ft, new V3(sd * 0.25, 1, -0.7), P);
     levelPart('foot' + s, P);
   }
@@ -2484,6 +2659,7 @@ function placeRider(t) {
   rider.rotation.set(pitch, R.yaw || 0, clamp(-R.xv * 0.05, -0.38, 0.38) + (R.roll || 0) + (R.lean || 0));
   if (state !== 'intro') { board.position.copy(rider.position); board.quaternion.copy(rider.quaternion); }
   for (const w of wheels) w.rotation.x -= (state === 'ride' || state === 'passed') && R.grounded ? R.speed / WHEEL_R / 60 : 0;
+  if (CART_ROOT && CART_ROOT.userData.steer) { const st = state === 'ride' ? clamp(-R.xv * 0.06, -0.38, 0.38) : 0; for (const w of CART_ROOT.userData.steer) if (w.parent === CART_ROOT.userData.g) w.rotation.y += (st - w.rotation.y) * 0.25; } // the real car's front wheels turn as it dodges
 }
 function jointsNow() { daggie.updateMatrixWorld(true); const out = []; for (const [n, par] of RIG) if (par) out.push(jointWorld(n, new V3()).applyMatrix4(daggie.matrixWorld)); return out; }
 function crash(kind, saw) {
@@ -2518,7 +2694,8 @@ function crash(kind, saw) {
   if (VEH === 'cart') labDent(Math.min(45, R.speed * 1.1)); // the front crumples in the crash
   BB.free = true; BB.v.copy(vel).multiplyScalar(0.8).add(new V3(rand(-2, 2), rand(2, 4), 0)); BB.w.set(rand(-12, 12), rand(-6, 6), rand(-12, 12));
   if (kind === 'rollover') { const sd = Math.sign(R.roll || R.yaw) || 1; BB.v.x += Math.sin(R.yaw || 0) * R.speed * 0.45 + sd * rand(2, 4); BB.v.y += rand(3, 5); BB.w.set(rand(-4, 4), (R.yawV || 0) * 1.5 + rand(-3, 3), sd * rand(9, 14)); } // barrel-rolls off sideways
-  if (BODY === 'car') carHit(clamp(R.speed / 90, 0.15, 1) * 0.5, Math.sign(R.roll || 0), kind === 'press' ? 0 : 1); // the impact crumples it; the worst-hit parts come off, more go as it tumbles
+  if (BODY === 'car' && CART_ROOT.userData.hd && saw && saw.pos) hdHitAt(saw.pos, clamp(R.speed / 90, 0.35, 1) * 1.25); // the real car caves in right where the hammer lands
+  else if (BODY === 'car') carHit(clamp(R.speed / 90, 0.15, 1) * 0.5, Math.sign(R.roll || 0), kind === 'press' ? 0 : 1); // the impact crumples it; the worst-hit parts come off, more go as it tumbles
   spawnDebris(center, jw, vel);
   if (kind === 'lava') { burst(center, 120, SPARK, 11); for (let i = 0; i < 5; i++) setTimeout(() => burst(center.clone().add(new V3(rand(-1.5, 1.5), 0, rand(-1.5, 1.5))), 40, SPARK, 7), i * 160); tone(220, 60, 0.9, 'sawtooth', 0.08); }
   if (kind === 'bones') { burst(center, 60, CONF, 8); for (let i = 0; i < 6; i++) tone(rand(600, 1100), rand(300, 500), 0.08, 'square', 0.05, i * 0.07); }
@@ -2745,7 +2922,7 @@ function stepRide(dt, now) {
   }
   if (state !== 'ride') return;
   if (L.climax && !R.climaxed && R.s > L.climax - Math.max(14, R.speed * 1.1)) { R.climaxed = true; slowUntil = now + 1500; slowK = 0.28; lastPop = 0; pop('WILL HE MAKE IT?', 'lilac'); setFace('scared', 1800); tone(200, 90, 0.8, 'sawtooth', 0.05); } // the moment before the trap, in slow motion
-  const bodyY0 = R.y + 0.2, bodyY1 = R.y + 0.2 + (VEH === 'cart' ? 1.5 : 2.1) * PW.size, bw = (BODY === 'car' ? 0.62 : VEH === 'cart' ? 0.45 : 0.34) * PW.size;
+  const bodyY0 = R.y + 0.2, bodyY1 = R.y + 0.2 + (VEH === 'cart' ? 1.5 : 2.1) * PW.size, bw = (BODY === 'car' ? (HD_SEAT ? 1.0 : 0.62) : VEH === 'cart' ? 0.45 : 0.34) * PW.size;
   for (const sw of SAWS) {
     if (sw.dead) continue;
     const dz = Math.abs(R.s - sw.s); if (dz > 0.6) continue;
@@ -2769,12 +2946,12 @@ function stepRide(dt, now) {
   }
   for (const hu of OBS.hurdles) if (!hu.dead && Math.abs(R.s - hu.s) < 0.3 && R.y < hu.h - 0.12) { crash('hurdle', hu); if (state !== 'ride' || !hu.dead) return; }
   for (const b of OBS.balls) {
-    if (b.dead || Math.abs(R.s - b.s) > 1.6) continue;
-    const yy = clamp(b.pos.y, bodyY0, bodyY1); let d = Math.hypot(R.x - b.pos.x, yy - b.pos.y, -R.s - b.pos.z);
+    if (b.dead || Math.abs(R.s - b.s) > (HD_SEAT ? 4.4 : 1.6)) continue;
+    const yy = clamp(b.pos.y, bodyY0, bodyY1); let d = Math.hypot(R.x - b.pos.x, yy - b.pos.y, hdZ(-R.s - b.pos.z));
     if (b.big) { // the giant hammer's head is a long drum across the road: test it as a capsule, tilted with the swing
       const a = b.ball.rotation.z, dx = R.x - b.pos.x, ca = Math.cos(a), sa = Math.sin(a);
       const lx = Math.abs(dx * ca + (clamp(b.pos.y + dx * sa, bodyY0, bodyY1) - b.pos.y) * sa), ly = -dx * sa + (clamp(b.pos.y + dx * sa, bodyY0, bodyY1) - b.pos.y) * ca;
-      d = Math.hypot(Math.max(0, lx - b.hl - bw), ly, -R.s - b.pos.z) + b.r - b.hr; } // so the checks below can stay in terms of b.r
+      d = Math.hypot(Math.max(0, lx - b.hl - bw), ly, hdZ(-R.s - b.pos.z)) + b.r - b.hr; } // so the checks below can stay in terms of b.r
     if (d < b.r + 0.05) { crash(b.hammer ? 'hammer' : 'ball', b); return; }
     if (d < b.r + 0.45) { graze(b, Math.sign(R.x - b.pos.x) || 1, b.pos.y > R.y + 1.7); if (state !== 'ride') return; }
     if (!b.near && d < b.r + 1.4) { b.near = true; R.close++; pop('CLOSE!', 'lilac'); setFace('scared', 700); }
@@ -2880,7 +3057,7 @@ function stepParts(dt) {
     BB.v.y -= 9.8 * dt; board.position.addScaledVector(BB.v, dt);
     const wl = BB.w.length(); if (wl > 1e-3) { tq.setFromAxisAngle(tv.copy(BB.w).multiplyScalar(1 / wl), wl * dt); board.quaternion.premultiply(tq); }
     const fl = floorAt(board.position.x, board.position.z);
-    if (board.position.y < fl + 0.06 && board.position.y > fl - 0.8) { board.position.y = fl + 0.06; if (VEH === 'cart' && BB.v.y < -3) { const lp = board.worldToLocal(new V3(board.position.x, fl, board.position.z)); labDentAt(clamp(lp.y / CART_S, 0, 1.02), clamp(lp.z / CART_S, -0.47, 0.58), -BB.v.y); } if (BODY === 'car' && BB.v.y < -2) carHit((-BB.v.y - 2) * 0.09 + BB.w.length() * 0.01, Math.random() < 0.5 ? -1 : 1, rand(-1, 1) | 0); if (BB.v.y < 0) BB.v.y *= -0.35; BB.v.x *= 0.9; BB.v.z *= 0.9; BB.w.multiplyScalar(0.8); } // every tumble hits the road: more dents, more parts off
+    if (board.position.y < fl + 0.06 && board.position.y > fl - 0.8) { board.position.y = fl + 0.06; if (VEH === 'cart' && BB.v.y < -3) { const lp = board.worldToLocal(new V3(board.position.x, fl, board.position.z)); labDentAt(clamp(lp.y / CART_S, 0, 1.02), clamp(lp.z / CART_S, -0.47, 0.58), -BB.v.y); } if (BODY === 'car' && BB.v.y < -2) { if (CART_ROOT.userData.hd) hdGroundHit(((-BB.v.y - 2) * 0.09 + BB.w.length() * 0.01) * 1.3); else carHit((-BB.v.y - 2) * 0.09 + BB.w.length() * 0.01, Math.random() < 0.5 ? -1 : 1, rand(-1, 1) | 0); } if (BB.v.y < 0) BB.v.y *= -0.35; BB.v.x *= 0.9; BB.v.z *= 0.9; BB.w.multiplyScalar(0.8); } // every tumble hits the road: more dents, more parts off
     if (L.rails && Math.abs(board.position.x) > HALF - 0.6 && board.position.y < fl + 1.6 && board.position.y > fl - 0.5 && Math.sign(BB.v.x) === Math.sign(board.position.x)) { const sd = Math.sign(board.position.x); board.position.x = sd * (HALF - 0.6); BB.v.x *= -0.45; BB.w.y += rand(-4, 4); carHit(Math.min(0.6, Math.abs(BB.v.x) * 0.05 + 0.1), sd, 0); burst(board.position.clone(), 25, SPARK, 6); clank(4); } // the tumbling car bangs off the guard rails instead of leaving the road
     if (board.position.y < -89) { board.position.y = -89; BB.v.set(0, 0, 0); }
   }
@@ -3102,7 +3279,7 @@ function frame(vts) {
   stepFlock(sdt);
   dlvStep(sdt, now); if (DLV && state === 'passed' && D.phase === 'approach' && (R.s > DOOR_S - 3.6)) D.phase = 'door';
   if (DLV && (D.phase === 'door' || D.phase === 'hand' || D.phase === 'box')) R.speed = 0;
-  stepMess(sdt); carBreakStep(sdt);
+  stepMess(sdt); carBreakStep(sdt); hdShardStep(sdt);
   drawFace(now);
   updateSparks(sdt);
   const k = camTargets(now, dt);

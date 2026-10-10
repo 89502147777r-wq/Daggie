@@ -14,6 +14,7 @@ export const LEVEL = {
   vmax: 90.5,          // 202 mph cap: the speed comes only from the drop
   slopeK: 1.6,         // the ramp pulls hard: about 200 mph at the bottom
   rush: true,          // speed lines, big speedometer, mph milestones
+  hd: true,            // HD look: the real Car Concept model, HDRI light, PBR surfaces, a body that crumples where it is hit
   track: {
     half: 4.2,
     drop: { h: 250, s0: 22, s1: 380 }, // roof deck at 250 m, the ramp curves down to the runway at s = 380
