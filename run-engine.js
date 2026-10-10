@@ -494,15 +494,20 @@ function megaRamp(s0, s1) {
   { const pos = [], idx = []; let n = 0; // the deck's underside
     for (let s = s0; s <= s1 + 1e-6; s += 1) { const h = (trackH(Math.min(s, s1 - 1e-3)) ?? 0) - 0.9; pos.push(-HALF, h, -s, HALF, h, -s); if (n) { const a = (n - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } n++; }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); scene.add(new THREE.Mesh(g, under)); }
-  // the tower: steel legs from the clouds up to the deck, with cross bracing
-  const legM = new THREE.MeshStandardMaterial({ color: 0x8a9099, metalness: 0.85, roughness: 0.35 });
+  // the tower: steel legs from the clouds (or from the street, in the city) up to the deck, with cross bracing
+  const legM = new THREE.MeshStandardMaterial({ color: 0x8a9099, metalness: 0.85, roughness: 0.35 }), GROUND = TH === 'city' ? 46 : 80;
+  if (TH === 'city') { // the start deck sits on the roof of a skyscraper
+    const bw = 30, bd = 44, top = DROP.h - 0.9, bh = top + 46, sk = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), facadeMat(bw, bh)); sk.position.set(0, top - bh / 2, -(s0 - bd / 2 + 4)); sk.receiveShadow = true; scene.add(sk);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.6, bd + 0.6), new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 0.9 })); roof.position.set(0, top - 0.3, sk.position.z); scene.add(roof);
+    for (const sd of [-1, 1]) { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 22, 8), steel); ant.position.set(sd * 11, top + 11, sk.position.z + 10); scene.add(ant); const bl = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), neon(0xff2a2a, 4)); bl.position.set(sd * 11, top + 22.2, sk.position.z + 10); scene.add(bl); }
+  }
   for (let s = s0 + 2; s < s1 - 2; s += 8) { const h = trackH(s) ?? 0; if (h < 1.5) continue;
-    for (const sd of [-1, 1]) { const len = h + 80; const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, len, 0.4), legM); leg.position.set(sd * (HALF - 0.4), h - 0.9 - len / 2, -s); scene.add(leg); }
-    for (let y = h - 4; y > -40; y -= 7) { const br = new THREE.Mesh(new THREE.BoxGeometry(HALF * 2 - 0.8, 0.18, 0.18), legM); br.position.set(0, y, -s); br.rotation.z = (Math.floor(y) % 2 ? 1 : -1) * 0.5; scene.add(br); } }
+    for (const sd of [-1, 1]) { const len = h + GROUND; const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, len, 0.4), legM); leg.position.set(sd * (HALF - 0.4), h - 0.9 - len / 2, -s); scene.add(leg); }
+    for (let y = h - 4; y > 2 - GROUND; y -= 7) { const br = new THREE.Mesh(new THREE.BoxGeometry(HALF * 2 - 0.8, 0.18, 0.18), legM); br.position.set(0, y, -s); br.rotation.z = (Math.floor(y) % 2 ? 1 : -1) * 0.5; scene.add(br); } }
   // MEGA RAMP letters on a banner at the lip, where the curve starts
-  const bn = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2 + 1, 1.4), sign('MEGA RAMP', '#e0322b', '#ffffff', 768, 172)); bn.position.set(0, DROP.h + 8.1, -DROP.s0); bn.rotation.y = 0; scene.add(bn);
+  const bn = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2 + 1, 1.4), sign('MEGA RAMP', '#e0322b', '#ffffff', 768, 172)); bn.position.set(0, DROP.h + 12.1, -DROP.s0); bn.rotation.y = 0; scene.add(bn);
   const bb = bn.clone(); bb.rotation.y = Math.PI; bb.position.z += 0.05; scene.add(bb);
-  for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.3, 9, 0.3), steel); p.position.set(sd * (HALF + 0.9), DROP.h + 4.3, -DROP.s0); scene.add(p); }
+  for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.3, 13, 0.3), steel); p.position.set(sd * (HALF + 0.9), DROP.h + 6.3, -DROP.s0); scene.add(p); }
 }
 const TRACK_OBJ0 = scene.children.length;
 { let a = -14; if (DROP) { megaRamp(a, DROP.s1); a = DROP.s1; } for (const [g0, g1] of GAPS) { roadStrip(a, g0); a = g1; } roadStrip(a, RAMP0); roadStrip(RAMP0, RAMP1); roadStrip(LAND0, LAND1); }
@@ -734,17 +739,18 @@ function makeCarMesh(wheelsOut) {
   const tyre = new THREE.MeshStandardMaterial({ color: 0x141418, roughness: 0.85 });
   const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
   add(new RoundedBoxGeometry(1.12, 0.1, 2.75, 2, 0.03), carbon, 0, 0.49, 0.05); // floor pan, just under the seat
+  const brk = []; // the parts that tear off in a crash
   for (const sd of [-1, 1]) { // side pods with the race number
-    add(new RoundedBoxGeometry(0.26, 0.38, 1.5, 3, 0.08), paint, sd * 0.62, 0.68, 0.18);
-    const num = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.3), sign('D-1', '#f4f4ee', '#16141c', 256, 128)); num.position.set(sd * 0.755, 0.7, 0.2); num.rotation.y = sd * Math.PI / 2; g.add(num);
-    add(new THREE.BoxGeometry(0.02, 0.06, 1.5), white, sd * 0.755, 0.86, 0.18); }
+    const pod = add(new RoundedBoxGeometry(0.26, 0.38, 1.5, 3, 0.08), paint, sd * 0.62, 0.68, 0.18); brk.push(pod);
+    const num = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.3), sign('D-1', '#f4f4ee', '#16141c', 256, 128)); num.position.set(sd * 0.135, 0.02, 0.02); num.rotation.y = sd * Math.PI / 2; pod.add(num);
+    const st = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.06, 1.5), white); st.position.set(sd * 0.135, 0.18, 0); pod.add(st); }
   { // nose: a side profile pushed out across the car
     const sh = new THREE.Shape(); sh.moveTo(-0.42, 0.45); sh.lineTo(-0.42, 0.95); sh.lineTo(-0.85, 0.86); sh.quadraticCurveTo(-1.55, 0.72, -1.8, 0.52); sh.lineTo(-1.8, 0.45); sh.lineTo(-0.42, 0.45);
     const ng = new THREE.ExtrudeGeometry(sh, { depth: 0.96, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2, curveSegments: 10 }); ng.rotateY(-Math.PI / 2); ng.translate(0.48, 0, 0);
-    add(ng, paint, 0, 0, 0);
+    brk.push(add(ng, paint, 0, 0, 0));
     const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 1.42), white); stripe.rotation.x = -Math.PI / 2 - 0.2; stripe.position.set(0, 0.84, -1.18); g.add(stripe);
-    add(new RoundedBoxGeometry(1.7, 0.05, 0.36, 2, 0.02), carbon, 0, 0.5, -1.86); // front wing
-    for (const sd of [-1, 1]) add(new THREE.BoxGeometry(0.04, 0.2, 0.42), paint, sd * 0.86, 0.56, -1.86);
+    const fw = add(new RoundedBoxGeometry(1.7, 0.05, 0.36, 2, 0.02), carbon, 0, 0.5, -1.86); brk.push(fw); // front wing
+    for (const sd of [-1, 1]) { const ep = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 0.42), paint); ep.position.set(sd * 0.86, 0.06, 0); fw.add(ep); }
     for (const sd of [-1, 1]) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), neon(0xfff2c0, 3)); l.position.set(sd * 0.32, 0.6, -1.8); g.add(l); }
   }
   // cowl and dash in front of the driver, the steering wheel on its column
@@ -753,12 +759,12 @@ function makeCarMesh(wheelsOut) {
   const col = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.32, 8), chrome); col.position.set(0, 1.0, -0.4); col.rotation.x = Math.PI / 2 - 0.35; g.add(col);
   // seat back, engine cover, roll hoop, rear wing, exhausts
   const seat = add(new RoundedBoxGeometry(0.7, 0.62, 0.1, 2, 0.04), carbon, 0, 0.86, 0.72); seat.rotation.x = 0.18;
-  add(new RoundedBoxGeometry(1.0, 0.36, 0.72, 3, 0.1), paint, 0, 0.72, 1.12);
+  brk.push(add(new RoundedBoxGeometry(1.0, 0.36, 0.72, 3, 0.1), paint, 0, 0.72, 1.12)); // engine cover
   for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(0.8, 0.03, 0.06), carbon, 0, 0.91, 0.86 + i * 0.16);
-  const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 10, 24, Math.PI), chrome); hoop.position.set(0, 1.3, 0.86); g.add(hoop);
+  const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.04, 10, 24, Math.PI), chrome); hoop.position.set(0, 1.3, 0.86); g.add(hoop); brk.push(hoop);
   for (const sd of [-1, 1]) add(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), chrome, sd * 0.36, 1.05, 0.86);
-  add(new RoundedBoxGeometry(1.6, 0.06, 0.42, 2, 0.02), carbon, 0, 1.28, 1.42);
-  for (const sd of [-1, 1]) { add(new THREE.BoxGeometry(0.05, 0.42, 0.3), paint, sd * 0.8, 1.12, 1.42); add(new THREE.BoxGeometry(0.06, 0.34, 0.06), carbon, sd * 0.3, 1.05, 1.36); }
+  const rw = add(new RoundedBoxGeometry(1.6, 0.06, 0.42, 2, 0.02), carbon, 0, 1.28, 1.42); brk.push(rw); // rear wing on its struts
+  for (const sd of [-1, 1]) { const ep = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.3), paint); ep.position.set(sd * 0.8, -0.16, 0); rw.add(ep); const su = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 0.06), carbon); su.position.set(sd * 0.3, -0.23, -0.06); rw.add(su); }
   const flameT = tex(64, 128, (c, w, h) => { const gr = c.createRadialGradient(w / 2, h * 0.2, 2, w / 2, h * 0.4, h * 0.6); gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.3, 'rgba(120,200,255,0.95)'); gr.addColorStop(0.6, 'rgba(255,120,30,0.7)'); gr.addColorStop(1, 'rgba(255,40,0,0)'); c.fillStyle = gr; c.beginPath(); c.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, TAU); c.fill(); });
   for (const sd of [-1, 1]) {
     const ex = add(new THREE.CylinderGeometry(0.07, 0.09, 0.42, 12), chrome, sd * 0.24, 0.68, 1.55); ex.rotation.x = Math.PI / 2 - 0.15;
@@ -771,13 +777,34 @@ function makeCarMesh(wheelsOut) {
     const t = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 28), tyre); t.rotation.z = Math.PI / 2; t.castShadow = true; wg.add(t);
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.62, r * 0.62, w + 0.02, 6), chrome); rim.rotation.z = Math.PI / 2; wg.add(rim);
     const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.2, r * 0.2, w + 0.05, 12), paint); hub.rotation.z = Math.PI / 2; wg.add(hub);
-    g.add(wg); if (wheelsOut) wheelsOut.push(wg);
+    g.add(wg); if (wheelsOut) wheelsOut.push(wg); brk.push(wg);
     add(new THREE.BoxGeometry(Math.abs(x) - 0.5, 0.05, 0.08), carbon, Math.sign(x) * (0.25 + Math.abs(x) / 2), r, z);
   }
-  root.userData.pieces = []; root.userData.extras = []; root.userData.g = g; root.userData.flames = flames;
+  root.userData.pieces = []; root.userData.extras = []; root.userData.g = g; root.userData.flames = flames; root.userData.brk = brk;
   return root;
 }
 var CART_ROOT; // var, not let: buildCart() is called earlier in the file (line ~508) and a let would still be unreachable there
+// the race car tears apart in a crash: wheels, wings, pods, nose and engine cover fly off on their own and bounce down the road
+const CBRK = { list: [], on: false };
+function carBreak() {
+  if (CBRK.on || !CART_ROOT || !CART_ROOT.userData.brk) return; CBRK.on = true; board.updateMatrixWorld(true);
+  const c = board.position;
+  for (const o of CART_ROOT.userData.brk) {
+    const rec = { o, par: o.parent, p0: o.position.clone(), q0: o.quaternion.clone(), v: new V3(), w: new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(rand(6, 16)), rest: false };
+    scene.attach(o); const out = o.position.clone().sub(c); out.y = Math.max(0.2, out.y); out.normalize();
+    rec.v.copy(BB.v).multiplyScalar(rand(0.5, 0.95)).addScaledVector(out, rand(3, 8)); rec.v.y += rand(2, 6); CBRK.list.push(rec);
+  }
+  burst(c.clone(), 60, SPARK, 9); clank(8);
+}
+function carBreakStep(dt) {
+  for (const d of CBRK.list) { if (d.rest) continue; const o = d.o;
+    d.v.y -= 9.8 * dt; o.position.addScaledVector(d.v, dt);
+    const wl = d.w.length(); if (wl > 1e-3) { tq.setFromAxisAngle(tv.copy(d.w).multiplyScalar(1 / wl), wl * dt); o.quaternion.premultiply(tq); }
+    const fl = floorAt(o.position.x, o.position.z);
+    if (o.position.y < fl + 0.15 && o.position.y > fl - 0.8) { o.position.y = fl + 0.15; if (d.v.y < -3) clank(2); if (d.v.y < 0) d.v.y *= -0.4; d.v.x *= 0.82; d.v.z *= 0.82; d.w.multiplyScalar(0.75); if (d.v.length() < 0.4) d.rest = true; }
+    if (o.position.y < -89) d.rest = true; }
+}
+function carBreakReset() { for (const d of CBRK.list) { d.par.add(d.o); d.o.position.copy(d.p0); d.o.quaternion.copy(d.q0); } CBRK.list.length = 0; CBRK.on = false; }
 function buildCart() { CART_ROOT = BODY === 'car' ? makeCarMesh(wheels) : makeCartMesh(CART_S, wheels); board.add(CART_ROOT); }
 // ---------- more obstacles ----------
 const hazard = (len) => stripeMat(len);
@@ -791,19 +818,28 @@ function addBall(s, ph = 0) { const L = 7.2; frame2(s, 9.2);
   scene.add(ball); OBS.balls.push({ s, L, pivot: new V3(0, 9.0, -s), chain, ball, amp: 1.0, w: 2.1, r: 0.95, near: false, pos: new V3(), ph }); }
 for (const [s, ph] of L.balls) addBall(s, ph);
 // 1b. giant hammer: a steel head on a long shaft, swinging across the road like a pendulum (level option L.hammers = [[s, phase], ...])
-function addHammer(s, ph = 0) { const piv = 11.2, L = 9.6; frame2(s, piv + 0.3, 9.2);
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 1, 12), new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.7 })); shaft.castShadow = true; scene.add(shaft);
+function addHammer(s, ph = 0, k = 1) { const L = 9.6 * k, piv = L + (k > 1 ? 2.3 : 1.6); // the giant one hangs low enough to hit the car frame2(s, piv + 0.3, 9.2 * k);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.17 * k, 0.17 * k, 1, 12), new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.7 })); shaft.castShadow = true; scene.add(shaft);
   const head = new THREE.Group(); const hm = new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.85, roughness: 0.35 });
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.6, 28), hm); body.rotation.z = Math.PI / 2; body.castShadow = true; head.add(body);
   for (const sd of [-1, 1]) { const face = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.86, 0.22, 28), new THREE.MeshStandardMaterial({ color: 0xe0322b, metalness: 0.4, roughness: 0.4 })); face.rotation.z = Math.PI / 2; face.position.x = sd * 1.25; head.add(face);
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.3, 28), hazard(2.6)); band.rotation.z = Math.PI / 2; band.position.x = sd * 0.55; head.add(band); }
   const cap = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), steel); cap.position.y = 0.75; head.add(cap);
-  scene.add(head); OBS.balls.push({ s, L, pivot: new V3(0, piv, -s), chain: shaft, ball: head, amp: 1.05, w: 1.55, r: 1.15, near: false, pos: new V3(), ph, hammer: true }); }
+  head.scale.setScalar(k); scene.add(head); OBS.balls.push({ s, L, pivot: new V3(0, piv, -s), chain: shaft, ball: head, amp: k > 1 ? 0.46 : 1.05, w: k > 1 ? 1.25 : 1.55, r: 1.15 * k, hl: 1.3 * k, hr: 0.8 * k, k, near: false, pos: new V3(), ph, hammer: true, big: k > 1 }); }
 for (const [s, ph] of (L.hammers || [])) addHammer(s, ph);
+if (L.bigHammer) addHammer(L.bigHammer.s, 0, L.bigHammer.k || 2); // one giant hammer at the bottom of the skyscraper ramp
 // 2. piston crushers over two lanes, out of phase
 function addPress(s, blocks) { frame2(s, 7.5, HALF + 0.6);
   for (const [x, ph] of blocks) { const block = new THREE.Mesh(new RoundedBoxGeometry(2.7, 1.1, 2.2, 3, 0.08), hazard(2.7)); block.castShadow = true; scene.add(block); const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 1, 14), steel); scene.add(rod); OBS.presses.push({ s, x, w: 2.7, d: 2.2, ph, block, rod, bottom: 5, near: false }); } }
 for (const p of L.presses) addPress(p.s, p.blocks);
+// 2b. giant press over the whole road (level option L.bigPress = { s, k }): pure timing, under it while it is up or flattened
+function addBigPress(s, k = 2) { const fh = 7.5 * k; frame2(s, fh + 0.4, HALF + 1.4);
+  const w = HALF * 2 + 0.6, h = 1.4 * k, d = 2.4 * k;
+  const block = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, 0.12), hazard(w)); block.castShadow = true; scene.add(block);
+  for (const sd of [-1, 1]) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), neon(0xff3a2a, 3)); l.position.set(sd * (w / 2 - 0.4), -h / 2 + 0.1, d / 2 + 0.02); block.add(l); }
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 18), steel); scene.add(rod);
+  OBS.presses.push({ s, x: 0, w, d, ph: 0, block, rod, bottom: 5, near: false, h, fh, top: 4.6 * k, seq: [1.3, 0.22, 1.0, 1.0], big: true }); } // stays down a full second
+if (L.bigPress) addBigPress(L.bigPress.s, L.bigPress.k);
 // 3. rolling barrels coming at you
 { const bt = tex(256, 128, (g, w, h) => { g.fillStyle = '#d8342b'; g.fillRect(0, 0, w, h); g.fillStyle = '#f4f4ee'; g.fillRect(0, 18, w, 12); g.fillRect(0, h - 30, w, 12); g.fillStyle = '#16141c'; g.font = '700 38px ' + FONT; g.textAlign = 'center'; g.fillText('☢', w / 2, h / 2 + 14); });
   const bm = new THREE.MeshStandardMaterial({ map: bt, roughness: 0.5, metalness: 0.3 });
@@ -882,6 +918,7 @@ function resetObstacles() {
   for (const o of [...OBS.balls, ...OBS.presses, ...OBS.sweepers, ...OBS.walls]) o.near = false;
   for (const o of OBS.oils) o.hit = false;
   for (const b of OBS.bumps) { b.hit = false; b.m.scale.y = 1; }
+  if (L.randomPhase) { for (const b of OBS.balls) b.ph = rand(0, TAU); for (const p of OBS.presses) p.ph = rand(0, 10); } // every attempt meets the trap at a different moment: will he make it this time?
 }
 const _mt = new THREE.Matrix4(), _mq = new THREE.Quaternion(), _ms = new V3(1, 1, 1), _mp = new V3();
 function animateObstacles(t, dt, riderS) {
@@ -892,10 +929,10 @@ function animateObstacles(t, dt, riderS) {
   }
   for (const p of OBS.presses) {
     if (p.dead) continue;
-    const c = 2.2, q = (t + p.ph) % c; let off;
-    if (q < 0.9) off = 4.6; else if (q < 1.08) { const k = (q - 0.9) / 0.18; off = 4.6 - 4.25 * k * k; } else if (q < 1.45) off = 0.35; else off = 0.35 + 4.25 * Math.min(1, (q - 1.45) / 0.75);
-    if (p.bottom > 0.6 && off <= 0.36 && Math.abs(riderS - p.s) < 40) { tone(90, 40, 0.18, 'sine', 0.12); burst(new V3(p.x, 0.2, -p.s), 10, SPARK, 3); }
-    p.bottom = off; p.block.position.set(p.x, off + 0.55, -p.s); p.rod.scale.y = Math.max(0.1, 7.5 - (off + 1.1)); p.rod.position.set(p.x, off + 1.1 + p.rod.scale.y / 2, -p.s);
+    const [tu, ts, td, tr] = p.seq || [0.9, 0.18, 0.37, 0.75], top = p.top || 4.6, bh = p.h || 1.1, fh = p.fh || 7.5, c = tu + ts + td + tr, q = (t + p.ph) % c; let off; // seconds up, slamming, down, rising
+    if (q < tu) off = top; else if (q < tu + ts) { const k = (q - tu) / ts; off = top - (top - 0.35) * k * k; } else if (q < tu + ts + td) off = 0.35; else off = 0.35 + (top - 0.35) * Math.min(1, (q - tu - ts - td) / tr);
+    if (p.bottom > 0.6 && off <= 0.36 && Math.abs(riderS - p.s) < (p.big ? 140 : 40)) { tone(90, 40, p.big ? 0.4 : 0.18, 'sine', p.big ? 0.25 : 0.12); burst(new V3(p.x, 0.2, -p.s), p.big ? 40 : 10, SPARK, p.big ? 6 : 3); if (p.big && !reduceMotion && Math.abs(riderS - p.s) < 60) shake = Math.max(shake, 0.25); }
+    p.bottom = off; p.block.position.set(p.x, off + bh / 2, -p.s); p.rod.scale.y = Math.max(0.1, fh - (off + bh)); p.rod.position.set(p.x, off + bh + p.rod.scale.y / 2, -p.s);
   }
   for (const b of OBS.barrels) {
     if (state === 'ride' && riderS > b.s0 - 95) b.s -= b.v * dt;
@@ -1903,7 +1940,7 @@ function planShots(rec) {
   return { shots, cum, total, crashT, evTimes, ranges: merged, ri: 0 };
 }
 function startFilm(rec, fromResult, record) {
-  if (!rec || !rec.frames.length) return;
+  if (!rec || !rec.frames.length) return; carBreakReset(); // the film shows the car whole (its flight is recorded, the loose parts are not)
   if (liveRecOn()) finishLiveRec(); liveWant = false;
   recStop();
   if (rec.gates) layoutGates(rec.gates);
@@ -2261,8 +2298,8 @@ const TITLES = {
   stairs: ['{n} STEPS|CAN HE SURVIVE?', 'DOWN {n} STEPS|HOW MANY PARTS LEFT?', 'PUSHED OFF|THE TOP', 'ONE ROBOT.|{n} STEPS.', 'STEP BY STEP|HE FALLS APART', 'WILL HE REACH|THE BOTTOM?', 'THE LONGEST|FALL YET', 'NO RAILING.|NO MERCY.'],
   cannon: ['HOW MANY WALLS|CAN HE BREAK?', '{mph} MPH|15 WALLS', 'CANNON VS|15 WALLS', 'GLASS, BRICK, STEEL...|HOW FAR?', 'WILL HE BREAK|THE VAULT DOOR?', 'FROM PAPER-THIN|TO VAULT STEEL', 'ONE SHOT|15 WALLS', 'STUCK OR|THROUGH ALL 15?'],
   anvil: ['ANVIL FROM|{lv} METERS', 'HOW HIGH TO|BREAK HIM?', '1000 KG|FROM THE SKY', 'LOOK UP|DAGGIE!', 'CAN HE|TAKE THIS?', "THE ANVIL|DOESN'T MISS"],
-  mega: ['MEGA RAMP|NO BRAKES', 'HOW FAST|CAN HE GO?', '0 TO 150 MPH|INTO TRAPS', 'FASTER AND FASTER|WHAT COULD GO WRONG?', 'HAMMERS, SAWS|AND LAVA', "WATCH THE SPEED|DON'T BLINK", 'IT ONLY|GETS FASTER', 'CAN HE CLEAR|THE LAVA LAKE?', 'THE RAMP|NEVER ENDS', 'FULL SPEED|INTO A HAMMER?', 'NO BRAKES.|ONLY TRAPS.', 'HOW FAR BEFORE|IT ALL GOES WRONG?'],
-  bumps: ['50 SPEED BUMPS|AT FULL SPEED', 'HOW MANY BUMPS|CAN HE TAKE?', '50 BUMPS|ONE CAR', 'WILL THE CAR|SURVIVE 50 BUMPS?', 'SPEED BUMPS|VS DAGGIE', 'BUMP 1 IS EASY|BUMP 50?', 'NO BRAKES|50 BUMPS', 'HIS SPINE VS|50 SPEED BUMPS', 'JUMP THEM|OR FEEL THEM', 'WHO PUT|50 BUMPS HERE?'],
+  tower: ['110 METERS DOWN|ONE HAMMER', 'SKYSCRAPER RAMP|NO BRAKES', 'WILL HE MAKE IT|THROUGH?', 'FROM THE ROOF|STRAIGHT DOWN', 'ONE SHOT|ONE TRAP', 'TIMING IS|EVERYTHING', 'GRAVITY DOES|THE REST', '100 MPH|INTO THAT?', "HE CAN'T STOP|NOW", 'WATCH THE TRAP|NOT THE CAR'],
+  bumps: ['50 SPEED BUMPS|AT FULL SPEED', '80 MPH|VS A SPEED BUMP', 'WHAT HAPPENS AT|80 MPH?', 'ONE BUMP|TOO FAST', "HE DIDN'T|SLOW DOWN", 'WILL THE CAR|STAY ON 4 WHEELS?', 'SPEED BUMP|NO BRAKES', 'HOW MANY BUMPS|BEFORE IT FLIPS?', 'FULL SPEED|INTO SPEED BUMPS', 'THIS IS WHY|THEY SAY SLOW DOWN'],
   any: ['CRASH TEST|DAGGIE', 'WILL HE|SURVIVE?'],
 };
 function rollTitle() {
@@ -2291,7 +2328,7 @@ function resetRun() {
   liveWant = LIVE_REC;
   testNo++;
   resetPower(); randomGates(); resetFlock(); resetFx(); RING.done = false;
-  Object.assign(R, { s: -13.5, x: 0, xT: 0, xv: 0, y: START_H + DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0, bumps: 0, clean: 0, mile: 0, hop: false });
+  Object.assign(R, { s: -13.5, x: 0, xT: 0, xv: 0, y: START_H + DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0, bumps: 0, clean: 0, mile: 0, hop: false, wild: 0, yaw: 0, roll: 0, yawV: 0, rollV: 0, climaxed: false });
   trick = TRICKS[(testNo - 1) % TRICKS.length];
   for (const b of BOOSTS) b.used = false;
   for (const sw of SAWS) sw.near = false;
@@ -2309,7 +2346,7 @@ function resetRun() {
   $('result').hidden = true; rollTitle(); $('hook').classList.add('show');
   $('testNo').textContent = '#' + String(testNo).padStart(3, '0');
   snapCam = true;
-  dlvReset();
+  dlvReset(); carBreakReset();
   if (VEH === 'cart' && MODE !== 'lab') { const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); } for (const w of wheels) w.visible = true; const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
   recStart(); REC.test = testNo; REC.trick = trick.name; REC.gates = GATE_LAYOUT.map(a => a.slice());
   if (MODE === 'lab') labReset();
@@ -2414,15 +2451,15 @@ function placeRider(t) {
   if (state === 'intro') pitch = 0;
   else if (R.grounded) pitch = Math.atan(R.slope);
   else pitch = Math.atan2(R.vy, Math.max(6, R.speed)) * 0.5;
-  rider.rotation.set(pitch, 0, clamp(-R.xv * 0.05, -0.38, 0.38));
+  rider.rotation.set(pitch, R.yaw || 0, clamp(-R.xv * 0.05, -0.38, 0.38) + (R.roll || 0));
   if (state !== 'intro') { board.position.copy(rider.position); board.quaternion.copy(rider.quaternion); }
   for (const w of wheels) w.rotation.x -= (state === 'ride' || state === 'passed') && R.grounded ? R.speed / WHEEL_R / 60 : 0;
 }
 function jointsNow() { daggie.updateMatrixWorld(true); const out = []; for (const [n, par] of RIG) if (par) out.push(jointWorld(n, new V3()).applyMatrix4(daggie.matrixWorld)); return out; }
 function crash(kind, saw) {
   if (state !== 'ride') return;
-  if (kind !== 'fall' && kind !== 'gap' && kind !== 'lava' && kind !== 'wear' && kind !== 'bones') { if (performance.now() < R.inv) return; if (R.shield) { shieldSave(); return; } if (powerHit(kind, saw)) return; }
-  if (kind !== 'fall' && kind !== 'gap' && kind !== 'lava' && flockSwap(kind)) return;
+  if (kind !== 'fall' && kind !== 'gap' && kind !== 'lava' && kind !== 'rollover' && kind !== 'wear' && kind !== 'bones') { if (performance.now() < R.inv) return; if (R.shield) { shieldSave(); return; } if (powerHit(kind, saw)) return; }
+  if (kind !== 'fall' && kind !== 'gap' && kind !== 'lava' && kind !== 'rollover' && flockSwap(kind)) return;
   state = 'crashed'; stateT = performance.now(); cause = kind; setHP(0);
   if (DLV) dlvLose(D.left); // the backpack bursts open
   const now = stateT, vel = new V3(R.xv, R.vy, -R.speed);
@@ -2437,6 +2474,7 @@ function crash(kind, saw) {
     if (kind === 'big') { u.v.z *= 0.15; u.v.x += (Math.random() < 0.5 ? -1 : 1) * rand(3, 8); u.v.y += rand(2, 6); }
     const leg = /thigh|shin|foot/.test(p.name);
     if (kind === 'hurdle' || kind === 'barrel' || kind === 'cart' || kind === 'wall') { if (leg) u.v.z *= 0.15; else { u.v.y += rand(1.5, 3); } if (kind === 'wall') u.v.z = Math.abs(u.v.z) * rand(0.1, 0.3); }
+    if (kind === 'rollover') { const sd = Math.sign(R.roll || R.yaw) || 1; u.v.x += sd * rand(3, 8) + Math.sin(R.yaw || 0) * R.speed * 0.3; u.v.y += rand(3, 7); u.v.z *= rand(0.5, 0.9); }
     if (kind === 'lava') { u.v.y += rand(5, 9); u.v.z *= 0.35; u.v.x += rand(-3, 3); }
     if (kind === 'ball' || kind === 'hammer') { const dir = saw && saw.pos ? Math.sign(R.x - saw.pos.x) || 1 : 1; u.v.x += dir * rand(6, 11); u.v.y += rand(2, 4); u.v.z *= 0.5; }
     if (kind === 'bowl') { const dir = saw && saw.pos ? Math.sign(R.x - saw.pos.x) || (Math.random() < 0.5 ? -1 : 1) : 1; u.v.x += dir * rand(2, 8); u.v.y += rand(4, 9); u.v.z = rand(1, 7); } // thrown up and back by the ball
@@ -2449,6 +2487,8 @@ function crash(kind, saw) {
   }
   if (VEH === 'cart') labDent(Math.min(45, R.speed * 1.1)); // the front crumples in the crash
   BB.free = true; BB.v.copy(vel).multiplyScalar(0.8).add(new V3(rand(-2, 2), rand(2, 4), 0)); BB.w.set(rand(-12, 12), rand(-6, 6), rand(-12, 12));
+  if (kind === 'rollover') { const sd = Math.sign(R.roll || R.yaw) || 1; BB.v.x += Math.sin(R.yaw || 0) * R.speed * 0.45 + sd * rand(2, 4); BB.v.y += rand(3, 5); BB.w.set(rand(-4, 4), (R.yawV || 0) * 1.5 + rand(-3, 3), sd * rand(9, 14)); } // barrel-rolls off sideways
+  if (BODY === 'car' && R.speed > 12) carBreak(); // wheels, wings and panels tear off
   spawnDebris(center, jw, vel);
   if (kind === 'lava') { burst(center, 120, SPARK, 11); for (let i = 0; i < 5; i++) setTimeout(() => burst(center.clone().add(new V3(rand(-1.5, 1.5), 0, rand(-1.5, 1.5))), 40, SPARK, 7), i * 160); tone(220, 60, 0.9, 'sawtooth', 0.08); }
   if (kind === 'bones') { burst(center, 60, CONF, 8); for (let i = 0; i < 6; i++) tone(rand(600, 1100), rand(300, 500), 0.08, 'square', 0.05, i * 0.07); }
@@ -2456,7 +2496,7 @@ function crash(kind, saw) {
   setFace('hit', 1500);
   slowUntil = now + (reduceMotion ? 500 : 1600); slowK = 0.22;
   if (!reduceMotion) shake = 0.5;
-  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', fire: 'BURNED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!', lava: 'MELTED!', hammer: 'HAMMERED!', bumps: 'TOO MANY BUMPS!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
+  pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', fire: 'BURNED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!', lava: 'MELTED!', hammer: 'HAMMERED!', bumps: 'TOO MANY BUMPS!', rollover: 'ROLLED OVER!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
   tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06);
   orbitA = Math.atan2(camera.position.x - center.x, camera.position.z - center.z);
 }
@@ -2481,7 +2521,7 @@ function showResult() {
   const surv = ok ? flockCount() : 0; if ($('rFlock')) $('rFlock').textContent = surv + ' / ' + FLOCK_MAX; if (REC) REC.flock = surv;
   $('rLost').textContent = detached.reduce((a, d) => a + d.names.length, 0) + ' / 15';
   $('rScore').textContent = String(Math.round((R.maxS * 10 + R.close * 150 + R.cones * 40 + (ok ? 2500 : 0) + (ok ? HP * 20 : 0) + (ok ? flockCount() * 1000 : 0))));
-  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fire: 'The ring of fire', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', bowl: 'A bowling ball', press: 'A hydraulic press', gap: 'Missed the jump', lava: 'The lava', hammer: 'Giant hammer', bumps: 'Speed bumps' }[cause] || cause);
+  $('rCause').textContent = ok ? 'Nothing. He made it!' : ({ saw: 'Saw blade', big: 'The giant saw', fall: 'The drop', hurdle: 'The hurdle', ball: 'Wrecking ball', press: 'The crusher', barrel: 'Rolling barrel', cart: 'An oncoming cart', fire: 'The ring of fire', fart: 'Fart power', sock: 'The stinky sock', sweeper: 'Sweeper arm', wall: 'Sliding wall', spikes: 'Spikes', wear: 'Too many hits', bones: 'Skeleton fell apart', anvil: 'A falling anvil', bowl: 'A bowling ball', press: 'A hydraulic press', gap: 'Missed the jump', lava: 'The lava', hammer: 'Giant hammer', bumps: 'Speed bumps', rollover: 'Lost control and rolled over' }[cause] || cause);
   if (BUMP_N) $('rCause').textContent += ' · bumps hit ' + R.bumps + ', jumped ' + (R.clean || 0) + ' of ' + BUMP_N;
   if (DLV) $('rCause').textContent = (ok ? D.stars + '★ delivery' : 'Delivery failed') + ' · ' + D.left + '/' + DLV.slices + ' slices · tip $' + Math.max(0, Math.round(D.tip));
   $('result').hidden = false;
@@ -2628,8 +2668,24 @@ function stepRide(dt, now) {
   if (R.slip > 0) { R.slip -= dt; R.xT += Math.sin(simT * 7.3) * 5.5 * dt; }
   if (OBS.wind && R.s > OBS.wind.s0 && R.s < OBS.wind.s1) { R.xT += OBS.wind.force * dt; R.x += OBS.wind.force * 0.35 * dt; }
   R.x += (R.xT - R.x) * Math.min(1, dt * (FORM.kind === 'frozen' ? 1.4 : R.slip > 0 ? 2.5 : 6));
+  if (L.rails && Math.abs(R.x) > HALF - 0.8) { // guard rails: the car slams into them and bounces back across the road
+    const sd = Math.sign(R.x), hit = Math.abs(R.xv) + Math.abs(Math.sin(R.yaw || 0)) * R.speed; R.x = sd * (HALF - 0.8); R.xT = sd * (HALF - 2.2);
+    if (hit > 3) { R.yawV = -sd * (0.6 + hit * 0.05) + rand(-0.3, 0.3); R.yaw *= -0.4; R.rollV += -sd * clamp(hit * 0.08, 0.3, 1.6); R.wild += clamp(hit * 0.04, 0.1, 0.6); R.speed *= 0.96; setHP(HP - Math.round(2 + hit * 0.3));
+      burst(new V3(R.x + sd * 0.8, 0.6, -R.s), 30, SPARK, 6); clank(5); tone(220, 70, 0.2, 'sawtooth', 0.08); lastPop = 0; pop('WALL!', 'green'); if (!reduceMotion) shake = Math.min(0.7, shake + 0.3); if (HP <= 0) { crash('rollover'); return; } }
+  }
   if (R.grounded && Math.abs(R.x) > HALF + 0.05) { R.grounded = false; R.vy = 0; pop('WHOA!', 'lilac'); setFace('scared', 1500); }
   R.xv = (R.x - px) / dt;
+  if (R.wild > 0 || R.yaw || R.roll) { // lost control after a speed bump: the car points where it wants, rocks onto two wheels, fishtails
+    R.yaw += R.yawV * dt; R.roll += R.rollV * dt;
+    if (R.grounded) {
+      R.rollV += -R.roll * 14 * dt; R.rollV *= Math.exp(-4 * dt);
+      R.yawV += -R.yaw * (R.wild < 0.5 ? 3 : 0.8) * dt + (R.wild > 0.4 ? rand(-1, 1) * R.wild * 7 * dt : 0); R.yawV *= Math.exp(-1.6 * dt);
+      R.xT += Math.sin(R.yaw) * R.speed * 0.3 * dt; R.x += Math.sin(R.yaw) * R.speed * 0.12 * dt; // it slides the way it points
+      R.wild = Math.max(0, R.wild - 0.3 * dt);
+      if ((Math.abs(R.yaw) > 1.0 && R.speed > 16) || Math.abs(R.roll) > 0.8) { crash('rollover'); return; } // sideways at speed: the tyres dig in and it flips
+      if (R.wild === 0 && Math.abs(R.yaw) < 0.01 && Math.abs(R.roll) < 0.01) { R.yaw = R.roll = R.yawV = R.rollV = 0; }
+    }
+  }
   if (R.grounded) {
     R.air = 0;
     R.speed = Math.min(formMax(), R.speed + (0.6 + (R.s < LAND0 ? ACCEL : 0) + (FORM.kind === 'chrome' ? 2 : 0) - 9.8 * R.slope * 0.8) * dt);
@@ -2648,7 +2704,8 @@ function stepRide(dt, now) {
     if (h === null && R.y < -1.0 && inLava(R.s)) { crash('lava'); return; } // dropped into the lava
     if (h !== null && R.y < h - 0.5) { crash('gap'); return; } // fell into the gap and hit the far wall
     if (h !== null && R.y <= h && R.vy <= 0) {
-      const hard = -R.vy; R.grounded = true; R.hop = false; R.y = h; R.slope = 0; landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10);
+      const hard = -R.vy; R.grounded = true; R.hop = false; R.y = h; R.slope = 0;
+      if (Math.abs(R.roll) > 0.7 || (Math.abs(R.yaw) > 0.9 && R.speed > 16)) { crash('rollover'); return; } // came down on its side landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10);
       if (R.slam) { R.slam = false; for (const n of TNTS) if (n.alive && Math.hypot(n.x - R.x, n.s - R.s) < 3.2) { n.alive = false; n.g.visible = false; explodeAt(new V3(n.x, 0.6, -n.s)); } burst(new V3(R.x, h + 0.1, -R.s), 50, SPARK, 8); pop('SLAM!', 'lilac'); if (!reduceMotion) shake = 0.5; tone(90, 35, 0.35, 'sine', 0.3); for (const c of OBS.cones) if (!c.hit && Math.hypot(c.x0 - R.x, c.s0 - R.s) < 4) { c.hit = true; c.v.set((c.x0 - R.x) * 3, rand(5, 8), (R.s - c.s0) * 2); c.w.set(rand(-12, 12), 0, rand(-12, 12)); } }
       burst(new V3(R.x, h + 0.1, -R.s), 18, SPARK, 5); tone(160, 50, 0.2, 'sine', Math.min(0.3, 0.05 + hard * 0.02));
       if (!reduceMotion) shake = Math.min(0.4, hard * 0.03);
@@ -2656,6 +2713,7 @@ function stepRide(dt, now) {
     if (R.y < -14) { crash('fall'); return; }
   }
   if (state !== 'ride') return;
+  if (L.climax && !R.climaxed && R.s > L.climax - Math.max(14, R.speed * 1.1)) { R.climaxed = true; slowUntil = now + 1500; slowK = 0.28; lastPop = 0; pop('WILL HE MAKE IT?', 'lilac'); setFace('scared', 1800); tone(200, 90, 0.8, 'sawtooth', 0.05); } // the moment before the trap, in slow motion
   const bodyY0 = R.y + 0.2, bodyY1 = R.y + 0.2 + (VEH === 'cart' ? 1.5 : 2.1) * PW.size, bw = (BODY === 'car' ? 0.62 : VEH === 'cart' ? 0.45 : 0.34) * PW.size;
   for (const sw of SAWS) {
     if (sw.dead) continue;
@@ -2681,7 +2739,11 @@ function stepRide(dt, now) {
   for (const hu of OBS.hurdles) if (!hu.dead && Math.abs(R.s - hu.s) < 0.3 && R.y < hu.h - 0.12) { crash('hurdle', hu); if (state !== 'ride' || !hu.dead) return; }
   for (const b of OBS.balls) {
     if (b.dead || Math.abs(R.s - b.s) > 1.6) continue;
-    const yy = clamp(b.pos.y, bodyY0, bodyY1), d = Math.hypot(R.x - b.pos.x, yy - b.pos.y, -R.s - b.pos.z);
+    const yy = clamp(b.pos.y, bodyY0, bodyY1); let d = Math.hypot(R.x - b.pos.x, yy - b.pos.y, -R.s - b.pos.z);
+    if (b.big) { // the giant hammer's head is a long drum across the road: test it as a capsule, tilted with the swing
+      const a = b.ball.rotation.z, dx = R.x - b.pos.x, ca = Math.cos(a), sa = Math.sin(a);
+      const lx = Math.abs(dx * ca + (clamp(b.pos.y + dx * sa, bodyY0, bodyY1) - b.pos.y) * sa), ly = -dx * sa + (clamp(b.pos.y + dx * sa, bodyY0, bodyY1) - b.pos.y) * ca;
+      d = Math.hypot(Math.max(0, lx - b.hl - bw), ly, -R.s - b.pos.z) + b.r - b.hr; } // so the checks below can stay in terms of b.r
     if (d < b.r + 0.05) { crash(b.hammer ? 'hammer' : 'ball', b); return; }
     if (d < b.r + 0.45) { graze(b, Math.sign(R.x - b.pos.x) || 1, b.pos.y > R.y + 1.7); if (state !== 'ride') return; }
     if (!b.near && d < b.r + 1.4) { b.near = true; R.close++; pop('CLOSE!', 'lilac'); setFace('scared', 700); }
@@ -2718,16 +2780,20 @@ function stepRide(dt, now) {
   for (const sp of OBS.spikes) if (R.s > sp.s0 && R.s < sp.s1 && sp.up > 0.6 && R.y < 0.5) { crash('spikes'); return; }
   for (const o of OBS.oils) if (!o.hit && R.grounded && Math.abs(R.x - o.x) < o.w && Math.abs(R.s - o.s) < o.l) { o.hit = true; R.slip = 1.3; pop('SLIPPERY!', 'lilac'); setFace('scared', 1300); tone(400, 200, 0.4, 'sine', 0.05); }
   for (const tr of OBS.tramps) if (R.grounded && Math.hypot(R.x - tr.x, R.s - tr.s) < tr.r) { R.grounded = false; R.vy = 8.5; tr.sq = 1; crouchV -= 4; pop('BOING!', 'green'); setFace('wow', 1600); tone(160, 700, 0.35, 'sine', 0.12); }
-  for (const bp of OBS.bumps) if (!bp.hit && ps0 < bp.s && R.s >= bp.s && Math.abs(R.x) < HALF + 0.1) { // speed bump: bounce and damage when driven over, clean when jumped
+  for (const bp of OBS.bumps) if (!bp.hit && ps0 < bp.s && R.s >= bp.s && Math.abs(R.x) < HALF + 0.1) { // speed bump: at speed the car loses control
     bp.hit = true;
     if (!R.grounded && !R.hop) { R.close++; R.clean = (R.clean || 0) + 1; if (R.y > 0.3) { lastPop = 0; pop('CLEAN ' + (R.bumps + R.clean) + '/' + BUMP_N, 'green'); } continue; }
-    R.bumps++; bp.m.scale.y = 0.6; if (R.grounded) { R.grounded = false; R.hop = true; R.vy = 1.4 + R.speed * 0.12; crouchV += 5 + R.speed * 0.15; } // still bouncing from the last bump counts as a hit too
-    const dmg = Math.round(1 + Math.max(0, R.speed - 10) * 0.14); setHP(HP - dmg);
-    lastPop = 0; pop((R.speed > 28 ? 'OOF! ' : 'BUMP ') + (R.bumps + (R.clean || 0)) + '/' + BUMP_N, R.speed > 28 ? 'green' : '');
-    if (!reduceMotion) shake = Math.min(0.6, shake + 0.12 + R.speed * 0.008); clank(3); tone(140, 55, 0.18, 'sine', Math.min(0.3, 0.08 + R.speed * 0.006));
+    R.bumps++; bp.m.scale.y = 0.6;
+    if (!R.grounded) continue; // still in the air from the last bump: flew over this one (counts as hit, no new kick)
+    const sev = clamp((R.speed - 12) / 20, 0, 1.8); // 0 at 27 mph and under, 1 at 72 mph
+    R.grounded = false; R.hop = true; R.vy = 1.0 + R.speed * 0.07 * (1 + sev * 0.4); crouchV += 5 + R.speed * 0.15;
+    const side = Math.random() < 0.5 ? -1 : 1; R.wild += sev; R.yawV += side * sev * rand(0.15, 0.45) + rand(-0.15, 0.15) * R.wild; R.rollV += rand(-1, 1) * sev * 0.9 + side * sev * 0.3; // kicked sideways and up on one wheel
+    setHP(HP - Math.round(1 + sev * 5));
+    lastPop = 0; pop(R.wild > 1.3 ? 'NO CONTROL!' : sev > 0.5 ? 'WHOA! ' + (R.bumps + (R.clean || 0)) + '/' + BUMP_N : 'BUMP ' + (R.bumps + (R.clean || 0)) + '/' + BUMP_N, sev > 0.5 ? 'green' : '');
+    if (sev > 0.5) setFace('scared', 1200);
+    if (!reduceMotion) shake = Math.min(0.7, shake + 0.12 + sev * 0.3); clank(3 + Math.round(sev * 3)); tone(140, 55, 0.18, 'sine', Math.min(0.3, 0.08 + R.speed * 0.006));
     burst(new V3(R.x, 0.15, -R.s), 10 + Math.round(R.speed * 0.6), SPARK, 4);
-    if (R.speed > 28 && Math.random() < 0.12) { graze({}, Math.random() < 0.5 ? -1 : 1, false); if (state !== 'ride') return; }
-    if (HP <= 0) { crash('bumps'); return; }
+    if (HP <= 0) { crash('rollover'); return; }
   }
   for (const c of OBS.cones) if (!c.hit && Math.abs(R.s - c.s0) < 0.45 && Math.abs(R.x - c.x0) < 0.55 && R.y < 0.6) {
     c.hit = true; R.cones++; setHP(HP - 5); c.v.set((c.x0 - R.x) * 6 + rand(-1, 1), rand(4, 6), -R.speed * 0.9); c.w.set(rand(-12, 12), 0, rand(-12, 12)); R.speed *= 0.95; pop('BONK!'); clank(5); tone(300, 120, 0.12, 'triangle', 0.06);
@@ -2996,7 +3062,7 @@ function frame(vts) {
   else if (state === 'intro' || state === 'ride' || state === 'passed') { placeRider(simT); poseBody(simT); }
   if (state === 'crashed' || (state === 'result' && cause !== '')) {
     const n = Math.min(8, Math.max(1, Math.ceil(sdt * 120 - 1e-6))), h = sdt / n;
-    for (let k = 0; k < n; k++) { stepParts(h); stepDebris(h, now); }
+    for (let k = 0; k < n; k++) { stepParts(h); stepDebris(h, now); carBreakStep(h); }
     if (state === 'crashed' && now > faceUntil) setFace((now - stateT) > 2500 ? ((Math.floor(now / 2000) % 2) ? 'okq' : 'worried') : 'scared');
     if (state === 'crashed' && now - stateT > 2800) showResult();
   }
