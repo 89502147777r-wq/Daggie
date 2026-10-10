@@ -17,6 +17,13 @@ export const MODES = [
     ],
   },
   {
+    id: 'car', title: 'CAR', sub: 'No brakes. It only gets faster', page: 'run.html',
+    levels: [
+      { id: 'mega', name: 'Mega Ramp', ride: 'Race car: 150 mph into traps', file: 'level-car-mega.js', ready: true },
+      { id: 'bumps', name: '50 Speed Bumps', ride: 'Race car vs 50 bumps', file: 'level-car-bumps.js', ready: true },
+    ],
+  },
+  {
     id: 'launch', title: 'LAUNCH', sub: 'Slingshot challenges', page: 'launch.html',
     levels: [
       { id: 'glass', name: 'Glass Wall', ride: 'Slingshot', ready: false },
