@@ -38,6 +38,13 @@ body{margin:0;height:100%;background:var(--deep);color:var(--ink);font-family:"C
 .hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:6px;pointer-events:none}
 .chip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--dim);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);white-space:nowrap}
 .chip b{color:var(--yellow);font-size:17px;margin-left:4px;font-variant-numeric:tabular-nums;font-weight:700}
+.rushspd{--heat:0;position:absolute;left:50%;bottom:15%;transform:translateX(-50%) scale(calc(1 + var(--heat) * .25));display:flex;align-items:baseline;gap:6px;pointer-events:none;opacity:0;transition:opacity .3s;z-index:3;font-variant-numeric:tabular-nums}
+.rushspd.on{opacity:1}
+.rushspd b{font-size:clamp(46px,15vw,84px);line-height:1;color:hsl(calc(46 - var(--heat) * 46),100%,56%);-webkit-text-stroke:2px #16112a;text-shadow:0 4px 0 #16112a,0 0 24px hsla(calc(46 - var(--heat) * 46),100%,50%,.6)}
+.rushspd span{font-weight:700;font-size:clamp(18px,5vw,26px);color:#fff;-webkit-text-stroke:1px #16112a}
+.rushspd.hot b{animation:rushpulse .18s ease-in-out infinite alternate}
+@keyframes rushpulse{from{transform:translateY(0)}to{transform:translateY(-2px) scale(1.04)}}
+@media (prefers-reduced-motion: reduce){.rushspd.hot b{animation:none}}
 .hook{position:absolute;left:0;right:0;top:100px;text-align:center;pointer-events:none;opacity:0;transform:translateY(-10px) scale(.96);transition:opacity .35s,transform .35s}
 .hook.show{opacity:1;transform:none}
 .nohook .hook{display:none}
