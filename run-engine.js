@@ -3607,11 +3607,11 @@ function hatchParse(buf) { const dv = new DataView(buf); if (dv.getUint32(0, tru
 function obsDrop(id) { /* forget a built obstacle completely (its meshes leave the scene), so that it is built again from scratch */ const o = OBX.built[id]; if (o) { for (const t in o.sets) { scene.remove(o.sets[t].mesh); try { o.sets[t].mesh.dispose(); } catch (e) { /* gone anyway */ } } delete OBX.built[id]; } }
 function hatchLoad() {
   if (HATCH.state !== 0) return; HATCH.state = 1;
-  const tl = new Promise((res, rej) => new THREE.TextureLoader().load('hatch.jpg?v=1', res, undefined, rej));
-  Promise.all([fetch('hatch.bin?v=1').then(r => { if (!r.ok) throw new Error('hatch.bin ' + r.status); return r.arrayBuffer(); }), tl]).then(([buf, tx]) => {
+  const tl = new Promise((res, rej) => new THREE.TextureLoader().load('hatch.jpg?v=45', res, undefined, rej));
+  Promise.all([fetch('hatch.bin?v=45').then(r => { if (!r.ok) throw new Error('hatch.bin ' + r.status); return r.arrayBuffer(); }), tl]).then(([buf, tx]) => {
     const { meta, G } = hatchParse(buf); tx.flipY = false; tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 16; tx.needsUpdate = true;
     HATCH.meta = meta; HATCH.tex = tx; HATCH.geo.body = G.body.toNonIndexed(); HATCH.geo.glass = G.glass.toNonIndexed(); HATCH.geo.wheelP = G.wheelP; HATCH.geo.wheelN = G.wheelN; // a dent works on triangles that stand on their own
-    HATCH.mat = new THREE.MeshStandardMaterial({ map: tx, color: 0xf0ebe2, roughness: 0.66, metalness: 0.03, envMapIntensity: 0.28 }); HATCH.matW = new THREE.MeshStandardMaterial({ map: tx, color: 0xe6e2da, roughness: 0.58, metalness: 0.18, envMapIntensity: 0.32 });
+    HATCH.mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.5, metalness: 0.08, envMapIntensity: 0.5 }); HATCH.matW = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.46, metalness: 0.22, envMapIntensity: 0.55 });
     const pn = p => { const w = Math.max(1e-6, p.bb[p.type === 'x' ? 1 : 5] - p.bb[p.type === 'x' ? 0 : 4]), h = Math.max(1e-6, p.bb[3] - p.bb[2]); return p.type === 'x' ? (x, y) => [(x - p.bb[0]) / w, (y - p.bb[2]) / h] : (x, y, z) => [(z - p.bb[4]) / w, (y - p.bb[2]) / h]; };
     OBX_MODELS.hatch = { body: [], glass: [HATCH.geo.glass], panes: meta.panes.map(p => ({ bb: p.bb, rect: p.rect, nrm: p.nrm, uv: pn(p) })) };
     HATCH.state = 2; hatchReady(); }).catch(e => { HATCH.state = -1; console.warn('the hatchback model was not loaded', e); }); }
