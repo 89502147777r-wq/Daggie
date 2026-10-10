@@ -10,7 +10,7 @@ self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const u = new URL(req.url);
   if (u.searchParams.has('check')) return;
-  const heavy = /\.(bin|jpe?g|png|webp|woff2?|ttf)$/i.test(u.pathname) || /jsdelivr|gstatic|googleapis/.test(u.hostname);
+  const heavy = /\.(bin|hdr|jpe?g|png|webp|woff2?|ttf)$/i.test(u.pathname) || /jsdelivr|gstatic|googleapis/.test(u.hostname);
   e.respondWith(heavy ? cacheFirst(req) : networkFirst(req));
 });
 async function cacheFirst(req) {
