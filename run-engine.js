@@ -22,6 +22,7 @@ const RUSH = !!L.rush; // speed show: speed lines, a big speedometer, rumble and
 // HD look (level option hd: true): a real car model, HDRI light and reflections, scanned PBR surfaces, a body that crumples where it is hit.
 // Car: "Car Concept" by Eric Chadwick, Darmstadt Graphics Group GmbH, CC BY 4.0 (KhronosGroup glTF-Sample-Assets), roof and logos removed for the game.
 // Light: "Venice Sunset" HDRI from Poly Haven (CC0). Files: car-concept.bin (gzipped glb), venice_sunset_1k.hdr, tex/*.jpg
+// Surfaces (tex/): Poly Haven CC0 scans. Sound (sfx/hd*.mp3 plus the shared sfx/): OpenGameArt CC0 recordings, placed in 3D with HRTF, a city reverb, see CREDITS.md
 const HD_ASSETS = { car: 'car-concept.bin?v=1', hdr: 'venice_sunset_1k.hdr?v=1' };
 const HD_LOAD = L.hd ? (async () => {
   const [{ GLTFLoader }, { RGBELoader }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js')]);
@@ -464,7 +465,7 @@ const asphalt = tex(512, 1024, (g, w, h) => {
 asphalt.wrapS = asphalt.wrapT = THREE.RepeatWrapping;
 const roadMat = new THREE.MeshStandardMaterial({ map: TH === 'city' ? roofTex() : asphalt, roughness: 0.88, metalness: 0.02 });
 // HD: asphalt tiled every 3 m (road UVs in metres), painted lines as their own strips so they stay crisp
-const HD_ROAD = HDA ? hdMat('asphalt', [1 / 3, 1 / 3]) : null;
+const HD_ROAD = HDA ? hdMat('asphalt', [1 / 3, 1 / 3], { color: new THREE.Color(1.55, 1.55, 1.6), ns: 1.3 }) : null; // Asphalt Pit Lane is a dark scan: lifted so the grain reads in the sunset light
 const HD_PAINT = HD_ROAD ? [0xf1f0ea, 0xffc21a].map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })) : null;
 function hdLines(s0, s1) {
   const geo = [[], []], quad = (k, x, w, a, b) => { const P = geo[k]; for (let s = a; s < b - 1e-6; s += 0.5) { const e = Math.min(b, s + 0.5), h0 = (trackH(Math.min(s, s1 - 1e-3)) ?? 0) + 0.006, h1 = (trackH(Math.min(e, s1 - 1e-3)) ?? 0) + 0.006; P.push(x - w, h0, -s, x + w, h0, -s, x - w, h1, -e, x + w, h0, -s, x + w, h1, -e, x - w, h1, -e); } };
@@ -487,7 +488,7 @@ function roadStrip(s0, s1, bare) {
   const L = s1 - s0, mid = (s0 + s1) / 2, flat = !(s0 >= RAMP0 - 1 && s1 <= RAMP1 + 1);
   if (flat && TH === 'city') { // each road piece is the roof of a building; gaps are the alleys between them
     const bw = HALF * 2 + 1.4, bh = 46; const bld = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, L), facadeMat(bw, bh)); bld.position.set(0, -bh / 2 - 0.02, -mid); bld.receiveShadow = true; scene.add(bld);
-    const conc = hdMat('concrete', [L / 4, 0.25]) || new THREE.MeshStandardMaterial({ color: 0xa39c94, roughness: 0.9 });
+    const conc = hdMat('concrete', [L / 2.7, 0.2]) || new THREE.MeshStandardMaterial({ color: 0xa39c94, roughness: 0.9 });
     for (const sd of [-1, 1]) { const par = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.55, L), conc); par.position.set(sd * (HALF + 0.3), 0.27, -mid); par.castShadow = true; par.receiveShadow = true; scene.add(par);
       for (let q = s0 + 6; q < s1 - 4; q += 17) { const ac = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 1.3), new THREE.MeshStandardMaterial({ color: 0xc9ccd1, metalness: 0.4, roughness: 0.5 })); ac.position.set(sd * (HALF + 1.2), 0.4, -q); ac.castShadow = true; scene.add(ac); } }
   } else if (flat) {
@@ -524,7 +525,7 @@ function megaRamp(s0, s1) {
   const legM = new THREE.MeshStandardMaterial({ color: 0x8a9099, metalness: 0.85, roughness: 0.35 }), GROUND = TH === 'city' ? 46 : 80;
   if (TH === 'city') { // the start deck sits on the roof of a skyscraper
     const bw = 30, bd = 44, top = DROP.h - 0.9, bh = top + 46, sk = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), facadeMat(bw, bh)); sk.position.set(0, top - bh / 2, -(s0 - bd / 2 + 4)); sk.receiveShadow = true; scene.add(sk);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.6, bd + 0.6), hdMat('concrete', [(bw + 0.6) / 4, (bd + 0.6) / 4]) || new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 0.9 })); roof.position.set(0, top - 0.3, sk.position.z); scene.add(roof);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.6, bd + 0.6), hdMat('concrete', [(bw + 0.6) / 2.7, (bd + 0.6) / 2.7], { color: 0xd8d4cc }) || new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 0.9 })); roof.position.set(0, top - 0.3, sk.position.z); scene.add(roof);
     for (const sd of [-1, 1]) { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 22, 8), steel); ant.position.set(sd * 11, top + 11, sk.position.z + 10); scene.add(ant); const bl = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), neon(0xff2a2a, 4)); bl.position.set(sd * 11, top + 22.2, sk.position.z + 10); scene.add(bl); }
   }
   const tg = []; // all legs and braces merged into one mesh: a tall tower has hundreds of them
@@ -934,7 +935,7 @@ function hdGroundHit(power) { // tumbling: the corner nearest the road takes it 
 // the windshield bursts into shards that tumble off the car
 const HDG = { list: [], mesh: null };
 function hdShatter() {
-  const U = CART_ROOT.userData, ws = U.ws; ws.visible = false; glassSound(1);
+  const U = CART_ROOT.userData, ws = U.ws; ws.visible = false; if (!(performance.now() - (HDSND.hitT || -1e9) < 300) && !sfx3D('glass', ws.getWorldPosition(new V3()), 1, 1, 0.45)) glassSound(1);
   if (!HDG.mesh) { const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0.09, 0.02, 0, 0.03, 0.08, 0], 3)); gg.computeVertexNormals();
     HDG.mesh = new THREE.InstancedMesh(gg, new THREE.MeshPhysicalMaterial({ color: 0x9fb8c4, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.55, side: THREE.DoubleSide, envMapIntensity: 2.5 }), 90); HDG.mesh.frustumCulled = false; scene.add(HDG.mesh); }
   ws.updateMatrixWorld(true); const pa = ws.geometry.attributes.position, wv = BB.free ? BB.v : new V3(R.xv, R.vy, -R.speed);
@@ -947,7 +948,7 @@ const _hq = new THREE.Quaternion(), _hM = new THREE.Matrix4(), _hS = new V3();
 function hdShardStep(dt) {
   if (!HDG.mesh || !HDG.mesh.count) return;
   HDG.list.forEach((d, i) => { if (!d.rest && dt) { d.v.y -= 9.8 * dt; d.p.addScaledVector(d.v, dt); _hq.setFromAxisAngle(_hS.copy(d.w).normalize(), d.w.length() * dt); d.q.premultiply(_hq);
-      const fl = floorAt(d.p.x, d.p.z); if (d.p.y < fl + 0.01 && d.p.y > fl - 0.6) { d.p.y = fl + 0.01; d.v.y *= -0.25; d.v.x *= 0.6; d.v.z *= 0.6; d.w.multiplyScalar(0.5); if (d.v.lengthSq() < 0.2) d.rest = true; } if (d.p.y < -89) d.rest = true; }
+      const fl = floorAt(d.p.x, d.p.z); if (d.p.y < fl + 0.01 && d.p.y > fl - 0.6) { if (d.v.y < -2.5) hdDebrisSound(d.p, -d.v.y, true); d.p.y = fl + 0.01; d.v.y *= -0.25; d.v.x *= 0.6; d.v.z *= 0.6; d.w.multiplyScalar(0.5); if (d.v.lengthSq() < 0.2) d.rest = true; } if (d.p.y < -89) d.rest = true; }
     HDG.mesh.setMatrixAt(i, _hM.compose(d.p, d.q, _hS.setScalar(d.s))); });
   HDG.mesh.instanceMatrix.needsUpdate = true;
 }
@@ -977,7 +978,7 @@ function carPartOff(p) {
   scene.attach(o); const out = o.position.clone().sub(board.position); out.y = Math.max(0.3, out.y); out.normalize();
   if (BB.free) rec.v.copy(BB.v).multiplyScalar(rand(0.5, 0.9)); else rec.v.set(R.xv, Math.max(0, R.vy), -R.speed * rand(0.75, 0.95));
   rec.v.addScaledVector(out, rand(2, 6)); rec.v.y += rand(1.5, 4); CBRK.list.push(rec); CBRK.on = true;
-  burst(o.getWorldPosition(new V3()), 30, SPARK, 6); clank(4);
+  burst(o.getWorldPosition(new V3()), 30, SPARK, 6); if (!sfx3D(['metal', 'car'], o.getWorldPosition(new V3()), 0.8, rand(0.9, 1.1), 0.35)) clank(4);
   if (state === 'ride' && p.name === 'wheel') { R.lean = (R.lean || 0) + (p.c.x > 0 ? 0.09 : -0.09); R.wild += 0.4; } // down on that corner: it scrapes and pulls
   if (state === 'ride') { lastPop = 0; pop({ wheel: 'WHEEL OFF!', fwing: 'WING GONE!', rwing: 'SPOILER GONE!', nose: 'NOSE OFF!', pod: 'PANEL OFF!', cover: 'HOOD OFF!', hoop: 'ROLL BAR OFF!', door: 'DOOR OFF!', hood: 'HOOD OFF!', hatch: 'TRUNK OFF!', mirror: 'MIRROR OFF!' }[p.name] || 'CRUNCH!', 'green'); }
 }
@@ -998,7 +999,7 @@ function carBreakStep(dt) {
     d.v.y -= 9.8 * dt; o.position.addScaledVector(d.v, dt);
     const wl = d.w.length(); if (wl > 1e-3) { tq.setFromAxisAngle(tv.copy(d.w).multiplyScalar(1 / wl), wl * dt); o.quaternion.premultiply(tq); }
     const fl = floorAt(o.position.x, o.position.z);
-    if (o.position.y < fl + 0.15 && o.position.y > fl - 0.8) { o.position.y = fl + 0.15; if (d.v.y < -3) clank(2); if (d.v.y < 0) d.v.y *= -0.4; d.v.x *= 0.82; d.v.z *= 0.82; d.w.multiplyScalar(0.75); if (d.v.length() < 0.4) d.rest = true; }
+    if (o.position.y < fl + 0.15 && o.position.y > fl - 0.8) { o.position.y = fl + 0.15; if (d.v.y < -3 && !hdDebrisSound(o.position, -d.v.y)) clank(2); if (d.v.y < 0) d.v.y *= -0.4; d.v.x *= 0.82; d.v.z *= 0.82; d.w.multiplyScalar(0.75); if (d.v.length() < 0.4) d.rest = true; }
     if (o.position.y < -89) d.rest = true; }
 }
 function carBreakReset() {
@@ -1910,7 +1911,7 @@ function stepMess(dt) {
 let AC = null;
 let MASTER = null, AUDIO_DEST = null;
 // master chain: soft compressor + a small room reverb, so sounds sit in a space instead of beeping
-let NOISE = null, REVERB_IN = null;
+let NOISE = null, REVERB_IN = null, REVCONV = null, REVWET = null, DUCK = null, HITBUS = null;
 function OUT() {
   if (!MASTER) {
     MASTER = AC.createGain(); TAILBUS = AC.createGain(); TAILBUS.connect(MASTER);
@@ -1920,12 +1921,12 @@ function OUT() {
     const sat = AC.createWaveShaper(), cv = new Float32Array(2048); for (let i = 0; i < 2048; i++) { const x = i * 2 / 2048 - 1; cv[i] = Math.tanh(x * 1.7) / Math.tanh(1.7); } sat.curve = cv; sat.oversample = '2x'; // density
     const comp = AC.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 3.5; comp.attack.value = 0.003; comp.release.value = 0.22;
     SLOWLP = AC.createBiquadFilter(); SLOWLP.type = 'lowpass'; SLOWLP.frequency.value = 20000; SLOWLP.Q.value = 0.5;
-    MASTER.connect(ls); ls.connect(pk); pk.connect(hs); hs.connect(SLOWLP); SLOWLP.connect(sat); sat.connect(comp); comp.connect(AC.destination);
+    DUCK = AC.createGain(); HITBUS = AC.createGain(); MASTER.connect(DUCK); DUCK.connect(ls); HITBUS.connect(ls); ls.connect(pk); // DUCK: everything but the cinematic hit, which rides HITBUS past it pk.connect(hs); hs.connect(SLOWLP); SLOWLP.connect(sat); sat.connect(comp); comp.connect(AC.destination);
     try { AUDIO_DEST = AC.createMediaStreamDestination(); comp.connect(AUDIO_DEST); } catch (e) { AUDIO_DEST = null; }
     try { const sr = AC.sampleRate, len = Math.floor(sr * 1.4), ir = AC.createBuffer(2, len, sr); // a hall: no sound for 20 ms, then early reflections, then a tail that gets darker
       for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let lp = 0; for (let i = 0; i < len; i++) { const t = i / len; lp += ((Math.random() * 2 - 1) - lp) * (1 - (0.15 + 0.8 * t) * 0.9); d[i] = i < sr * 0.02 ? 0 : lp * Math.pow(1 - t, 2.6); }
         for (const [ms, a2] of [[23, 0.7], [37, 0.55], [51, 0.5], [68, 0.4], [84, 0.35]]) { const j = Math.floor(sr * (ms + (c ? 5 : -3)) / 1000); d[j] += (Math.random() < 0.5 ? -1 : 1) * a2; } }
-      const conv = AC.createConvolver(); conv.buffer = ir; const wet = AC.createGain(); wet.gain.value = 0.22; REVERB_IN = AC.createGain(); REVERB_IN.connect(conv); conv.connect(wet); wet.connect(comp); } catch (e) { REVERB_IN = null; }
+      const conv = AC.createConvolver(); conv.buffer = ir; const wet = AC.createGain(); wet.gain.value = 0.22; REVERB_IN = AC.createGain(); REVERB_IN.connect(conv); conv.connect(wet); wet.connect(comp); REVCONV = conv; REVWET = wet; if (HDSND.ir) hdCityVerb(); } catch (e) { REVERB_IN = null; }
     NOISE = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const nd = NOISE.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
   }
   return MASTER;
@@ -1974,9 +1975,9 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
 // names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak'], started: false };
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak'].concat(L.hd ? ['hdboom', 'hdwhoosh', 'hdwind', 'hdengine'] : []), started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
-function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
+function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); if (L.hd) hdIrLoad(); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
   if (!AC) return false; for (const n of [].concat(names)) { const L = SFX.buf[n]; if (!L || !L.length) continue; OUT(); const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = pick(L); src.playbackRate.value = (rate || 1) * rand(0.96, 1.04); g.gain.value = vol === undefined ? 1 : vol; src.connect(g); sendOut(g, wet === undefined ? 0.2 : wet); src.start(); return true; } return false;
 }
@@ -2007,6 +2008,67 @@ function windSet(v) { // the rush of air around a fast flight; v in mph, 0 fades
 function duckTail() { if (!AC || !TAILBUS) return; const t = AC.currentTime; TAILBUS.gain.cancelScheduledValues(t); TAILBUS.gain.setValueAtTime(0.18, t); TAILBUS.gain.setTargetAtTime(1, t + 0.1, 0.3); } // every new impact pushes the cannon's long tail down for a moment, so it does not drown the sounds
 function windDuck() { if (!AC || !WIND.g) return; const t = AC.currentTime; WIND.g.gain.cancelScheduledValues(t); WIND.g.gain.setValueAtTime(0, t); } // the next frame brings it back: a dip around every impact
 function sndSlow(on) { if (AC && SLOWLP) SLOWLP.frequency.setTargetAtTime(on ? 3600 : 20000, AC.currentTime, 0.1); } // slow motion: duller, heavier
+// ---------- HD sound (level option hd: true): a city around the car, sounds placed in 3D, wind and engine that build on the drop, a cinematic hammer hit ----------
+// Recordings from OpenGameArt (CC0), see CREDITS.md. The city reverb is the echo of a firework bang between buildings.
+const HDSND = { on: !!L.hd, ir: null, irLoad: false, eng: null, eng2: null, wind: null, whistle: null, sw: new Map(), deb: 0, debLast: 0, dead: 0 };
+const HD_LOOPS = { hdwind: 5.1353, hdengine: [0.64256, 0.58957] }; // loop periods (s): each file holds its loop more than once, the middle is looped so mp3 padding never lands in it
+function hdIrLoad() { if (HDSND.irLoad) return; HDSND.irLoad = true; fetch('sfx/hdcity_ir.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { HDSND.ir = buf; if (REVCONV) hdCityVerb(); }).catch(() => {}); }
+function hdCityVerb() { // swap the small synthetic hall for the city: a new convolver (a convolver's buffer can be set only once on some browsers)
+  if (!HDSND.ir || !REVERB_IN || HDSND.cityOn) return; HDSND.cityOn = true;
+  try { const c = AC.createConvolver(); c.normalize = true; c.buffer = HDSND.ir; REVERB_IN.disconnect(); REVERB_IN.connect(c); c.connect(REVWET); REVWET.gain.value = 0.34; REVCONV = c; } catch (e) {}
+}
+function hdPanner(p, ref) { // HRTF: left/right, front/back and above/below on headphones, and the level falls off with distance
+  const n = AC.createPanner(); n.panningModel = 'HRTF'; n.distanceModel = 'inverse'; n.refDistance = ref || 5; n.rolloffFactor = 1; n.maxDistance = 3000;
+  if (n.positionX) { n.positionX.value = p.x; n.positionY.value = p.y; n.positionZ.value = p.z; } else n.setPosition(p.x, p.y, p.z); return n;
+}
+function hdPanTo(n, p) { if (n.positionX) { const t = AC.currentTime; n.positionX.setTargetAtTime(p.x, t, 0.02); n.positionY.setTargetAtTime(p.y, t, 0.02); n.positionZ.setTargetAtTime(p.z, t, 0.02); } else n.setPosition(p.x, p.y, p.z); }
+function hdListener() { const Lr = AC.listener, p = camera.position, f = camera.getWorldDirection(_hdF), u = _hdU.set(0, 1, 0).applyQuaternion(camera.quaternion);
+  if (Lr.positionX) { const t = AC.currentTime; Lr.positionX.setTargetAtTime(p.x, t, 0.02); Lr.positionY.setTargetAtTime(p.y, t, 0.02); Lr.positionZ.setTargetAtTime(p.z, t, 0.02); Lr.forwardX.value = f.x; Lr.forwardY.value = f.y; Lr.forwardZ.value = f.z; Lr.upX.value = u.x; Lr.upY.value = u.y; Lr.upZ.value = u.z; }
+  else { Lr.setPosition(p.x, p.y, p.z); Lr.setOrientation(f.x, f.y, f.z, u.x, u.y, u.z); } }
+const _hdF = new V3(), _hdU = new V3();
+function sfx3D(names, p, vol, rate, wet, bus, delay) { // a recording placed at a world point; true if one was played
+  if (!AC || !HDSND.on) return false; for (const n of [].concat(names)) { const B = SFX.buf[n]; if (!B || !B.length) continue; OUT();
+    const t = AC.currentTime + (delay || 0), src = AC.createBufferSource(), g = AC.createGain(), pn = hdPanner(p); src.buffer = pick(B); src.playbackRate.value = (rate || 1) * rand(0.96, 1.04); g.gain.value = vol === undefined ? 1 : vol;
+    src.connect(g); g.connect(pn); pn.connect(bus || OUT()); if (REVERB_IN) { const w = AC.createGain(); w.gain.value = wet === undefined ? 0.3 : wet; pn.connect(w); w.connect(REVERB_IN); } src.start(t); return true; }
+  return false;
+}
+function hdLoop(name, i, P) { const B = SFX.buf[name]; if (!B || !B[i]) return null; OUT(); // a looping recording with its own gain and low-pass
+  const src = AC.createBufferSource(), lp = AC.createBiquadFilter(), g = AC.createGain(); src.buffer = B[i]; src.loop = true; src.loopStart = P; src.loopEnd = P * 2; lp.type = 'lowpass'; lp.frequency.value = 2000; g.gain.value = 0;
+  src.connect(lp); lp.connect(g); g.connect(OUT()); src.start(AC.currentTime, P); return { src, lp, g }; }
+function hdWhistle() { // the hammer cutting the air: a band of noise around its head, pitched and swelled by the head's speed
+  OUT(); const src = AC.createBufferSource(); src.buffer = NOISE; src.loop = true; const b1 = AC.createBiquadFilter(), b2 = AC.createBiquadFilter(), g = AC.createGain(), pn = hdPanner(new V3(0, 0, -500), 7);
+  b1.type = 'bandpass'; b1.Q.value = 7; b2.type = 'bandpass'; b2.Q.value = 0.9; g.gain.value = 0; src.connect(b1); src.connect(b2); b1.connect(g); b2.connect(g); g.connect(pn); pn.connect(OUT());
+  if (REVERB_IN) { const w = AC.createGain(); w.gain.value = 0.25; pn.connect(w); w.connect(REVERB_IN); } src.start(); return { b1, b2, g, pn };
+}
+function hdAudioStep(dt, live) { // every frame: listener at the camera, the loops follow the speed, the hammer's whistle follows the hammer
+  if (!HDSND.on || !AC || AC.state !== 'running' || !MASTER) return; const t = AC.currentTime; hdListener();
+  const v = RUSHFX.v || 0, k = clamp(v / 88, 0, 1);
+  const active = live ? (state === 'intro' || state === 'ride' || state === 'passed') : (state === 'replay' && !!PLAY);
+  const dead = live ? (state === 'crashed' || (state === 'result' && cause !== '')) : !!(PLAY && PLAY.crashT != null && PLAY.t > PLAY.crashT);
+  if (!HDSND.eng) HDSND.eng = hdLoop('hdengine', 0, HD_LOOPS.hdengine[0]); if (!HDSND.eng2) HDSND.eng2 = hdLoop('hdengine', 1, HD_LOOPS.hdengine[1]); if (!HDSND.wind) HDSND.wind = hdLoop('hdwind', 0, HD_LOOPS.hdwind); // (each starts once its file has arrived)
+  const E = HDSND.eng, E2 = HDSND.eng2, W = HDSND.wind, run = active && !dead;
+  if (E) { E.src.playbackRate.setTargetAtTime(run ? 0.72 + 1.15 * k : 0.45, t, run ? 0.12 : 0.5); E.lp.frequency.setTargetAtTime(900 + 4200 * k, t, 0.1); E.g.gain.setTargetAtTime(run ? 0.09 + 0.11 * k : 0, t, run ? 0.15 : 0.35); } // revs climb with the speed; a crash chokes it
+  if (E2) { E2.src.playbackRate.setTargetAtTime(run ? 0.8 + 0.7 * k : 0.5, t, 0.12); E2.lp.frequency.value = 5000; E2.g.gain.setTargetAtTime(run ? 0.13 * k * k : 0, t, run ? 0.15 : 0.3); } // the high scream on top past ~100 mph
+  if (W) { const wg = (active || dead) && v > 3 ? 0.02 + 0.55 * Math.pow(k, 1.5) : 0; W.src.playbackRate.setTargetAtTime(0.85 + 0.4 * k, t, 0.2); W.lp.frequency.setTargetAtTime(500 + 7500 * k * k, t, 0.15); W.g.gain.setTargetAtTime(dead ? wg * 0.5 : wg, t, dead ? 0.6 : 0.2); } // the roar of air grows all the way down the drop
+  for (const b of OBS.balls) { if (!b.hammer) continue; let H = HDSND.sw.get(b); if (!H) { H = { w: hdWhistle(), last: b.pos.clone(), sx: Math.sign(b.pos.x) }; HDSND.sw.set(b, H); }
+    const sp = dt > 0 ? Math.min(40, H.last.distanceTo(b.pos) / dt) : 0; H.last.copy(b.pos); const q = clamp(sp / (b.amp * b.w * b.L), 0, 1.2);
+    hdPanTo(H.w.pn, b.pos); H.w.b1.frequency.setTargetAtTime(380 + 520 * q, t, 0.03); H.w.b2.frequency.setTargetAtTime(220 + 300 * q, t, 0.03); H.w.g.gain.setTargetAtTime(b.dead ? 0 : 0.5 * q * q * (b.big ? 1.6 : 1), t, 0.04);
+    const sx = Math.sign(b.pos.x); if (sx && sx !== H.sx) { H.sx = sx; if (camera.position.distanceTo(b.pos) < 70 && !b.dead) sfx3D('hdwhoosh', b.pos, 0.9, b.big ? 0.75 : 1, 0.35); } } // a whoosh each time the head sweeps through the bottom
+}
+function hdDebrisSound(p, v, glass) { // a piece of the car or a shard landing, where it lands (at most ~12 a second)
+  if (!HDSND.on || !AC) return false; const now = AC.currentTime; HDSND.deb = Math.min(6, HDSND.deb + (now - HDSND.debLast) * 12); HDSND.debLast = now; if (HDSND.deb < 1) return true; HDSND.deb--;
+  const vv = clamp(v / 10, 0.15, 1); return glass ? sfx3D('ice', p, 0.25 * vv, rand(1.3, 1.9), 0.3) : sfx3D(['metal', 'car'], p, 0.35 + 0.5 * vv, rand(0.85, 1.15), 0.3);
+}
+function hdHitSound(p, power) { // the hammer lands: the world goes quiet, then a sub drop, steel on steel, the body crushing, glass, and the city answers
+  recEvt('H', [p.x, p.y, p.z, power]); HDSND.hitT = performance.now(); if (!HDSND.on || !AC) return false; OUT(); const t = AC.currentTime, k = clamp(power, 0.3, 1.3);
+  DUCK.gain.cancelScheduledValues(t); DUCK.gain.setValueAtTime(DUCK.gain.value, t); DUCK.gain.linearRampToValueAtTime(0.1, t + 0.03); DUCK.gain.setTargetAtTime(1, t + 1.3, 0.6);
+  SND_BUS = HITBUS; try {
+    sfxPlay('hdboom', 1.1 * k, 0.9, 0.5); sweep(t, 62, 24, 1.8, 0.75 * k, 'sine'); sweep(t + 0.01, 120, 40, 0.4, 0.5 * k, 'sine'); // the drop in the stomach
+    sfx3D(['vault', 'metal'], p, 1.1 * k, 0.72, 0.6, HITBUS); sfx3D(['metal'], p, 0.7 * k, 1.0, 0.5, HITBUS, 0.02); sfx3D(['car', 'truck'], p, 0.9 * k, 0.9, 0.45, HITBUS, 0.015); // steel head, ringing, the car folding
+    sfx3D('glass', p, 0.9, 1.05, 0.55, HITBUS, 0.05); glassSound(0.9); // the windshield goes
+  } finally { SND_BUS = null; }
+  return true;
+}
 function cannonBoom(lv) { SND_GAIN = 0.5; SND_WIDE = 0.85; try { cannonBoom0(lv); } finally { SND_GAIN = 1; SND_WIDE = 0; } }
 function cannonBoom0(lv) { // a cannon firing: the crack of the pressure wave, the blast, two thumps and a sub, the air it moves; then a SHORT tail (ring, two echoes, a rumble) on its own bus
   lv = clamp(lv, 1, 5); if (sfxPlay('cannon', 0.95, [1.15, 1.05, 0.95, 0.85, 0.75][lv - 1], 0.3)) return; if (!AC) return; OUT(); const t = AC.currentTime, p = lv / 5;
@@ -2177,6 +2239,7 @@ function fireEvents(f) {
     if (k === 'b') burst(new V3(d[0], d[1], d[2]), d[3], d[4] ? CONF : SPARK, d[5]);
     else if (k === 't') tone(d[0], d[1], d[2], d[3], d[4], d[5]);
     else if (k === 'c') crashSound(d[0]);
+    else if (k === 'H') hdHitSound(new V3(d[0], d[1], d[2]), d[3]);
     else if (k === 'r') ripSound();
     else if (k === 'p') { lastPop = 0; pop(d[0], d[1]); }
     else if (k === 'x') explodeVisual(new V3(d[0], d[1], d[2]));
@@ -2694,6 +2757,7 @@ function crash(kind, saw) {
   if (VEH === 'cart') labDent(Math.min(45, R.speed * 1.1)); // the front crumples in the crash
   BB.free = true; BB.v.copy(vel).multiplyScalar(0.8).add(new V3(rand(-2, 2), rand(2, 4), 0)); BB.w.set(rand(-12, 12), rand(-6, 6), rand(-12, 12));
   if (kind === 'rollover') { const sd = Math.sign(R.roll || R.yaw) || 1; BB.v.x += Math.sin(R.yaw || 0) * R.speed * 0.45 + sd * rand(2, 4); BB.v.y += rand(3, 5); BB.w.set(rand(-4, 4), (R.yawV || 0) * 1.5 + rand(-3, 3), sd * rand(9, 14)); } // barrel-rolls off sideways
+  if (BODY === 'car' && CART_ROOT.userData.hd && saw && saw.pos) hdHitSound(saw.pos, clamp(R.speed / 70, 0.4, 1.3));
   if (BODY === 'car' && CART_ROOT.userData.hd && saw && saw.pos) hdHitAt(saw.pos, clamp(R.speed / 90, 0.35, 1) * 1.25); // the real car caves in right where the hammer lands
   else if (BODY === 'car') carHit(clamp(R.speed / 90, 0.15, 1) * 0.5, Math.sign(R.roll || 0), kind === 'press' ? 0 : 1); // the impact crumples it; the worst-hit parts come off, more go as it tumbles
   spawnDebris(center, jw, vel);
@@ -3189,7 +3253,7 @@ function rushStep(dt, live) {
   // speed: Daggie's own while riding, measured from the car's movement in replays
   const d = board.position.distanceTo(RUSHFX.lastP); RUSHFX.lastP.copy(board.position); const meas = dt > 0 && d < 20 ? d / dt : RUSHFX.v;
   RUSHFX.v += ((live ? (state === 'ride' ? R.speed : state === 'intro' ? 0 : RUSHFX.v * 0.9) : meas) - RUSHFX.v) * Math.min(1, dt * (live ? 12 : 4));
-  const v = RUSHFX.v, mph = Math.round(v * 2.237); RUSHFX.mph = mph;
+  const v = RUSHFX.v, mph = Math.round(v * 2.237); RUSHFX.mph = mph; hdAudioStep(dt, live);
   RUSHFX.show = live ? (state === 'ride' || state === 'passed') : (state === 'replay' && v > 2);
   const el = RUSHFX.el; el.classList.toggle('on', RUSHFX.show); el.firstChild.textContent = String(mph);
   const heat = clamp((mph - 50) / 110, 0, 1); el.style.setProperty('--heat', heat.toFixed(3)); el.classList.toggle('hot', mph >= 100);
