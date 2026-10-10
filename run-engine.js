@@ -17,6 +17,7 @@ const L = window.LEVEL;
 const TH = L.theme || 'sky', VEH = L.vehicle || 'skate', MODE = L.mode || 'run'; // world look and what Daggie rides
 const BODY = L.body || VEH; // 'car': the cart's mesh is swapped for a little race car (it rides like the cart: Daggie sits in it)
 const VMAX = L.vmax || 34, ACCEL = L.accel || 0; // top speed (m/s) and extra push per second: CAR levels keep getting faster
+const SLOPE_K = L.slopeK || 0.8; // how hard a downhill pulls (the skyscraper ramp pulls harder: about 200 mph at the bottom)
 const RUSH = !!L.rush; // speed show: speed lines, a big speedometer, rumble and mph milestones
 var CREC = { on: false, t: 0, frames: [], ev: [], play: null }; // instant replay of the wall cannon: Daggie per frame, plus a time-stamped log of everything else
 const CART_S = 1.35; // the player's cart is scaled up so a life-size robot can sit in it
@@ -501,9 +502,11 @@ function megaRamp(s0, s1) {
     const roof = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.6, bd + 0.6), new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 0.9 })); roof.position.set(0, top - 0.3, sk.position.z); scene.add(roof);
     for (const sd of [-1, 1]) { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 22, 8), steel); ant.position.set(sd * 11, top + 11, sk.position.z + 10); scene.add(ant); const bl = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), neon(0xff2a2a, 4)); bl.position.set(sd * 11, top + 22.2, sk.position.z + 10); scene.add(bl); }
   }
+  const tg = []; // all legs and braces merged into one mesh: a tall tower has hundreds of them
   for (let s = s0 + 2; s < s1 - 2; s += 8) { const h = trackH(s) ?? 0; if (h < 1.5) continue;
-    for (const sd of [-1, 1]) { const len = h + GROUND; const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, len, 0.4), legM); leg.position.set(sd * (HALF - 0.4), h - 0.9 - len / 2, -s); scene.add(leg); }
-    for (let y = h - 4; y > 2 - GROUND; y -= 7) { const br = new THREE.Mesh(new THREE.BoxGeometry(HALF * 2 - 0.8, 0.18, 0.18), legM); br.position.set(0, y, -s); br.rotation.z = (Math.floor(y) % 2 ? 1 : -1) * 0.5; scene.add(br); } }
+    for (const sd of [-1, 1]) { const len = h + GROUND; const g = new THREE.BoxGeometry(0.4, len, 0.4); g.translate(sd * (HALF - 0.4), h - 0.9 - len / 2, -s); tg.push(g); }
+    for (let y = h - 4; y > 2 - GROUND; y -= 7) { const g = new THREE.BoxGeometry(HALF * 2 - 0.8, 0.18, 0.18); g.rotateZ((Math.floor(y) % 2 ? 1 : -1) * 0.5); g.translate(0, y, -s); tg.push(g); } }
+  if (tg.length) scene.add(new THREE.Mesh(mergeGeometries(tg), legM));
   // MEGA RAMP letters on a banner at the lip, where the curve starts
   const bn = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2 + 1, 1.4), sign('MEGA RAMP', '#e0322b', '#ffffff', 768, 172)); bn.position.set(0, DROP.h + 12.1, -DROP.s0); bn.rotation.y = 0; scene.add(bn);
   const bb = bn.clone(); bb.rotation.y = Math.PI; bb.position.z += 0.05; scene.add(bb);
@@ -781,20 +784,43 @@ function makeCarMesh(wheelsOut) {
     add(new THREE.BoxGeometry(Math.abs(x) - 0.5, 0.05, 0.08), carbon, Math.sign(x) * (0.25 + Math.abs(x) / 2), r, z);
   }
   root.userData.pieces = []; root.userData.extras = []; root.userData.g = g; root.userData.flames = flames; root.userData.brk = brk;
+  const HP = { pod: 1.0, nose: 1.2, fwing: 0.7, hoop: 1.1, cover: 1.1, rwing: 0.8, wheel: 1.1 }; // how much damage each part takes before it comes off
+  const names = ['pod', 'pod', 'nose', 'fwing', 'cover', 'hoop', 'rwing', 'wheel', 'wheel', 'wheel', 'wheel'];
+  const zone = o => { if (!o.isMesh) return o.position.clone(); o.geometry.computeBoundingBox(); return o.geometry.boundingBox.getCenter(new V3()).add(o.position); }; // where on the car it sits
+  root.userData.parts = brk.map((o, i) => ({ o, name: names[i] || 'part', hp: HP[names[i]] || 1, det: true, c: zone(o), home: o.position.clone(), rot: o.rotation.clone(), dmg: 0 }));
+  g.children.forEach(o => { if (o.isMesh && !brk.includes(o) && o.geometry && o.geometry.attributes.position.count > 20) root.userData.parts.push({ o, name: 'body', hp: 99, det: false, c: zone(o), home: o.position.clone(), rot: o.rotation.clone(), dmg: 0 }); }); // the rest only dents
   return root;
 }
 var CART_ROOT; // var, not let: buildCart() is called earlier in the file (line ~508) and a let would still be unreachable there
-// the race car tears apart in a crash: wheels, wings, pods, nose and engine cover fly off on their own and bounce down the road
+// the race car takes damage: every hit dents the panels near it (bumps hit the front, rails the side, tumbling everything);
+// a part that has taken too much comes off and bounces down the road on its own
 const CBRK = { list: [], on: false };
-function carBreak() {
-  if (CBRK.on || !CART_ROOT || !CART_ROOT.userData.brk) return; CBRK.on = true; board.updateMatrixWorld(true);
-  const c = board.position;
-  for (const o of CART_ROOT.userData.brk) {
-    const rec = { o, par: o.parent, p0: o.position.clone(), q0: o.quaternion.clone(), v: new V3(), w: new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(rand(6, 16)), rest: false };
-    scene.attach(o); const out = o.position.clone().sub(c); out.y = Math.max(0.2, out.y); out.normalize();
-    rec.v.copy(BB.v).multiplyScalar(rand(0.5, 0.95)).addScaledVector(out, rand(3, 8)); rec.v.y += rand(2, 6); CBRK.list.push(rec);
+function carDent(m, d, sx, fz) { // push the vertices near an impact point in toward the middle of the part
+  const ga = m.geometry.attributes.position; if (!m.geometry.userData.orig) m.geometry.userData.orig = ga.array.slice();
+  m.geometry.computeBoundingBox(); const bb = m.geometry.boundingBox, c = bb.getCenter(new V3()), sz = bb.getSize(new V3());
+  const ip = new V3(sx ? (sx > 0 ? bb.max.x : bb.min.x) : rand(bb.min.x, bb.max.x), rand(bb.min.y, bb.max.y), fz > 0 ? bb.min.z : fz < 0 ? bb.max.z : rand(bb.min.z, bb.max.z));
+  const r = Math.max(0.12, Math.min(sz.x, sz.y, sz.z) * 0.5 + Math.max(sz.x, sz.z) * 0.2) * (0.8 + d), depth = Math.min(0.14, 0.03 + d * 0.1), a = ga.array, v = new V3();
+  for (let i = 0; i < a.length; i += 3) { v.set(a[i], a[i + 1], a[i + 2]); const dist = v.distanceTo(ip); if (dist > r) continue; const k = (1 - dist / r) ** 2 * depth; v.lerp(c, Math.min(0.6, k / Math.max(0.05, v.distanceTo(c)))); a[i] = v.x + rand(-0.008, 0.008) * k * 10; a[i + 1] = v.y; a[i + 2] = v.z; }
+  ga.needsUpdate = true; m.geometry.computeVertexNormals();
+}
+function carPartOff(p) {
+  if (p.off) return; p.off = true; board.updateMatrixWorld(true); const o = p.o;
+  const rec = { o, par: o.parent, p0: p.home.clone(), q0: new THREE.Quaternion().setFromEuler(p.rot), v: new V3(), w: new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(rand(6, 16)), rest: false };
+  scene.attach(o); const out = o.position.clone().sub(board.position); out.y = Math.max(0.3, out.y); out.normalize();
+  if (BB.free) rec.v.copy(BB.v).multiplyScalar(rand(0.5, 0.9)); else rec.v.set(R.xv, Math.max(0, R.vy), -R.speed * rand(0.75, 0.95));
+  rec.v.addScaledVector(out, rand(2, 6)); rec.v.y += rand(1.5, 4); CBRK.list.push(rec); CBRK.on = true;
+  burst(o.getWorldPosition(new V3()), 30, SPARK, 6); clank(4);
+  if (state === 'ride' && p.name === 'wheel') { R.lean = (R.lean || 0) + (p.c.x > 0 ? 0.09 : -0.09); R.wild += 0.4; } // down on that corner: it scrapes and pulls
+  if (state === 'ride') { lastPop = 0; pop({ wheel: 'WHEEL OFF!', fwing: 'WING GONE!', rwing: 'SPOILER GONE!', nose: 'NOSE OFF!', pod: 'PANEL OFF!', cover: 'HOOD OFF!', hoop: 'ROLL BAR OFF!' }[p.name] || 'CRUNCH!', 'green'); }
+}
+function carHit(power, sx = 0, fz = 0) { // power about 0.1 for a bump at speed, 1 for a crash at 200 mph
+  if (BODY !== 'car' || !CART_ROOT || !CART_ROOT.userData.parts || power < 0.02) return;
+  for (const p of CART_ROOT.userData.parts) { if (p.off) continue;
+    const w = 0.3 + (sx && Math.sign(p.c.x) === sx && Math.abs(p.c.x) > 0.3 ? 0.9 : 0) + (fz > 0 && p.c.z < -0.6 ? 0.9 : 0) + (fz < 0 && p.c.z > 0.6 ? 0.9 : 0);
+    const d = power * w * rand(0.4, 1.2); p.dmg += d;
+    if (p.o.isMesh) carDent(p.o, d, sx, fz); else { p.o.rotation.z = p.rot.z + rand(-1, 1) * Math.min(0.5, p.dmg * 0.3); } // a bent wheel wobbles
+    if (p.det && p.dmg > p.hp) carPartOff(p);
   }
-  burst(c.clone(), 60, SPARK, 9); clank(8);
 }
 function carBreakStep(dt) {
   for (const d of CBRK.list) { if (d.rest) continue; const o = d.o;
@@ -804,7 +830,11 @@ function carBreakStep(dt) {
     if (o.position.y < fl + 0.15 && o.position.y > fl - 0.8) { o.position.y = fl + 0.15; if (d.v.y < -3) clank(2); if (d.v.y < 0) d.v.y *= -0.4; d.v.x *= 0.82; d.v.z *= 0.82; d.w.multiplyScalar(0.75); if (d.v.length() < 0.4) d.rest = true; }
     if (o.position.y < -89) d.rest = true; }
 }
-function carBreakReset() { for (const d of CBRK.list) { d.par.add(d.o); d.o.position.copy(d.p0); d.o.quaternion.copy(d.q0); } CBRK.list.length = 0; CBRK.on = false; }
+function carBreakReset() {
+  for (const d of CBRK.list) d.par.add(d.o); CBRK.list.length = 0; CBRK.on = false;
+  if (CART_ROOT && CART_ROOT.userData.parts) for (const p of CART_ROOT.userData.parts) { p.off = false; p.dmg = 0; p.o.position.copy(p.home); p.o.rotation.copy(p.rot);
+    const g = p.o.isMesh && p.o.geometry; if (g && g.userData.orig) { g.attributes.position.array.set(g.userData.orig); g.attributes.position.needsUpdate = true; g.computeVertexNormals(); } }
+}
 function buildCart() { CART_ROOT = BODY === 'car' ? makeCarMesh(wheels) : makeCartMesh(CART_S, wheels); board.add(CART_ROOT); }
 // ---------- more obstacles ----------
 const hazard = (len) => stripeMat(len);
@@ -2328,7 +2358,7 @@ function resetRun() {
   liveWant = LIVE_REC;
   testNo++;
   resetPower(); randomGates(); resetFlock(); resetFx(); RING.done = false;
-  Object.assign(R, { s: -13.5, x: 0, xT: 0, xv: 0, y: START_H + DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0, bumps: 0, clean: 0, mile: 0, hop: false, wild: 0, yaw: 0, roll: 0, yawV: 0, rollV: 0, climaxed: false });
+  Object.assign(R, { s: -13.5, x: 0, xT: 0, xv: 0, y: START_H + DROP_H, vy: 0, carry: true, carryT: 0, speed: 0, grounded: false, slope: 0, maxS: 0, top: 0, close: 0, passedFlag: false, air: 0, slip: 0, slam: false, cones: 0, lost: 0, bumps: 0, clean: 0, mile: 0, hop: false, wild: 0, yaw: 0, roll: 0, yawV: 0, rollV: 0, climaxed: false, lean: 0 });
   trick = TRICKS[(testNo - 1) % TRICKS.length];
   for (const b of BOOSTS) b.used = false;
   for (const sw of SAWS) sw.near = false;
@@ -2451,7 +2481,7 @@ function placeRider(t) {
   if (state === 'intro') pitch = 0;
   else if (R.grounded) pitch = Math.atan(R.slope);
   else pitch = Math.atan2(R.vy, Math.max(6, R.speed)) * 0.5;
-  rider.rotation.set(pitch, R.yaw || 0, clamp(-R.xv * 0.05, -0.38, 0.38) + (R.roll || 0));
+  rider.rotation.set(pitch, R.yaw || 0, clamp(-R.xv * 0.05, -0.38, 0.38) + (R.roll || 0) + (R.lean || 0));
   if (state !== 'intro') { board.position.copy(rider.position); board.quaternion.copy(rider.quaternion); }
   for (const w of wheels) w.rotation.x -= (state === 'ride' || state === 'passed') && R.grounded ? R.speed / WHEEL_R / 60 : 0;
 }
@@ -2488,7 +2518,7 @@ function crash(kind, saw) {
   if (VEH === 'cart') labDent(Math.min(45, R.speed * 1.1)); // the front crumples in the crash
   BB.free = true; BB.v.copy(vel).multiplyScalar(0.8).add(new V3(rand(-2, 2), rand(2, 4), 0)); BB.w.set(rand(-12, 12), rand(-6, 6), rand(-12, 12));
   if (kind === 'rollover') { const sd = Math.sign(R.roll || R.yaw) || 1; BB.v.x += Math.sin(R.yaw || 0) * R.speed * 0.45 + sd * rand(2, 4); BB.v.y += rand(3, 5); BB.w.set(rand(-4, 4), (R.yawV || 0) * 1.5 + rand(-3, 3), sd * rand(9, 14)); } // barrel-rolls off sideways
-  if (BODY === 'car' && R.speed > 12) carBreak(); // wheels, wings and panels tear off
+  if (BODY === 'car') carHit(clamp(R.speed / 90, 0.15, 1) * 0.5, Math.sign(R.roll || 0), kind === 'press' ? 0 : 1); // the impact crumples it; the worst-hit parts come off, more go as it tumbles
   spawnDebris(center, jw, vel);
   if (kind === 'lava') { burst(center, 120, SPARK, 11); for (let i = 0; i < 5; i++) setTimeout(() => burst(center.clone().add(new V3(rand(-1.5, 1.5), 0, rand(-1.5, 1.5))), 40, SPARK, 7), i * 160); tone(220, 60, 0.9, 'sawtooth', 0.08); }
   if (kind === 'bones') { burst(center, 60, CONF, 8); for (let i = 0; i < 6; i++) tone(rand(600, 1100), rand(300, 500), 0.08, 'square', 0.05, i * 0.07); }
@@ -2670,7 +2700,7 @@ function stepRide(dt, now) {
   R.x += (R.xT - R.x) * Math.min(1, dt * (FORM.kind === 'frozen' ? 1.4 : R.slip > 0 ? 2.5 : 6));
   if (L.rails && Math.abs(R.x) > HALF - 0.8) { // guard rails: the car slams into them and bounces back across the road
     const sd = Math.sign(R.x), hit = Math.abs(R.xv) + Math.abs(Math.sin(R.yaw || 0)) * R.speed; R.x = sd * (HALF - 0.8); R.xT = sd * (HALF - 2.2);
-    if (hit > 3) { R.yawV = -sd * (0.6 + hit * 0.05) + rand(-0.3, 0.3); R.yaw *= -0.4; R.rollV += -sd * clamp(hit * 0.08, 0.3, 1.6); R.wild += clamp(hit * 0.04, 0.1, 0.6); R.speed *= 0.96; setHP(HP - Math.round(2 + hit * 0.3));
+    if (hit > 3) { R.yawV = -sd * (0.6 + hit * 0.05) + rand(-0.3, 0.3); R.yaw *= -0.4; R.rollV += -sd * clamp(hit * 0.08, 0.3, 1.6); R.wild += clamp(hit * 0.04, 0.1, 0.6); R.speed *= 0.96; setHP(HP - Math.round(2 + hit * 0.3)); carHit(clamp(hit * 0.02, 0.05, 0.6), sd, 0);
       burst(new V3(R.x + sd * 0.8, 0.6, -R.s), 30, SPARK, 6); clank(5); tone(220, 70, 0.2, 'sawtooth', 0.08); lastPop = 0; pop('WALL!', 'green'); if (!reduceMotion) shake = Math.min(0.7, shake + 0.3); if (HP <= 0) { crash('rollover'); return; } }
   }
   if (R.grounded && Math.abs(R.x) > HALF + 0.05) { R.grounded = false; R.vy = 0; pop('WHOA!', 'lilac'); setFace('scared', 1500); }
@@ -2688,7 +2718,7 @@ function stepRide(dt, now) {
   }
   if (R.grounded) {
     R.air = 0;
-    R.speed = Math.min(formMax(), R.speed + (0.6 + (R.s < LAND0 ? ACCEL : 0) + (FORM.kind === 'chrome' ? 2 : 0) - 9.8 * R.slope * 0.8) * dt);
+    R.speed = Math.min(formMax(), R.speed + (0.6 + (R.s < LAND0 ? ACCEL : 0) + (FORM.kind === 'chrome' ? 2 : 0) - 9.8 * R.slope * SLOPE_K) * dt);
     R.s += R.speed * dt;
     const h = trackH(R.s);
     if (h === null) {
@@ -2705,7 +2735,8 @@ function stepRide(dt, now) {
     if (h !== null && R.y < h - 0.5) { crash('gap'); return; } // fell into the gap and hit the far wall
     if (h !== null && R.y <= h && R.vy <= 0) {
       const hard = -R.vy; R.grounded = true; R.hop = false; R.y = h; R.slope = 0;
-      if (Math.abs(R.roll) > 0.7 || (Math.abs(R.yaw) > 0.9 && R.speed > 16)) { crash('rollover'); return; } // came down on its side landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10);
+      if (Math.abs(R.roll) > 0.7 || (Math.abs(R.yaw) > 0.9 && R.speed > 16)) { crash('rollover'); return; } // came down on its side
+      if (hard > 5) carHit((hard - 5) * 0.05, Math.sign(R.roll) || 0, 0); // a hard landing bends things landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10);
       if (R.slam) { R.slam = false; for (const n of TNTS) if (n.alive && Math.hypot(n.x - R.x, n.s - R.s) < 3.2) { n.alive = false; n.g.visible = false; explodeAt(new V3(n.x, 0.6, -n.s)); } burst(new V3(R.x, h + 0.1, -R.s), 50, SPARK, 8); pop('SLAM!', 'lilac'); if (!reduceMotion) shake = 0.5; tone(90, 35, 0.35, 'sine', 0.3); for (const c of OBS.cones) if (!c.hit && Math.hypot(c.x0 - R.x, c.s0 - R.s) < 4) { c.hit = true; c.v.set((c.x0 - R.x) * 3, rand(5, 8), (R.s - c.s0) * 2); c.w.set(rand(-12, 12), 0, rand(-12, 12)); } }
       burst(new V3(R.x, h + 0.1, -R.s), 18, SPARK, 5); tone(160, 50, 0.2, 'sine', Math.min(0.3, 0.05 + hard * 0.02));
       if (!reduceMotion) shake = Math.min(0.4, hard * 0.03);
@@ -2786,9 +2817,9 @@ function stepRide(dt, now) {
     R.bumps++; bp.m.scale.y = 0.6;
     if (!R.grounded) continue; // still in the air from the last bump: flew over this one (counts as hit, no new kick)
     const sev = clamp((R.speed - 12) / 20, 0, 1.8); // 0 at 27 mph and under, 1 at 72 mph
-    R.grounded = false; R.hop = true; R.vy = 1.0 + R.speed * 0.07 * (1 + sev * 0.4); crouchV += 5 + R.speed * 0.15;
+    R.grounded = false; R.hop = true; R.vy = 1.0 + Math.min(R.speed, 40) * 0.05 * (1 + sev * 0.3); // a hop, not a launch, even at 200 mph crouchV += 5 + R.speed * 0.15;
     const side = Math.random() < 0.5 ? -1 : 1; R.wild += sev; R.yawV += side * sev * rand(0.15, 0.45) + rand(-0.15, 0.15) * R.wild; R.rollV += rand(-1, 1) * sev * 0.9 + side * sev * 0.3; // kicked sideways and up on one wheel
-    setHP(HP - Math.round(1 + sev * 5));
+    setHP(HP - Math.round(1 + sev * 5)); carHit(sev * 0.16, 0, 1); // the bump smacks the nose and front wing
     lastPop = 0; pop(R.wild > 1.3 ? 'NO CONTROL!' : sev > 0.5 ? 'WHOA! ' + (R.bumps + (R.clean || 0)) + '/' + BUMP_N : 'BUMP ' + (R.bumps + (R.clean || 0)) + '/' + BUMP_N, sev > 0.5 ? 'green' : '');
     if (sev > 0.5) setFace('scared', 1200);
     if (!reduceMotion) shake = Math.min(0.7, shake + 0.12 + sev * 0.3); clank(3 + Math.round(sev * 3)); tone(140, 55, 0.18, 'sine', Math.min(0.3, 0.08 + R.speed * 0.006));
@@ -2849,7 +2880,8 @@ function stepParts(dt) {
     BB.v.y -= 9.8 * dt; board.position.addScaledVector(BB.v, dt);
     const wl = BB.w.length(); if (wl > 1e-3) { tq.setFromAxisAngle(tv.copy(BB.w).multiplyScalar(1 / wl), wl * dt); board.quaternion.premultiply(tq); }
     const fl = floorAt(board.position.x, board.position.z);
-    if (board.position.y < fl + 0.06 && board.position.y > fl - 0.8) { board.position.y = fl + 0.06; if (VEH === 'cart' && BB.v.y < -3) { const lp = board.worldToLocal(new V3(board.position.x, fl, board.position.z)); labDentAt(clamp(lp.y / CART_S, 0, 1.02), clamp(lp.z / CART_S, -0.47, 0.58), -BB.v.y); } if (BB.v.y < 0) BB.v.y *= -0.35; BB.v.x *= 0.9; BB.v.z *= 0.9; BB.w.multiplyScalar(0.8); }
+    if (board.position.y < fl + 0.06 && board.position.y > fl - 0.8) { board.position.y = fl + 0.06; if (VEH === 'cart' && BB.v.y < -3) { const lp = board.worldToLocal(new V3(board.position.x, fl, board.position.z)); labDentAt(clamp(lp.y / CART_S, 0, 1.02), clamp(lp.z / CART_S, -0.47, 0.58), -BB.v.y); } if (BODY === 'car' && BB.v.y < -2) carHit((-BB.v.y - 2) * 0.09 + BB.w.length() * 0.01, Math.random() < 0.5 ? -1 : 1, rand(-1, 1) | 0); if (BB.v.y < 0) BB.v.y *= -0.35; BB.v.x *= 0.9; BB.v.z *= 0.9; BB.w.multiplyScalar(0.8); } // every tumble hits the road: more dents, more parts off
+    if (L.rails && Math.abs(board.position.x) > HALF - 0.6 && board.position.y < fl + 1.6 && board.position.y > fl - 0.5 && Math.sign(BB.v.x) === Math.sign(board.position.x)) { const sd = Math.sign(board.position.x); board.position.x = sd * (HALF - 0.6); BB.v.x *= -0.45; BB.w.y += rand(-4, 4); carHit(Math.min(0.6, Math.abs(BB.v.x) * 0.05 + 0.1), sd, 0); burst(board.position.clone(), 25, SPARK, 6); clank(4); } // the tumbling car bangs off the guard rails instead of leaving the road
     if (board.position.y < -89) { board.position.y = -89; BB.v.set(0, 0, 0); }
   }
 }
@@ -2992,6 +3024,7 @@ function rushStep(dt, live) {
       _rp.set(sg.x, sg.y, sg.z); _rs.set(1, 1, len); _rm.compose(_rp, _rqI, _rs); m.setMatrixAt(i, _rm); });
     m.instanceMatrix.needsUpdate = true;
   }
+  if (live && state === 'ride' && R.lean && R.grounded && Math.random() < 0.6) burst(new V3(R.x + (R.lean > 0 ? 0.8 : -0.8), 0.05, -R.s + rand(-0.8, 1.2)), 3, SPARK, 3); // a corner with no wheel grinds on the road
   if (!live || state !== 'ride') return;
   // milestones every 20 mph from 60, and a rumble that grows with speed
   const next = Math.max(60, (R.mile || 0) + 20);
@@ -3062,14 +3095,14 @@ function frame(vts) {
   else if (state === 'intro' || state === 'ride' || state === 'passed') { placeRider(simT); poseBody(simT); }
   if (state === 'crashed' || (state === 'result' && cause !== '')) {
     const n = Math.min(8, Math.max(1, Math.ceil(sdt * 120 - 1e-6))), h = sdt / n;
-    for (let k = 0; k < n; k++) { stepParts(h); stepDebris(h, now); carBreakStep(h); }
+    for (let k = 0; k < n; k++) { stepParts(h); stepDebris(h, now); }
     if (state === 'crashed' && now > faceUntil) setFace((now - stateT) > 2500 ? ((Math.floor(now / 2000) % 2) ? 'okq' : 'worried') : 'scared');
     if (state === 'crashed' && now - stateT > 2800) showResult();
   }
   stepFlock(sdt);
   dlvStep(sdt, now); if (DLV && state === 'passed' && D.phase === 'approach' && (R.s > DOOR_S - 3.6)) D.phase = 'door';
   if (DLV && (D.phase === 'door' || D.phase === 'hand' || D.phase === 'box')) R.speed = 0;
-  stepMess(sdt);
+  stepMess(sdt); carBreakStep(sdt);
   drawFace(now);
   updateSparks(sdt);
   const k = camTargets(now, dt);

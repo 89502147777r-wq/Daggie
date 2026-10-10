@@ -19,9 +19,9 @@ export const MODES = [
   {
     id: 'car', title: 'CAR', sub: 'No brakes. Will he make it?', page: 'run.html',
     levels: [
-      { id: 'tower-hammer', name: 'Skyscraper vs Hammer', ride: '110 m drop into a giant hammer', file: 'level-car-tower-hammer.js', ready: true },
-      { id: 'tower-press', name: 'Skyscraper vs Press', ride: '110 m drop into a giant press', file: 'level-car-tower-press.js', ready: true },
-      { id: 'bumps', name: '50 Speed Bumps', ride: 'Flat out into speed bumps', file: 'level-car-bumps.js', ready: true },
+      { id: 'tower-hammer', name: 'Skyscraper vs Hammer', ride: '250 m drop, 200 mph, giant hammer', file: 'level-car-tower-hammer.js', ready: true },
+      { id: 'tower-press', name: 'Skyscraper vs Press', ride: '250 m drop, 200 mph, giant press', file: 'level-car-tower-press.js', ready: true },
+      { id: 'bumps', name: '50 Speed Bumps', ride: '200 mph into speed bumps', file: 'level-car-bumps.js', ready: true },
     ],
   },
   {
