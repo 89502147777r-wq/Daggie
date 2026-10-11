@@ -1976,7 +1976,7 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
 // names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', 'hdboom', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdwhoosh'] : [], MODE === 'lab' ? ['bazooka', 'recoil', 'fieldgun', 'tankgun', 'howitzer'] : []), started: false };
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', 'hdboom', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdwhoosh'] : [], MODE === 'lab' ? ['bazooka', 'recoil', 'fieldgun', 'tankgun', 'howitzer', 'w_conc', 'w_armor', 'w_crystal', 'w_gold', 'w_steel', 'w_ply', 'w_oak', 'w_hay', 'w_thick'] : []), started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
 function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); if (L.hd) hdIrLoad(); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
@@ -5762,6 +5762,34 @@ const CAN_GLB = { // f: file, ry: turn so the barrel points -z, s: scale, len: h
   4: { f: 'tank', ry: 0, s: 1.25, len: 2.3, cut: 0.22 },
   5: { f: 'spg', ry: Math.PI, s: 1.0, len: 4.6, cut: 0.32 },
 };
+// game-style skins for the five guns: a pattern wrapped around the model in its own space, over the shading and wear of the original texture
+const CAN_SKIN_GLSL = `
+float skH(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float skN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(skH(i), skH(i + vec3(1, 0, 0)), f.x), mix(skH(i + vec3(0, 1, 0)), skH(i + vec3(1, 1, 0)), f.x), f.y), mix(mix(skH(i + vec3(0, 0, 1)), skH(i + vec3(1, 0, 1)), f.x), mix(skH(i + vec3(0, 1, 1)), skH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+float skF(vec3 p) { return skN(p) * 0.55 + skN(p * 2.1) * 0.3 + skN(p * 4.3) * 0.15; }
+vec2 skPlane(vec3 p, vec3 n) { vec3 a = abs(n); return a.x > a.y && a.x > a.z ? p.zy : a.y > a.z ? p.xz : p.xy; }
+float skHex(vec2 p) { p *= 6.5; vec2 r = vec2(1.0, 1.732), h = r * 0.5, a = mod(p, r) - h, b = mod(p - h, r) - h; vec2 g = dot(a, a) < dot(b, b) ? a : b; return length(g); }
+vec3 skinColor(int kind, vec3 p, vec3 n, out float glow, out float metal) {
+  glow = 0.0; metal = -1.0;
+  if (kind == 1) { float b = fract((p.x * 0.6 + p.y * 1.0 + p.z * 0.35) * 1.7 + skF(p * 0.8) * 0.3); float pink = smoothstep(0.02, 0.0, abs(b - 0.18) - 0.06), cyan = smoothstep(0.02, 0.0, abs(b - 0.62) - 0.035);
+    glow = pink + cyan; return mix(mix(vec3(0.035, 0.035, 0.05), vec3(1.0, 0.17, 0.84), pink), vec3(0.1, 0.9, 1.0), cyan); } // NEON RIDER
+  if (kind == 2) { float s = sin(p.z * 7.0 + p.y * 2.0 + skF(p * 1.6) * 6.0), st = smoothstep(0.55, 0.7, s); return mix(vec3(1.0, 0.5, 0.08), vec3(0.03, 0.025, 0.02), st); } // DESERT TIGER
+  if (kind == 3) { vec3 q = floor(p * 5.0); float h = skH(q) * 0.6 + skN(p * 0.9) * 0.4; return h < 0.3 ? vec3(0.93, 0.96, 1.0) : h < 0.5 ? vec3(0.62, 0.78, 0.92) : h < 0.68 ? vec3(0.18, 0.27, 0.42) : vec3(0.48, 0.5, 0.55); } // ARCTIC DIGITAL
+  if (kind == 4) { float e = skHex(skPlane(p, n)); float seam = smoothstep(0.4, 0.47, e), rim = smoothstep(0.3, 0.38, e) * (1.0 - seam); metal = 0.35 + 0.5 * rim; vec3 c = mix(vec3(0.85, 0.07, 0.07), vec3(0.42, 0.01, 0.03), smoothstep(0.05, 0.38, e)); c = mix(c, vec3(1.0, 0.72, 0.18), rim * 0.85); return mix(c, vec3(0.04, 0.0, 0.0), seam); } // RED DRAGON: scales with dark seams and gold rims
+  float f = clamp(p.z * 0.11 + 0.5 + (skF(p * 0.7) - 0.5) * 0.35, 0.0, 1.0); vec3 c = f < 0.5 ? mix(vec3(1.0, 0.35, 0.75), vec3(0.55, 0.2, 1.0), f * 2.0) : mix(vec3(0.55, 0.2, 1.0), vec3(0.15, 0.55, 1.0), f * 2.0 - 1.0);
+  float star = step(0.985, skH(floor(p * 18.0))); glow = star * 1.5; metal = 0.85; return c + star; // GALAXY FADE
+}`;
+function canSkin(mat, kind) {
+  const m = mat.clone(); m.onBeforeCompile = sh => {
+    sh.vertexShader = 'varying vec3 vSkP; varying vec3 vSkN;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvSkP = position; vSkN = normal;');
+    sh.fragmentShader = 'varying vec3 vSkP; varying vec3 vSkN;\n' + CAN_SKIN_GLSL + '\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', '#include <map_fragment>\nfloat skG, skM; vec3 skC = skinColor(' + kind + ', vSkP, normalize(vSkN), skG, skM); float skL = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = skC * clamp(0.45 + skL * 1.4, 0.35, 1.25);')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nif (skM >= 0.0) metalnessFactor = skM;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += skC * skG * 0.9;');
+  };
+  m.customProgramCacheKey = () => 'canskin' + kind; m.color = new THREE.Color(0xffffff); m.needsUpdate = true; return m;
+}
 const CANG = { done: {}, busy: {} };
 function canGlb(lv) { // resolves to a group laid out like canModel(lv): userData.barrel holds everything and recoils
   if (CANG.busy[lv]) return CANG.busy[lv]; const C = CAN_GLB[lv];
@@ -5776,7 +5804,7 @@ function canGlb(lv) { // resolves to a group laid out like canModel(lv): userDat
       for (let i = 0; i < p.count; i++) { const z = p.getZ(i), along = z - minZ; if (along > C.len) continue; const dx = p.getX(i) - cx, dy = p.getY(i) - cy, d = Math.hypot(dx, dy); if (d > C.cut) continue;
         const t = clamp((C.len - along) / 0.6, 0, 1), f = 1 + (k - 1) * t * t * (3 - 2 * t); p.setXYZ(i, cx + dx * f, cy + dy * f, z); hit = true; }
       if (hit) { p.needsUpdate = true; m.geometry.computeBoundingSphere(); } }
-    for (const m of meshes) { if (C.paint && !m.material.map) { m.material = m.material.clone(); m.material.color.setHex(C.paint); m.material.roughness = 0.6; m.material.metalness = 0.4; } try { m.material.envMap = labEnv(); m.material.envMapIntensity = 0.8; } catch (e) {} }
+    { const skinned = new Map(); for (const m of meshes) { if (!skinned.has(m.material)) { const sm = canSkin(m.material, lv); if (C.paint && !sm.map) { sm.roughness = 0.55; sm.metalness = 0.35; } try { sm.envMap = labEnv(); sm.envMapIntensity = 1.0; } catch (e) {} skinned.set(m.material, sm); } m.material = skinned.get(m.material); } } // one skin per original material
     const S = CAN_SPEC[lv - 1], yb = cy - minY + (C.lift || 0), g = new THREE.Group(), barrel = new THREE.Group(), inner = new THREE.Group(); g.add(barrel); barrel.add(inner);
     for (const m of meshes) inner.add(m); inner.position.set(-cx, -cy, -S.L - minZ); // muzzle at barrel-local (0, 0, -L)
     if (C.tripod) { const st = new THREE.MeshStandardMaterial({ color: 0x3a3d33, metalness: 0.8, roughness: 0.45 }), zc = MUZZLE_Z + 0.55 * C.len, top = yb - 0.32, head = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.3, 16), st); head.position.set(LAB_LANE, top, zc); g.add(head);
@@ -5809,7 +5837,10 @@ function cannonBuild() {
     try { for (const m of [mat, smat]) { m.envMap = labEnv(); m.envMapIntensity = W.kind === 'metal' ? 1.0 : W.kind === 'glass' || W.kind === 'ice' ? 0.9 : 0.12; } } catch (e) { /* no reflections, still fine */ }
     { const SK = { ply: ['ply', 1.2, 0xffffff], oak: ['oak', 1.0, 0xffdcae], brick: ['brick', 1.0, 0xffffff], stone: ['stone', 1.5, 0xffffff], concrete: ['conc', 2.7, 0xffffff], steel: ['steel', 2.0, 0xe8eef6] }[W.draw]; // scanned surfaces at their real size (Poly Haven, CC0)
       if (SK) for (const m of [mat, smat]) { m.color.setHex(SK[2]); if (W.draw === 'steel') { m.metalness = 0.55; m.envMapIntensity = 1.6; } labSkin(m, SK[0], [CAN_W / SK[1], CAN_H / SK[1]], { bump: false, ns: 1.2 }); }
-      else if (W.draw === 'vault' || W.draw === 'gold') for (const m of [mat, smat]) labSkin(m, 'metal', [3, 2], { map: false, ns: 0.8 }); } // painted ones keep their picture, under the relief of steel plate
+      else if (W.draw === 'vault' || W.draw === 'gold') for (const m of [mat, smat]) labSkin(m, 'metal', [3, 2], { map: false, ns: 0.8 });
+      else if (W.draw === 'hay') for (const m of [mat, smat]) labSkin(m, 'hay', [CAN_W / 0.55, CAN_H / 0.55], { map: false, ns: 1.4, bump: false }); // straw relief over the drawn bales (Thatch Roof Angled)
+      else if (W.draw === 'ice' || W.draw === 'diamond') for (const m of [mat, smat]) labSkin(m, 'frost', [CAN_W / 2, CAN_H / 2], { map: false, ns: W.draw === 'ice' ? 0.9 : 0.5 }); // frosted, uneven surface
+      else if (W.draw === 'glass2' || W.draw === 'armor') for (const m of [mat, smat]) labSkin(m, 'frost', [CAN_W / 3, CAN_H / 3], { map: false, ns: 0.18 }); } // thick panes are never perfectly flat // painted ones keep their picture, under the relief of steel plate
     if (W.draw === 'diamond') for (const m of [mat, smat]) { m.emissive = new THREE.Color(0x9fd8ff); m.emissiveMap = map; m.emissiveIntensity = 0.35; }
     const geo = new THREE.BoxGeometry(CAN_W, CAN_H, W.T); geo.translate(0, CAN_H / 2, 0); const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh); grp.userData.panel = mesh;
     { const N = 72, tg = new THREE.BufferGeometry(), idx = []; tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array((N + 1) * 6), 3)); tg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((N + 1) * 4), 2));
@@ -5992,7 +6023,7 @@ function cannonShardStep(dt) {
 }
 function wallSound(W, i) {
   windDuck(); duckTail(); tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
-  const d = W.draw, S = { glass: [['glass'], 1, 1], window: [['window', 'glass'], 1, 1.05], glass2: [['glass'], 1, 0.85], armor: [['glass'], 1, 0.7], hay: [['hay', 'wood'], 0.7, 0.8], ply: [['wood'], 1, 1.1], oak: [['wood'], 1, 0.85], brick: [['brick'], 1, 1], stone: [['stone'], 1, 1], concrete: [['stone'], 1, 0.8], ice: [['ice'], 1, 1], diamond: [['ice'], 1, 1.25], steel: [['metal'], 1, 1], gold: [['metal'], 1, 0.85], vault: [['vault', 'metal'], 1, 0.6] }[d];
+  const d = W.draw, S = { glass: [['glass'], 1, 1], window: [['window', 'glass'], 1, 1.05], glass2: [['w_thick', 'glass'], 1, 1], armor: [['w_armor', 'glass'], 1, 1], hay: [['w_hay', 'hay', 'wood'], 0.9, 1], ply: [['w_ply', 'wood'], 1, 1], oak: [['w_oak', 'wood'], 1, 1], brick: [['brick'], 1, 1], stone: [['stone'], 1, 1], concrete: [['w_conc', 'stone'], 1, 1], ice: [['ice'], 1, 1], diamond: [['w_crystal', 'ice'], 1, 1], steel: [['w_steel', 'metal'], 1, 1], gold: [['w_gold', 'metal'], 1, 1], vault: [['vault', 'metal'], 1, 0.6] }[d];
   if (S && sfxPlay(S[0], S[1], S[2], 0.25)) return; if (!AC) return; OUT(); const t = AC.currentTime;
   if (d === 'glass' || d === 'window') { glassSound(d === 'window' ? 1.05 : 1); if (d === 'window') matSound('wood', 0.5, 1.4); }
   else if (d === 'glass2') glassSound(0.8); else if (d === 'armor') { glassSound(0.65); matSound('metal', 0.5, 0.8); }

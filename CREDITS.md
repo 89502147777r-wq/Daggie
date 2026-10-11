@@ -15,7 +15,7 @@
 
 ## 3D models: the five lab cannons (`models/`)
 From [Sketchfab](https://sketchfab.com), [Creative Commons Attribution](https://creativecommons.org/licenses/by/4.0/). Fetched by `tools/sketchfab_models.py` (GitHub Actions workflow "Sketchfab models").
-Changes made for the game: converted to glTF binary with WebP textures (max 1024 px); turned, scaled and placed in the lab; the barrel is widened so Daggie fits in it head first;
+Changes made for the game: repainted with game-style skins (Neon Rider, Desert Tiger, Arctic Digital, Red Dragon, Galaxy Fade) drawn over the original textures' shading; converted to glTF binary with WebP textures (max 1024 px); turned, scaled and placed in the lab; the barrel is widened so Daggie fits in it head first;
 the recoilless rifle is painted olive (it came untextured); the bazooka stands on a tripod added in the game.
 - `models/bazooka.glb` (level 1, bazooka): [WW2 US Bazooka](https://sketchfab.com/3d-models/ww2-us-bazooka-6b1d0c8c2f78483d8b398b8d923a8928) by **Tactical_Beard**, CC Attribution
 - `models/recoilless.glb` (level 2, recoilless rifle): [SPG-9](https://sketchfab.com/3d-models/spg-9-6c31a440a65145e8814e9974eabf2227) by **Jack512kb**, CC Attribution
@@ -32,6 +32,8 @@ All from [Poly Haven](https://polyhaven.com), CC0. 1k JPG sets (diffuse, OpenGL 
 - `tex/oak_*.jpg`: [Brown Planks 03](https://polyhaven.com/a/brown_planks_03) by Rob Tuytel. Lab cannon: the oak wall (tinted warmer).
 - `tex/brick_*.jpg`: [Red Brick 03](https://polyhaven.com/a/red_brick_03) by Rob Tuytel. Lab cannon: the brick wall.
 - `tex/stone_*.jpg`: [Rustic Stone Wall 02](https://polyhaven.com/a/rustic_stone_wall_02) by Amal Kumar. Lab cannon: the stone wall.
+- `tex/hay_*.jpg`: normal and roughness of [Thatch Roof Angled](https://polyhaven.com/a/thatch_roof_angled) by Rob Tuytel and Dimitrios Savva (512 px). Straw relief on the hay bale wall.
+- `tex/frost_*.jpg`: normal and roughness of [Snow 02](https://polyhaven.com/a/snow_02) by Rob Tuytel (512 px). Frost on the ice and diamond walls, a slight unevenness on thick and armoured glass.
 - `tex/conc_*.jpg`, `tex/steel_*.jpg`: greyscale copies of Concrete Wall 008 and Metal Plate 02 for the lab's concrete and steel walls;
   the Metal Plate 02 relief is also on the five lab cannons, the wall frames, the vault door and the gold wall.
 
@@ -148,6 +150,32 @@ Loops (roll, cart, road, drone, amb*) are made seamless and written twice; the g
 - `sfx/recoil1.mp3`: [BGM 71 TOW Missile Launch 1 (less echo)](https://freesound.org/people/qubodup/sounds/67542/) by **qubodup**, CC0
 - `sfx/recoil2.mp3`: [C4 Rocket Launch (M1 Assault Breacher Vehicle)](https://freesound.org/people/qubodup/sounds/159610/) by **qubodup**, CC0
 - `sfx/recoil3.mp3`: [AGM-114 Hellfire Rocket Missile Launch.flac](https://freesound.org/people/qubodup/sounds/162368/) by **qubodup**, CC0
+- `sfx/w_conc1.mp3`: [Sledgehammer - using to break a block of concrete.](https://freesound.org/people/SoundsnapFX/sounds/583964/) by **SoundsnapFX**, CC BY ([http://creativecommons.org/licenses/by/3.0/](http://creativecommons.org/licenses/by/3.0/))
+- `sfx/w_conc2.mp3`: [PieceofConcrete01.wav](https://freesound.org/people/kingsrow/sounds/194688/) by **kingsrow**, CC0
+- `sfx/w_conc3.mp3`: [PieceofConcrete02.wav](https://freesound.org/people/kingsrow/sounds/194687/) by **kingsrow**, CC0
+- `sfx/w_armor1.mp3`: [Hard Glass Impact](https://freesound.org/people/deleted_user_3656686/sounds/418194/) by **deleted_user_3656686**, CC0
+- `sfx/w_armor2.mp3`: [Breaking Glass 2.mp3](https://freesound.org/people/FunWithSound/sounds/390721/) by **FunWithSound**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_armor3.mp3`: [Breaking Glass 25.mp3](https://freesound.org/people/FunWithSound/sounds/390723/) by **FunWithSound**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_crystal1.mp3`: [Shattering Chandelier.mp3](https://freesound.org/people/matt_ratz/sounds/541601/) by **matt_ratz**, CC0
+- `sfx/w_crystal2.mp3`: [Vidrios_Rotos.wav](https://freesound.org/people/Thingy17/sounds/470898/) by **Thingy17**, CC BY ([http://creativecommons.org/licenses/by/3.0/](http://creativecommons.org/licenses/by/3.0/))
+- `sfx/w_crystal3.mp3`: [Breaking Glass 3](https://freesound.org/people/AleXZavesa/sounds/853697/) by **AleXZavesa**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_gold1.mp3`: [Metallic Slam (Anvil)](https://freesound.org/people/OOF9/sounds/841804/) by **OOF9**, CC0
+- `sfx/w_gold2.mp3`: [Iron Hits.wav](https://freesound.org/people/Mrthenoronha/sounds/371353/) by **Mrthenoronha**, CC0
+- `sfx/w_gold3.mp3`: [long-metal-hit-02.wav](https://freesound.org/people/newagesoup/sounds/337831/) by **newagesoup**, CC0
+- `sfx/w_steel1.mp3`: [Big stereo metal hit](https://freesound.org/people/LPA134/sounds/329515/) by **LPA134**, CC0
+- `sfx/w_steel2.mp3`: [Steel_Sheet_Bang.wav](https://freesound.org/people/mickyman5000/sounds/340492/) by **mickyman5000**, CC0
+- `sfx/w_steel3.mp3`: [Steel_Sheet_Hitting.wav](https://freesound.org/people/mickyman5000/sounds/340494/) by **mickyman5000**, CC0
+- `sfx/w_ply1.mp3`: [JBF Plywood Breaking 2.aif](https://freesound.org/people/cmusounddesign/sounds/96167/) by **cmusounddesign**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_ply2.mp3`: [JBF Plywood Breaking 1.aif](https://freesound.org/people/cmusounddesign/sounds/96166/) by **cmusounddesign**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_ply3.mp3`: [wooden plank snap.wav](https://freesound.org/people/Tomlija/sounds/98056/) by **Tomlija**, CC BY ([http://creativecommons.org/licenses/by/3.0/](http://creativecommons.org/licenses/by/3.0/))
+- `sfx/w_oak1.mp3`: [Boards Fall 4](https://freesound.org/people/AleXZavesa/sounds/853904/) by **AleXZavesa**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_oak2.mp3`: [Boards Fall 1](https://freesound.org/people/AleXZavesa/sounds/853901/) by **AleXZavesa**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_oak3.mp3`: [Smash.ogg](https://freesound.org/people/egomassive/sounds/536777/) by **egomassive**, CC0
+- `sfx/w_hay1.mp3`: [Dry Grass Crunch.wav](https://freesound.org/people/worthahep88/sounds/319206/) by **worthahep88**, CC0
+- `sfx/w_hay2.mp3`: [Bush sound effect](https://freesound.org/people/darceyprodanovic/sounds/833454/) by **darceyprodanovic**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_thick1.mp3`: [A glass door shatters and breaks](https://freesound.org/people/justiningo/sounds/437623/) by **justiningo**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_thick2.mp3`: [Slow Motion Glass Shatter](https://freesound.org/people/bevibeldesign/sounds/349905/) by **bevibeldesign**, CC0
+- `sfx/w_thick3.mp3`: [Glass.ogg](https://freesound.org/people/egomassive/sounds/536763/) by **egomassive**, CC0
 
 ### From [OpenGameArt](https://opengameart.org) (CC0)
 - `sfx/hdwind1.mp3`: [Wind](https://opengameart.org/content/wind) by **IgnasD**, made into a seamless loop
