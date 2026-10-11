@@ -117,6 +117,20 @@ Loops (roll, cart, road, drone, amb*) are made seamless and written twice; the g
 - `sfx/ambsky2.mp3`: [Winter wind.wav](https://freesound.org/people/Elanor1995/sounds/688841/) by **Elanor1995**, CC0
 - `sfx/amblab1.mp3`: [Roomtone Warehouse Fans Vents Large](https://freesound.org/people/leonelmail/sounds/427861/) by **leonelmail**, CC0
 - `sfx/amblab2.mp3`: [Factory_Ambiance.wav (48khz/24bit)](https://freesound.org/people/neilraouf/sounds/431480/) by **neilraouf**, CC0
+- `sfx/bazooka1.mp3`: [Huge rocket launcher.wav](https://freesound.org/people/CGEffex/sounds/100772/) by **CGEffex**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/bazooka2.mp3`: [S19-34 Bazooka shot.wav](https://freesound.org/people/craigsmith/sounds/675581/) by **craigsmith**, CC0
+- `sfx/bazooka3.mp3`: [Rocket launcher fire](https://freesound.org/people/ValhallaProject/sounds/761514/) by **ValhallaProject**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/mortar1.mp3`: [M-327 Mortar Shots.flac](https://freesound.org/people/qubodup/sounds/187542/) by **qubodup**, CC0
+- `sfx/mortar2.mp3`: [M224 Mortar Firing Close 01](https://freesound.org/people/Nanashi/sounds/426158/) by **Nanashi**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/fieldgun1.mp3`: [CivilWarCannonFire_01.WAV](https://freesound.org/people/daveincamas/sounds/368270/) by **daveincamas**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/fieldgun2.mp3`: [CW_Cannon_Single1.wav](https://freesound.org/people/richardemoore/sounds/162626/) by **richardemoore**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/fieldgun3.mp3`: [Cannon explosion sound](https://freesound.org/people/SamsterBirdies/sounds/621000/) by **SamsterBirdies**, CC0
+- `sfx/tankgun1.mp3`: [Tank fire Mixed.wav](https://freesound.org/people/GaryQ/sounds/127845/) by **GaryQ**, CC0
+- `sfx/tankgun2.mp3`: [xm360_canon_shot_1.flac](https://freesound.org/people/qubodup/sounds/67524/) by **qubodup**, CC0
+- `sfx/tankgun3.mp3`: [m1a1_abrams_canon_shot_1.flac](https://freesound.org/people/qubodup/sounds/67519/) by **qubodup**, CC0
+- `sfx/howitzer1.mp3`: [Artillery Gunfire](https://freesound.org/people/qubodup/sounds/239137/) by **qubodup**, CC0
+- `sfx/howitzer2.mp3`: [ArtilleryTankFireSynthetic3.wav](https://freesound.org/people/zimbot/sounds/117801/) by **zimbot**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/howitzer3.mp3`: [Howitzer Artillery Gun Shot Sound Effect 03](https://freesound.org/people/qubodup/sounds/161341/) by **qubodup**, CC0
 
 ### From [OpenGameArt](https://opengameart.org) (CC0)
 - `sfx/hdwind1.mp3`: [Wind](https://opengameart.org/content/wind) by **IgnasD**, made into a seamless loop

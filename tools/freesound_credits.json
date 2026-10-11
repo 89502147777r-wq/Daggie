@@ -1067,17 +1067,6 @@
   "kb": 14
  },
  {
-  "file": "sfx/mortar3.mp3",
-  "id": 161970,
-  "title": "Firing Mortar at Shooting Range",
-  "author": "qubodup",
-  "url": "https://freesound.org/people/qubodup/sounds/161970/",
-  "license": "CC0",
-  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
-  "seconds": 1.73,
-  "kb": 21
- },
- {
   "file": "sfx/fieldgun1.mp3",
   "id": 368270,
   "title": "CivilWarCannonFire_01.WAV",

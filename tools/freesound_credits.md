@@ -58,7 +58,7 @@
 - `sfx/hdwhoosh1.mp3`: [Whoosh Heavy Spear Hammer Large](https://freesound.org/people/EminYILDIRIM/sounds/540300/) by **EminYILDIRIM**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/hdwhoosh2.mp3`: [Very Big Whoosh](https://freesound.org/people/Paul368/sounds/237980/) by **Paul368**, CC0
 - `sfx/hdwhoosh3.mp3`: [FX - Swoosh - Low Pitch](https://freesound.org/people/bolkmar/sounds/475135/) by **bolkmar**, CC0
-- `sfx/uihit1.mp3`: [[SFX) Short Bassy Industrial Hit](https://freesound.org/people/waveplaySFX/sounds/402692/) by **waveplaySFX**, CC0
+- `sfx/uihit1.mp3`: [(SFX) Short Bassy Industrial Hit](https://freesound.org/people/waveplaySFX/sounds/402692/) by **waveplaySFX**, CC0
 - `sfx/uihit2.mp3`: [Sound Design Elements Impact SFX PS 019](https://freesound.org/people/AudioPapkin/sounds/755056/) by **AudioPapkin**, CC0
 - `sfx/uihit3.mp3`: [Stab reverb hit (minimal)](https://freesound.org/people/xkeril/sounds/736850/) by **xkeril**, CC0
 - `sfx/uirise1.mp3`: [ENERGY RISER 2](https://freesound.org/people/magnuswaker/sounds/523057/) by **magnuswaker**, CC0
@@ -95,7 +95,6 @@
 - `sfx/bazooka3.mp3`: [Rocket launcher fire](https://freesound.org/people/ValhallaProject/sounds/761514/) by **ValhallaProject**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/mortar1.mp3`: [M-327 Mortar Shots.flac](https://freesound.org/people/qubodup/sounds/187542/) by **qubodup**, CC0
 - `sfx/mortar2.mp3`: [M224 Mortar Firing Close 01](https://freesound.org/people/Nanashi/sounds/426158/) by **Nanashi**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
-- `sfx/mortar3.mp3`: [Firing Mortar at Shooting Range](https://freesound.org/people/qubodup/sounds/161970/) by **qubodup**, CC0
 - `sfx/fieldgun1.mp3`: [CivilWarCannonFire_01.WAV](https://freesound.org/people/daveincamas/sounds/368270/) by **daveincamas**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/fieldgun2.mp3`: [CW_Cannon_Single1.wav](https://freesound.org/people/richardemoore/sounds/162626/) by **richardemoore**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/fieldgun3.mp3`: [Cannon explosion sound](https://freesound.org/people/SamsterBirdies/sounds/621000/) by **SamsterBirdies**, CC0
