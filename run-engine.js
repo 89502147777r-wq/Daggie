@@ -4244,7 +4244,7 @@ const OBS_KIT = {
   pin: () => { const pts = [[0, 0], [0.17, 0], [0.2, 0.03], [0.31, 0.2], [0.35, 0.34], [0.3, 0.52], [0.2, 0.64], [0.15, 0.74], [0.17, 0.82], [0.2, 0.9], [0.17, 0.97], [0, 1]].map(([r, y]) => new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 18); const map = tex(16, 128, (g, w, h) => { g.fillStyle = '#f7f7f4'; g.fillRect(0, 0, w, h); g.fillStyle = '#c1272d'; g.fillRect(0, h * 0.53, w, h * 0.06); g.fillRect(0, h * 0.66, w, h * 0.06); }); return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.15, metalness: 0.0 }), fl: 0.1 }; },
 };
 // ---------- real 3D models for the crash mix (Sketchfab, CC BY: see CREDITS.md): every vehicle and obstacle is a modelled object, fitted to the size its physics expects ----------
-const MIXG = { busy: {}, obs: {} };
+const MIXG = { busy: {}, obs: {}, fail: {} };
 function mixGlb(f) { /* resolves to [{ geo, mat, name }] with every node transform baked in (null if the file is missing; the drawn stand-in stays) */
   return MIXG.busy[f] || (MIXG.busy[f] = import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync('models/' + f + '.glb?v=1')).then(gl => {
     gl.scene.updateMatrixWorld(true); const out = [];
@@ -4255,7 +4255,7 @@ function mixGlb(f) { /* resolves to [{ geo, mat, name }] with every node transfo
     for (const m of new Set(out.map(q => q.mat))) { if (m.transparent && !/glass|transp|window/i.test(m.name || '')) { m.transparent = false; m.alphaTest = 0.5; m.depthWrite = true; } // decals stay cut-out, only glass is see-through
       for (const k in m) if (m[k] && m[k].isTexture) m[k].channel = 0; // only the first set of texture coordinates is kept
       try { if (!m.envMap) { m.envMap = labEnv(); m.envMapIntensity = 0.75; } } catch (e) { /* no reflections, still fine */ } }
-    return out; }).catch(e => { console.warn('model not loaded', f, e); return null; })); }
+    return out; }).catch(e => { console.warn('model not loaded', f, e); MIXG.fail[f] = (MIXG.fail[f] || 0) + 1; if (MIXG.fail[f] < 4) { delete MIXG.busy[f]; return new Promise(r => setTimeout(r, 3000 * MIXG.fail[f])).then(() => mixGlb(f)); } return null; })); } // a dropped connection: it tries again a few times
 function mixFit(list, C) { /* a copy of the model turned (rx, ry, rz), scaled and placed: C.fit = target [x, y, z] (null = free), one scale for all axes (the smallest), or each its own with C.stretch; C.at = [x, y, z]: the centre in x and z, the floor in y (the middle with C.mid); C.front puts the front face (+z) there instead */
   const M = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(C.rx || 0, C.ry || 0, C.rz || 0)), L = list.map(q => ({ geo: q.geo.clone().applyMatrix4(M), mat: q.mat, name: q.name })), b = new THREE.Box3();
   for (const q of L) { q.geo.computeBoundingBox(); b.union(q.geo.boundingBox); }
