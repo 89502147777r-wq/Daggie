@@ -2025,7 +2025,7 @@ function debrisHit(kind, v, size) { // v: speed at which the piece hit the floor
 const WIND = { src: null, bp: null, g: null };
 function windSet(v) { // the rush of air around a fast flight; v in mph, 0 fades it out
   if (!AC) return; OUT();
-  const L = bedLoop('cwind', 'hdwind', 0, BED_P.hdwind); if (L) { const k = clamp(v / 120, 0, 1), t = AC.currentTime; L.src.playbackRate.setTargetAtTime(0.85 + 0.45 * k, t, 0.2); L.lp.frequency.setTargetAtTime(600 + 8000 * k * k, t, 0.1); L.g.gain.setTargetAtTime(v > 5 ? 0.05 + 0.55 * Math.pow(k, 1.3) : 0, t, v > 5 ? 0.15 : 0.3); return; } // the recorded wind
+  const L = bedLoop('cwind', 'hdwind', 0, BED_P.hdwind); if (L) { const k = clamp(v / 120, 0, 1), t = AC.currentTime; L.src.playbackRate.setTargetAtTime(0.85 + 0.45 * k, t, 0.2); L.lp.frequency.setTargetAtTime(600 + 8000 * k * k, t, 0.1); L.g.gain.setTargetAtTime(v > 20 ? 0.22 * Math.pow(k, 2) : 0, t, v > 20 ? 0.2 : 0.3); return; } // the recorded wind, only when he really flies fast
   if (!WIND.src) { const src = AC.createBufferSource(); src.buffer = NOISE; src.loop = true; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.6; const g = AC.createGain(); g.gain.value = 0; src.connect(bp); bp.connect(g); if (AC.createStereoPanner) { const pn = AC.createStereoPanner(); g.connect(pn); pn.connect(OUT()); } else g.connect(OUT()); src.start(); WIND.src = src; WIND.bp = bp; WIND.g = g; }
   const t = AC.currentTime, target = v > 5 ? clamp(0.01 + v * 0.0001, 0, 0.1) : 0; WIND.bp.frequency.setTargetAtTime(250 + v * 2.2, t, 0.08); WIND.g.gain.setTargetAtTime(target, t, target ? 0.15 : 0.3);
 }
@@ -2087,9 +2087,9 @@ function bedStep(dt, live) {
   const dead = !lab && (live ? (state === 'crashed' || (state === 'result' && cause !== '')) : !!(PLAY && PLAY.crashT != null && PLAY.t > PLAY.crashT));
   const run = active && !dead, onGround = !live || lab || R.grounded;
   const amb = bedLoop('amb', TH === 'city' ? 'ambcity' : lab ? 'amblab' : 'ambsky', 0, 6); // the place, always there under everything
-  if (amb) { amb.lp.frequency.value = 9000; amb.g.gain.setTargetAtTime(state === 'result' ? 0.1 : 0.22, t, 0.8); }
+  if (amb) { amb.lp.frequency.value = lab ? 2400 : 6000; amb.g.gain.setTargetAtTime((state === 'result' ? 0.04 : 0.08) * (lab ? 0.6 : 1), t, 0.8); } // a quiet room tone, not a constant roar
   const W = bedLoop('wind', 'hdwind', 0, BED_P.hdwind); // the rush of air
-  if (W) { const wg = (active || dead) && v > 3 ? 0.02 + (car ? 0.55 : 0.42) * Math.pow(k, 1.5) : 0; W.src.playbackRate.setTargetAtTime(0.85 + 0.4 * k, t, 0.2); W.lp.frequency.setTargetAtTime(500 + 7500 * k * k, t, 0.15); W.g.gain.setTargetAtTime(dead ? wg * 0.5 : wg, t, dead ? 0.6 : 0.2); }
+  if (W) { const wg = (active || dead) && v > (lab ? 12 : 3) ? (car ? 0.3 : lab ? 0.1 : 0.2) * Math.pow(k, 2) : 0; /* the rush of air only at real speed, and softly */ W.src.playbackRate.setTargetAtTime(0.85 + 0.4 * k, t, 0.2); W.lp.frequency.setTargetAtTime(500 + 7500 * k * k, t, 0.15); W.g.gain.setTargetAtTime(dead ? wg * 0.5 : wg, t, dead ? 0.6 : 0.2); }
   const wn = car ? 'road' : VEH === 'cart' || lab ? 'cart' : 'roll', Wh = bedLoop('wheels', wn, 0, 2.5); // wheels on the road
   if (Wh) { Wh.src.playbackRate.setTargetAtTime(0.7 + 0.75 * k, t, 0.15); Wh.lp.frequency.setTargetAtTime(1500 + 9000 * k, t, 0.15); Wh.g.gain.setTargetAtTime(run && onGround && v > 0.5 ? (car ? 0.06 + 0.22 * k : 0.12 + 0.4 * k) : 0, t, 0.06); }
   if (car) { const E = bedLoop('eng', 'hdengine', 0, HD_LOOPS.hdengine[0]), E2 = bedLoop('eng2', 'hdengine', 1, HD_LOOPS.hdengine[1]); // the engine: revs climb with the speed, a crash chokes it
@@ -3827,11 +3827,14 @@ const _dq = new THREE.Quaternion(), _da = new V3();
 const DEB_PROPS = { metal: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, chrome: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, ceramic: { b: 0.26, drag: 0.02, snd: 'stone', fly: 0.8, lift: 0.9 }, fabric: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, fabric2: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, plastic: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, accent: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, black: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, wheel: { b: 0.58, drag: 0.015, snd: 'metal', fly: 1.7, lift: 1.2 }, rubber: { b: 0.7, drag: 0.02, snd: 'soft', fly: 1.3, lift: 2.2 }, wood: { b: 0.3, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, steel: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 } };
 function cartDebrisStep(dt) {
   obsStep(dt);
-  if (((CART.knocked && !CART.plow && LABCART.v >= 30) || (OBX.cur !== 'post' && OBST[OBX.cur].solid && LABCART.hit && LABCART.v >= 20)) && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
+  if (((CART.knocked && !CART.plow && LABCART.v >= 30) || ((OBX.cur !== 'post' || LAB.machine === 'mix') && CART.solid && LABCART.hit && LABCART.v >= 20)) && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
   if (!CDEB.on) return; CDEB.cool -= dt;
   for (const d of CDEB.list) {
     if (d.rest) continue; d.cd -= dt;
     const pr = DEB_PROPS[d.mk] || DEB_PROPS.metal; d.v.y -= 9.8 * dt; d.v.multiplyScalar(1 / (1 + pr.drag * d.v.length() * dt)); d.m.position.addScaledVector(d.v, dt); // air drag: the faster the more it slows
+    for (const c of CART.cyls) { const P = d.m.position; if (P.y > c.h + d.r) continue; const dx = P.x - c.x, dz = P.z - c.z, dd = Math.hypot(dx, dz), R = c.r + d.r; if (dd >= R) continue; // the obstacle is solid for the pieces too: they bounce off it, never through
+      const nx = dd > 1e-5 ? dx / dd : 0, nz = dd > 1e-5 ? dz / dd : 1, vn = d.v.x * nx + d.v.z * nz; P.x = c.x + nx * R; P.z = c.z + nz * R;
+      if (vn < 0) { d.v.x -= (1 + pr.b) * vn * nx; d.v.z -= (1 + pr.b) * vn * nz; d.v.x *= 0.65; d.v.z *= 0.65; if (d.cd <= 0 && vn < -3) { debrisHit(pr.snd, -vn, d.r * 2); d.cd = 0.12; } } }
     const wl = d.w.length(); if (wl > 1e-4) { _da.copy(d.w).multiplyScalar(1 / wl); _dq.setFromAxisAngle(_da, wl * dt); d.m.quaternion.premultiply(_dq); }
     if (d.m.position.y < d.r) {
       d.m.position.y = d.r;
@@ -3977,7 +3980,7 @@ const OBST = {
     layout() { const b = []; for (let row = 0; row < 4; row++) { const n = row % 2 ? 3 : 4; for (let i = 0; i < n; i++) b.push({ t: 'barrel' + Math.floor(rand(0, 4)), x: (i - (n - 1) / 2) * 0.62, y: 0.45 + row * 0.9, z: 0, sx: 0.58, sy: 0.9, sz: 0.58, ry: rand(-0.35, 0.35), col: 0xffffff }); } return b; } },
   bricks: { absorb: 800, hard: 4.2, fx: 'dust', name: 'BRICK WALL', r: 0.14, cyls: [-1, -0.5, 0, 0.5, 1].map(dx => ({ dx, r: 0.14 })), h: 1.6, bend: 12, knock: 50, tumble: 12, solid: true, kick: 0.5, lift: 0.8, sound: 'brick', pop: 'THE WALL FALLS!',
     layout() { const b = []; for (let row = 0; row < 8; row++) { const odd = row % 2; const xs = odd ? [-1.125, -0.75, -0.25, 0.25, 0.75, 1.125] : [-1, -0.5, 0, 0.5, 1]; for (const x of xs) { const half = odd && Math.abs(x) > 1; b.push({ t: 'brick' + Math.floor(rand(0, 4)), x: half ? Math.sign(x) * 1.125 : x, y: 0.1 + row * 0.2, z: 0, sx: half ? 0.25 : 0.5, sy: 0.2, sz: 0.25, ry: 0, col: 0xffffff - Math.floor(rand(0, 8)) * 0x0a0a0a }); } } return b; } },
-  barrier: { absorb: 0, hard: 3.8, fx: 'dust', name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, solidMax: 55, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
+  barrier: { absorb: 0, hard: 3.8, fx: 'dust', name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
     layout() { return [{ t: 'barrier', x: 0, y: 0, z: 0, sx: 2.2, sy: 1, sz: 1, ry: 0, col: 0xb9b9b3 }]; } },
   wordwall: { absorb: 650, hard: 5, fx: 'dust', name: 'WORD WALL', r: 0.25, cyls: [-1, 0, 1].map(dx => ({ dx, r: 0.28 })), h: 3.85, bend: 9, knock: 20, tumble: 16, solid: false, kick: 0.8, lift: 1.0, sound: 'barrel', pop: 'WALL DESTROYED!',
     layout() { return wordwallLayout(MIX.txt); } },
@@ -4253,9 +4256,9 @@ const OBS_KIT = {
   pin: () => { const pts = [[0, 0], [0.17, 0], [0.2, 0.03], [0.31, 0.2], [0.35, 0.34], [0.3, 0.52], [0.2, 0.64], [0.15, 0.74], [0.17, 0.82], [0.2, 0.9], [0.17, 0.97], [0, 1]].map(([r, y]) => new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 18); const map = tex(16, 128, (g, w, h) => { g.fillStyle = '#f7f7f4'; g.fillRect(0, 0, w, h); g.fillStyle = '#c1272d'; g.fillRect(0, h * 0.53, w, h * 0.06); g.fillRect(0, h * 0.66, w, h * 0.06); }); return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.15, metalness: 0.0 }), fl: 0.1 }; },
 };
 // ---------- real 3D models for the crash mix (Sketchfab, CC BY: see CREDITS.md): every vehicle and obstacle is a modelled object, fitted to the size its physics expects ----------
-const MIXG = { busy: {}, obs: {}, fail: {} };
+const MIXG = { busy: {}, obs: {}, fail: {} }, MIX_MODEL_V = { o_truck: 3 }; // a model file that changed gets a new address (the offline cache keeps old ones forever)
 function mixGlb(f) { /* resolves to [{ geo, mat, name }] with every node transform baked in (null if the file is missing; the drawn stand-in stays) */
-  return MIXG.busy[f] || (MIXG.busy[f] = import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync('models/' + f + '.glb?v=1')).then(gl => {
+  return MIXG.busy[f] || (MIXG.busy[f] = import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync('models/' + f + '.glb?v=' + (MIX_MODEL_V[f] || 1))).then(gl => {
     gl.scene.updateMatrixWorld(true); const out = [];
     gl.scene.traverse(o => { if (!o.isMesh) return; let ge = o.geometry.clone(); ge.applyMatrix4(o.matrixWorld); if (ge.index) ge = ge.toNonIndexed();
       for (const k of Object.keys(ge.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') ge.deleteAttribute(k);
@@ -4327,7 +4330,7 @@ const OBS_GLB = {
     paint: [{ match: /^main\.003$/, hex: 0xffffff, gain: 3.1, zMin: -2.1 }] }, // a white cab, the body stays orange
   car: { f: 'o_car', fit: [4.75, null, null], yoff: 0.75, kits: { car: 'body', carg: 'glass' }, paint: [{ match: /Bodymat/, hex: 0xc0111b }] },
   tire: { f: 'o_tire', rz: Math.PI / 2, fit: [0.714, null, 0.714], mid: true, kits: { tire: 'body' } },
-  barrel: { f: 'o_barrel', split: 2, fit: [1, 1, 1], stretch: true, mid: true, kits: { barrel0: 0, barrel1: 1, barrel2: [0, 0x2558ff], barrel3: [0, 0xf5c400] } }, // red, black, blue, yellow drums
+  barrel: { f: 'o_barrel', split: 2, fit: [1, 1, 1], stretch: true, mid: true, kits: { barrel0: 1, barrel1: [1, 0x2fc24e], barrel2: [1, 0x3a6dff], barrel3: [1, 0xffd21a] }, light: 1.5 }, // red, green, blue and yellow drums 
   barrier: { f: 'o_barrier', ry: Math.PI / 2, fit: [null, 0.8, 0.56], kits: { barrier: 'body' } } };
 const OBS_GLB_OF = { truck: 'truck', car: 'car', tires: 'tire', barrels: 'barrel', barrier: 'barrier' }, OBS_GLB_FL = { truck: 0.5, truckg: 0.5, car: 0.45, carg: 0.5, tire: 0.12, barrel0: 0.29, barrel1: 0.29, barrel2: 0.29, barrel3: 0.29, barrier: 0.25 };
 function mixPanes(geos) { /* glass split by the way it faces (sides, front, back, roof), each with a planar map into one cell of the crack atlas */
@@ -4359,8 +4362,8 @@ function mixObsLoad(id) { /* load the model of this obstacle once; when it is in
 function mixObsKit(t) { /* the kit of block type t from its model, or null while it is not in */
   for (const name in OBS_GLB) { const C = OBS_GLB[name], role = C.kits[t]; if (role === undefined) continue; const O = MIXG.obs[name]; if (!O || O.state !== 2) return null;
     if (role === 'glass') { const id = Object.keys(OBS_GLB_OF).find(k => OBS_GLB_OF[k] === name); return O.glass ? obxGlassKit(OBX_MODELS[id], new THREE.BoxGeometry(0.05, 0.05, 0.05), C.yoff || 0) : HATCH_NOTHING(); }
-    if (Array.isArray(role)) { const B = O[role[0]]; if (!B) return null; O['p' + t] = O['p' + t] || (Array.isArray(B.mat) ? B.mat.map(m => mixPaint(m, { hex: role[1], gain: 3.3 })) : mixPaint(B.mat, { hex: role[1], gain: 3.3 })); return { geo: B.geo, mat: O['p' + t], fl: OBS_GLB_FL[t] }; }
-    const B = O[role]; return B ? { geo: B.geo, mat: B.mat, fl: OBS_GLB_FL[t] } : null; } return null; }
+    if (Array.isArray(role)) { const B = O[role[0]]; if (!B) return null; O['p' + t] = O['p' + t] || (Array.isArray(B.mat) ? B.mat.map(m => mixPaint(m, { hex: role[1], gain: 4 })) : mixPaint(B.mat, { hex: role[1], gain: 4 })); return { geo: B.geo, mat: O['p' + t], fl: OBS_GLB_FL[t] }; }
+    const B = O[role]; if (B && C.light && !O['l' + t]) { O['l' + t] = 1; for (const m of [].concat(B.mat)) { m.color.multiplyScalar(C.light); m.roughness = Math.max(0.35, m.roughness * 0.8); } } return B ? { geo: B.geo, mat: B.mat, fl: OBS_GLB_FL[t] } : null; } return null; }
 for (const t of Object.keys(OBS_GLB_FL)) { const drawn = OBS_KIT[t]; OBS_KIT[t] = () => mixObsKit(t) || drawn(); }
 { const drawn = OBST.barrier.layout; OBST.barrier.layout = function () { const O = MIXG.obs.barrier; if (!O || O.state !== 2) return drawn.call(this); const gb = O.body.geo; if (!gb.boundingBox) gb.computeBoundingBox(); const L = gb.boundingBox.max.x - gb.boundingBox.min.x; // a row of two real barriers, end to end
   return [-0.5, 0.5].map(s => ({ t: 'barrier', x: s * L * 0.98, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff })); }; }
@@ -4442,6 +4445,7 @@ function obsApply() { // choose the obstacle for this machine, give the vehicle'
   const id = LAB.machine === 'mix' && OBST[MIX.obs] ? MIX.obs : 'post', sp = OBST[id]; OBX.cur = id;
   if (labBol()) { obstScale(id); mixObsLoad(id); mixBollard(); } // the real models, bigger (built again from them once they are in)
   CART.br = sp.r; CART.knockV = sp.knock; CART.bendV = sp.bend; CART.tumbleV = sp.tumble; CART.solid = !!sp.solid; CART.solidMax = sp.solidMax || Infinity; CART.obsH = sp.h; CART.obsCyls = sp.cyls || null;
+  if (id === 'post' && LAB.machine === 'mix') { CART.knockV = 9999; CART.solid = true; } // in the crash mix the steel post is set in concrete: it bends, it does not snap, and nothing goes through it
   if (BOLLARD) BOLLARD.visible = labBol() && id === 'post';
   for (const k in OBX.built) for (const t in OBX.built[k].sets) OBX.built[k].sets[t].mesh.visible = false;
   if (labBol() && id !== 'post') obsPlace(id);
@@ -6032,7 +6036,7 @@ function cannonShow(on) {
   CAN.lamps.forEach((l, i) => canLamp(i, 0));
   CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; CAN.wallMats[i].userData.U.uSilOn.value = 0; if (CANNON_WALLS[i].kind === 'metal') canBulge(i, null, false); for (const c of CAN.wallMats[i].userData.U.uCrk.value) c.set(0, 0, 0, 0); if (CANNON_WALLS[i].draw === 'window') { CAN.wallMats[i].map = CAN.mats[i].map; CAN.wallMats[i].needsUpdate = true; } w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
   CAN.smoke.clear(); CAN.fire.clear(); CAN.tl = null;
-  CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.touch = new Array(15).fill(false);
+  CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.limbHit = {}; CAN.touch = new Array(15).fill(false);
   board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
 }
 function cannonStart(lv) {
@@ -6277,6 +6281,10 @@ function cannonWalls() {
       lastPop = 0; pop('STUCK IN ' + W.n + '!', 'lilac'); setFace('hit', 99999);
     }
   }
+  const LH = C.limbHit || (C.limbHit = {}); for (const q of c.cuts || []) { if (!q.done) continue; // a torn-off limb is a solid lump: it bounces off a wall that is still whole (and cracks it), it never passes through
+    for (const pt of q.set) { const k = pt * 3; for (let i = C.next; i < Math.min(15, C.next + 3); i++) { const wz = cannonWallZ(i) + 0.25; if (!(c.o[k + 2] > wz && c.x[k + 2] <= wz && Math.abs(c.x[k]) < CAN_W / 2 && c.x[k + 1] > 0 && c.x[k + 1] < CAN_H)) continue;
+      const vz = c.x[k + 2] - c.o[k + 2]; c.x[k + 2] = wz + 0.01; c.o[k + 2] = c.x[k + 2] + 0.3 * vz; c.o[k] = c.x[k] - (c.x[k] - c.o[k]) * 0.6; c.o[k + 1] = c.x[k + 1] - (c.x[k + 1] - c.o[k + 1]) * 0.6;
+      if (!LH[q.name + i] && -vz * 240 > 4) { LH[q.name + i] = 1; const W = CANNON_WALLS[i]; canCracks(i, c.x[k], c.x[k + 1], 4, 0.5, true); burst(new V3(c.x[k] + LAB_LANE, c.x[k + 1], cannonWallZ(i)), 18, CAN_PAL[W.kind] || SPARK, 3); clank(8); if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'wall', a: canWallSnap(i) }); } } } }
   if (C.next >= 15 && C.stuck < 0 && !C.landing) { C.landing = true; cannonLanding(c); }
 }
 function canPaperRaw(gi, pi, px, py, pz, rx, ry, rz, vx, vy, vz, wx, wy, wz, life) { const sh = CAN.paper.find(q => q.life <= 0); if (!sh) return; const m = sh.m, pm = CAN.posters[pi].mesh.material;
