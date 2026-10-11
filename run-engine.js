@@ -1962,6 +1962,7 @@ function sweep(t, f0, f1, dur, vol, type) { const o = AC.createOscillator(), g =
 function crashSound(p) { SND_WIDE = 0.6; try { crashSound0(p); } finally { SND_WIDE = 0; } }
 function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
   recEvt('c', [p]); if (!AC) return; OUT(); const t = AC.currentTime;
+  if (sfxPlay(p > 0.55 ? ['truck', 'car'] : ['car', 'metal'], 0.5 + 0.5 * p, 1.1 - 0.25 * p, 0.3)) { if (p > 0.25) sfxPlay('uihit', 0.4 + 0.5 * p, 1, 0.3); if (p > 0.6) sfxPlay('hdboom', 0.5 * p, 1, 0.4); return; } // a real crash, heavier with the speed
   sweep(t, 150 + 80 * p, 30, 0.3 + 0.45 * p, 0.5 + 0.5 * p); if (p > 0.15) sweep(t + 0.005, 62, 22, 0.5 + 0.7 * p, 0.3 + 0.4 * p, 'sine'); // body of the hit, and a sub under it
   noiseDist(t, 0.14 + 0.22 * p, 0.28 + 0.3 * p, 2600, 240, 1.1); // crunch
   noise(t, 0.05, 0.22, 'highpass', 3400, 1600, 0.7); // crack
@@ -1984,22 +1985,22 @@ function sfxPlay(names, vol, rate, wet) { // true if a recording was played
 // the old synthesised beeps become recordings outside the lab (the lab keeps its own designed sounds): rising = a whoosh up, flat = a tick, low and falling = a hit
 const RECT = {};
 function recTone(f0, f1, type, vol, delay) {
-  if (MODE === 'lab') return false; const has = n => SFX.buf[n] && SFX.buf[n].length;
+  const has = n => SFX.buf[n] && SFX.buf[n].length;
   if (delay) return has('uirise') && has('uitick'); // the 2nd note of a little jingle: the recording already covers it
   let n, v;
   if (f1 > f0 * 1.15) { n = 'uirise'; v = 0.6; } else if (Math.abs(f1 - f0) < f0 * 0.15) { n = 'uitick'; v = 0.45; }
   else if (f0 < 260) { n = vol >= 0.2 ? 'uihit' : 'thud'; v = clamp(vol * 3, 0.35, 1); } else if (type === 'sawtooth') { n = 'rip'; v = 0.45; } else { n = 'uihit'; v = 0.6; }
   if (!has(n)) return false; const t = AC.currentTime; if (t - (RECT[n] || -1) < 0.09) return true; RECT[n] = t; // never two of the same at once
-  return sfxPlay(n, v, 1, 0.25);
+  return sfxPlay(n, v, n === 'uitick' ? clamp(f0 / 600, 0.7, 1.9) : 1, 0.25); // a tick keeps the old beep's pitch: the lab's wall count still climbs
 }
 function crashRec(kind) { // the moment of the crash: a real crash, not beeps (the HD hammer has its own cinematic hit)
-  recEvt('K', [kind]); if (!AC || MODE === 'lab') return false; if (performance.now() - (HDSND.hitT || -1e9) < 400) return true; OUT();
+  recEvt('K', [kind]); if (!AC) return false; if (performance.now() - (HDSND.hitT || -1e9) < 400) return true; OUT();
   SND_WIDE = 0.5; try {
     if (BODY === 'car') { const a = sfxPlay('car', 1, 1, 0.35); sfxPlay('glass', 0.75, 1, 0.35); sfxPlay('uihit', 0.8, 1, 0.3); return a; }
     const a = sfxPlay(['body', 'metal'], 1, 1, 0.3); sfxPlay('thud', 0.9, 0.9, 0.25); sfxPlay('uihit', 0.7, 1, 0.3); return a;
   } finally { SND_WIDE = 0; }
 }
-function winRec() { recEvt('W', []); if (!AC || MODE === 'lab') return false; OUT(); const a = sfxPlay('win', 0.9, 1, 0.3); sfxPlay('uirise', 0.6, 1, 0.3); return a; }
+function winRec() { recEvt('W', []); if (!AC) return false; OUT(); const a = sfxPlay('win', 0.9, 1, 0.3); sfxPlay('uirise', 0.6, 1, 0.3); return a; }
 function ping(t, f, dur, vol) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o2.type = 'sine'; o.frequency.value = f; o2.frequency.value = f * 2.76; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); const g2 = AC.createGain(); g2.gain.value = 0.35; o.connect(g); o2.connect(g2); g2.connect(g); sendOut(g, 0.35); o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02); }
 
 // ---------- sound that follows the physics: every piece that lands makes its own small sound, and the flight has wind ----------
@@ -2007,7 +2008,7 @@ const DSND = { tokens: 25, last: 0 };
 function debrisHit(kind, v, size) { // v: speed at which the piece hit the floor (m/s), size: its largest dimension; at most ~45 of these a second so a phone can follow
   if (!AC) return; const now = AC.currentTime; DSND.tokens = Math.min(10, DSND.tokens + Math.max(0, now - DSND.last) * 22); DSND.last = now; if (DSND.tokens < 1) return; DSND.tokens--; OUT();
   const t = now, vv = clamp(v / 8, 0.2, 1), sz = clamp(size, 0.05, 1.5); SND_WIDE = 0.7;
-  if (MODE !== 'lab') { const n = { glass: 'ice', wood: 'wood', stone: 'stone', metal: 'metal', box: 'thud', barrel: 'metal', soft: 'thud', pin: 'wood', melon: 'thud' }[kind]; if (n && SFX.buf[n] && SFX.buf[n].length) { try { sfxPlay(n, (0.12 + 0.3 * vv) * (n === 'thud' ? 1.3 : 1), rand(1.05, 1.4) / Math.pow(sz * 2 + 0.5, 0.2), 0.25); } finally { SND_WIDE = 0; } return; } } // small pieces: the same recordings, quieter and a little higher
+  { const n = { glass: 'ice', wood: 'wood', stone: 'stone', metal: 'metal', box: 'thud', barrel: 'metal', soft: 'thud', pin: 'wood', melon: 'thud' }[kind]; if (n && SFX.buf[n] && SFX.buf[n].length) { try { sfxPlay(n, (0.12 + 0.3 * vv) * (n === 'thud' ? 1.3 : 1), rand(1.05, 1.4) / Math.pow(sz * 2 + 0.5, 0.2), 0.25); } finally { SND_WIDE = 0; } return; } } // small pieces: the same recordings, quieter and a little higher
   try {
     if (kind === 'glass') { ping(t, clamp(4200 * Math.exp(rand(-0.5, 0.5)) / Math.pow(sz * 4, 0.35), 1500, 11000), rand(0.03, 0.12), (0.03 + 0.05 * vv) * 1.6); if (v > 4) noise(t, 0.012, 0.05 * vv, 'highpass', 6000, 3000, 0.7); }
     else if (kind === 'wood') { noise(t, rand(0.025, 0.06), 0.16 * vv, 'bandpass', rand(900, 2200), 600, 3); sweep(t, rand(180, 300), 90, 0.05, 0.1 * vv, 'sine'); }
@@ -2022,11 +2023,12 @@ function debrisHit(kind, v, size) { // v: speed at which the piece hit the floor
 }
 const WIND = { src: null, bp: null, g: null };
 function windSet(v) { // the rush of air around a fast flight; v in mph, 0 fades it out
-  if (!AC) return; OUT(); if (!WIND.src) { const src = AC.createBufferSource(); src.buffer = NOISE; src.loop = true; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.6; const g = AC.createGain(); g.gain.value = 0; src.connect(bp); bp.connect(g); if (AC.createStereoPanner) { const pn = AC.createStereoPanner(); g.connect(pn); pn.connect(OUT()); } else g.connect(OUT()); src.start(); WIND.src = src; WIND.bp = bp; WIND.g = g; }
+  if (!AC) return; OUT();
+  const L = bedLoop('cwind', 'hdwind', 0, BED_P.hdwind); if (L) { const k = clamp(v / 120, 0, 1), t = AC.currentTime; L.src.playbackRate.setTargetAtTime(0.85 + 0.45 * k, t, 0.2); L.lp.frequency.setTargetAtTime(600 + 8000 * k * k, t, 0.1); L.g.gain.setTargetAtTime(v > 5 ? 0.05 + 0.55 * Math.pow(k, 1.3) : 0, t, v > 5 ? 0.15 : 0.3); return; } // the recorded wind if (!WIND.src) { const src = AC.createBufferSource(); src.buffer = NOISE; src.loop = true; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.6; const g = AC.createGain(); g.gain.value = 0; src.connect(bp); bp.connect(g); if (AC.createStereoPanner) { const pn = AC.createStereoPanner(); g.connect(pn); pn.connect(OUT()); } else g.connect(OUT()); src.start(); WIND.src = src; WIND.bp = bp; WIND.g = g; }
   const t = AC.currentTime, target = v > 5 ? clamp(0.01 + v * 0.0001, 0, 0.1) : 0; WIND.bp.frequency.setTargetAtTime(250 + v * 2.2, t, 0.08); WIND.g.gain.setTargetAtTime(target, t, target ? 0.15 : 0.3);
 }
 function duckTail() { if (!AC || !TAILBUS) return; const t = AC.currentTime; TAILBUS.gain.cancelScheduledValues(t); TAILBUS.gain.setValueAtTime(0.18, t); TAILBUS.gain.setTargetAtTime(1, t + 0.1, 0.3); } // every new impact pushes the cannon's long tail down for a moment, so it does not drown the sounds
-function windDuck() { if (!AC || !WIND.g) return; const t = AC.currentTime; WIND.g.gain.cancelScheduledValues(t); WIND.g.gain.setValueAtTime(0, t); } // the next frame brings it back: a dip around every impact
+function windDuck() { if (AC && BED.L.cwind) { const g = BED.L.cwind.g.gain, t = AC.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(0, t); } if (!AC || !WIND.g) return; const t = AC.currentTime; WIND.g.gain.cancelScheduledValues(t); WIND.g.gain.setValueAtTime(0, t); } // the next frame brings it back: a dip around every impact
 function sndSlow(on) { if (AC && SLOWLP) SLOWLP.frequency.setTargetAtTime(on ? 3600 : 20000, AC.currentTime, 0.1); } // slow motion: duller, heavier
 // ---------- HD sound (level option hd: true): a city around the car, sounds placed in 3D, wind and engine that build on the drop, a cinematic hammer hit ----------
 // Recordings from Freesound and OpenGameArt (CC0 / CC BY), see CREDITS.md. The city reverb is the echo of a firework bang between buildings.
@@ -2148,7 +2150,7 @@ let clankN = 0, clankWin = 0;
 function clank(v, replay) { // small knocks: a soft dull thud; only big hits ring like metal. Never more than ~4 a second.
   const now = performance.now(); if (!replay) { if (now - lastClank < 150) return; if (now - clankWin > 1000) { clankWin = now; clankN = 0; } if (++clankN > 4) return; lastClank = now; }
   recEvt('k', [v]); if (!AC) return; OUT();
-  if (MODE !== 'lab' && sfxPlay(v < 7 ? 'thud' : ['metal', 'body'], v < 7 ? 0.25 + v * 0.06 : clamp(0.4 + v * 0.03, 0.4, 0.9), rand(0.95, 1.1), 0.25)) return;
+  if (sfxPlay(v < 7 ? 'thud' : ['metal', 'body'], v < 7 ? 0.25 + v * 0.06 : clamp(0.4 + v * 0.03, 0.4, 0.9), rand(0.95, 1.1), 0.25)) return;
   const t = AC.currentTime;
   if (v < 7) { noise(t, 0.09, Math.min(0.05, 0.012 + v * 0.006), 'lowpass', 500, 160, 0.7); return; }
   const vol = Math.min(0.07, 0.02 + v * 0.004), f = rand(260, 420);
