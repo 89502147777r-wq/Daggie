@@ -10,6 +10,6 @@ for f in sys.argv[1:] or ['run-engine.js']:
             if before.count("'") % 2 or before.count('"') % 2 or before.count('`') % 2: continue  # inside a string
             after = line[m.end():]
             if after.strip().startswith(PROSE): continue
-            if re.search(r';\s*(const|let|var|if|for|while|return|[A-Za-z_$][\w.$]*\s*\(|[A-Za-z_$][\w.$\[\]]*\s*[+\-*/]?=)', after) or re.search(r'[\w)\]]\s*=\s*[\w.(\[-][^;]*;|\}\s*$|\)\s*;\s*$', after):
+            if re.search(r'\b(const|let|var)\s+[A-Za-z_$][\w$]*\s*=[^=]', after) or re.search(r';\s*(const|let|var|if|for|while|return|[A-Za-z_$][\w.$]*\s*\(|[A-Za-z_$][\w.$\[\]]*\s*[+\-*/]?=)', after) or re.search(r'[\w)\]]\s*=\s*[\w.(\[-][^;]*;|\}\s*$|\)\s*;\s*$', after):
                 print('%s:%d: code after a // comment: %s' % (f, n, after.strip()[:100])); bad += 1; break
 sys.exit(1 if bad else 0)

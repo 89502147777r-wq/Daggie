@@ -240,5 +240,104 @@
   "license_url": "http://creativecommons.org/licenses/by/4.0/",
   "faces": 4562,
   "kb": 253
+ },
+ "s_saguaro1": {
+  "uid": "124202937a8c45e091f3af365446a087",
+  "title": "Realistic HD Saguaro cactus (27/30)",
+  "author": "PlantCatalog",
+  "author_name": "PlantCatalog",
+  "url": "https://sketchfab.com/3d-models/realistic-hd-saguaro-cactus-2730-124202937a8c45e091f3af365446a087",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 22769,
+  "kb": 1120
+ },
+ "s_saguaro2": {
+  "uid": "5b3c008df0bb4410b1596b5483605a8b",
+  "title": "Realistic HD Saguaro cactus (16/30)",
+  "author": "PlantCatalog",
+  "author_name": "PlantCatalog",
+  "url": "https://sketchfab.com/3d-models/realistic-hd-saguaro-cactus-1630-5b3c008df0bb4410b1596b5483605a8b",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 5700,
+  "kb": 360
+ },
+ "s_shed": {
+  "uid": "be6edd62e55a4f9a99da940fc164a5b9",
+  "title": "Worn Shed PBR Game-Ready",
+  "author": "donnichols",
+  "author_name": "donnichols",
+  "url": "https://sketchfab.com/3d-models/worn-shed-pbr-game-ready-be6edd62e55a4f9a99da940fc164a5b9",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 2086,
+  "kb": 1918
+ },
+ "s_wtower": {
+  "uid": "4e98f8c8fe4e4e9fae250a026974fe99",
+  "title": "Water Tower",
+  "author": "ahmagh2e",
+  "author_name": "Mehdi Shahsavan",
+  "url": "https://sketchfab.com/3d-models/water-tower-4e98f8c8fe4e4e9fae250a026974fe99",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 7524,
+  "kb": 688
+ },
+ "s_rustcar": {
+  "uid": "32498418a32d43a78d0847ce4c55fcb0",
+  "title": "Abandoned Car - BMW E30 Sedan",
+  "author": "roh3d",
+  "author_name": "ROH3D",
+  "url": "https://sketchfab.com/3d-models/abandoned-car-bmw-e30-sedan-32498418a32d43a78d0847ce4c55fcb0",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 13062,
+  "kb": 948
+ },
+ "s_hut": {
+  "uid": "857c02ab61834df8a8d125ccce6fec2a",
+  "title": "Snowy Wooden Hut",
+  "author": "gecko0307",
+  "author_name": "gecko0307",
+  "url": "https://sketchfab.com/3d-models/snowy-wooden-hut-857c02ab61834df8a8d125ccce6fec2a",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 13470,
+  "kb": 1527
+ },
+ "s_snowman": {
+  "uid": "7d683ce4a9c54f158cc73d65a16a9a29",
+  "title": "Snowman",
+  "author": "alixor22",
+  "author_name": "alixor22",
+  "url": "https://sketchfab.com/3d-models/snowman-7d683ce4a9c54f158cc73d65a16a9a29",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 8892,
+  "kb": 449
+ },
+ "s_container": {
+  "uid": "2b787d1a02174d0bbca9eac34eb3a486",
+  "title": "Freight shipping container - Rusted",
+  "author": "sousinho",
+  "author_name": "Sousinho",
+  "url": "https://sketchfab.com/3d-models/freight-shipping-container-rusted-2b787d1a02174d0bbca9eac34eb3a486",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 11098,
+  "kb": 1200
+ },
+ "s_excav": {
+  "uid": "84cd8adb9d104010b10f3fa89e5f6a70",
+  "title": "Excavator",
+  "author": "rhymone",
+  "author_name": "RhymOne",
+  "url": "https://sketchfab.com/3d-models/excavator-84cd8adb9d104010b10f3fa89e5f6a70",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 35240,
+  "kb": 1917
  }
 }
