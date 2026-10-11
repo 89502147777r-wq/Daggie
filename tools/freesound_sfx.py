@@ -39,7 +39,8 @@ WANT = {
     'uihit':    (['cinematic hit short', 'impact punch cinematic', 'trailer hit', 'cinematic impact short'], 0.3, 4, 1.4, -13, 3),
     'uirise':   (['whoosh riser short', 'swoosh up', 'riser whoosh', 'power up whoosh'], 0.4, 4, 1.6, -15, 0),
     'uitick':   (['ui click metallic', 'mechanical click', 'interface click'], 0.03, 1, 0.4, -18, 0),
-    'jump':     (['car jump', 'car suspension bounce', 'car bump', 'car landing'], 0.3, 4, 1.4, -14, 3),
+    'jump':     (['whoosh', 'quick woosh'], 0.3, 4, 1.0, -16, 0),
+    'land':     (['car landing', 'car land impact'], 0.3, 4, 1.2, -14, 4),
     'win':      (['crowd cheer short', 'crowd cheering', 'audience cheer'], 1, 8, 3.0, -16, 0),
     'hdwhoosh': (['heavy whoosh', 'swing whoosh', 'whoosh large', 'pass by whoosh'], 0.4, 4, 2.0, -14, 0),
 }
