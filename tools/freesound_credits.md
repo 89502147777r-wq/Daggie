@@ -58,3 +58,21 @@
 - `sfx/hdwhoosh1.mp3`: [Whoosh Heavy Spear Hammer Large](https://freesound.org/people/EminYILDIRIM/sounds/540300/) by **EminYILDIRIM**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/hdwhoosh2.mp3`: [Very Big Whoosh](https://freesound.org/people/Paul368/sounds/237980/) by **Paul368**, CC0
 - `sfx/hdwhoosh3.mp3`: [FX - Swoosh - Low Pitch](https://freesound.org/people/bolkmar/sounds/475135/) by **bolkmar**, CC0
+- `sfx/uihit1.mp3`: [[SFX) Short Bassy Industrial Hit](https://freesound.org/people/waveplaySFX/sounds/402692/) by **waveplaySFX**, CC0
+- `sfx/uihit2.mp3`: [Sound Design Elements Impact SFX PS 019](https://freesound.org/people/AudioPapkin/sounds/755056/) by **AudioPapkin**, CC0
+- `sfx/uihit3.mp3`: [Stab reverb hit (minimal)](https://freesound.org/people/xkeril/sounds/736850/) by **xkeril**, CC0
+- `sfx/uirise1.mp3`: [ENERGY RISER 2](https://freesound.org/people/magnuswaker/sounds/523057/) by **magnuswaker**, CC0
+- `sfx/uirise2.mp3`: [quick woosh](https://freesound.org/people/florianreichelt/sounds/683101/) by **florianreichelt**, CC0
+- `sfx/uirise3.mp3`: [Swishes_4_strong_fast.wav](https://freesound.org/people/videofueralle/sounds/614170/) by **videofueralle**, CC0
+- `sfx/uitick1.mp3`: [Button Tick](https://freesound.org/people/NenadSimic/sounds/268108/) by **NenadSimic**, CC0
+- `sfx/uitick2.mp3`: [Sci Fi Interface](https://freesound.org/people/Jofae/sounds/367997/) by **Jofae**, CC0
+- `sfx/uitick3.mp3`: [Beep Space Button](https://freesound.org/people/GameAudio/sounds/220206/) by **GameAudio**, CC0
+- `sfx/jump1.mp3`: [Woosh](https://freesound.org/people/florianreichelt/sounds/683096/) by **florianreichelt**, CC0
+- `sfx/jump2.mp3`: [swoosh.wav](https://freesound.org/people/PorkMuncher/sounds/263595/) by **PorkMuncher**, CC0
+- `sfx/jump3.mp3`: [swoosh](https://freesound.org/people/ImATaco/sounds/724527/) by **ImATaco**, CC0
+- `sfx/land1.mp3`: [S019_Landing_Impact_Mono.wav](https://freesound.org/people/P%C3%B3l/sounds/385933/) by **Pól**, CC0
+- `sfx/land2.mp3`: [Jumping on Car Hood](https://freesound.org/people/sanlega/sounds/467230/) by **sanlega**, CC0
+- `sfx/land3.mp3`: [Car Land/Hit](https://freesound.org/people/JustInvoke/sounds/446135/) by **JustInvoke**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/win1.mp3`: [Cheer 1 short.wav](https://freesound.org/people/jayfrosting/sounds/333405/) by **jayfrosting**, CC0
+- `sfx/win2.mp3`: [Short Crowd Cheer.flac](https://freesound.org/people/qubodup/sounds/182571/) by **qubodup**, CC0
+- `sfx/win3.mp3`: [Medium crowd cheering 01](https://freesound.org/people/misjoc/sounds/400587/) by **misjoc**, CC0

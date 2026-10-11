@@ -658,5 +658,203 @@
   "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
   "seconds": 1.02,
   "kb": 12
+ },
+ {
+  "file": "sfx/uihit1.mp3",
+  "id": 402692,
+  "title": "[SFX] Short Bassy Industrial Hit",
+  "author": "waveplaySFX",
+  "url": "https://freesound.org/people/waveplaySFX/sounds/402692/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.88,
+  "kb": 11
+ },
+ {
+  "file": "sfx/uihit2.mp3",
+  "id": 755056,
+  "title": "Sound Design Elements Impact SFX PS 019",
+  "author": "AudioPapkin",
+  "url": "https://freesound.org/people/AudioPapkin/sounds/755056/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.4,
+  "kb": 17
+ },
+ {
+  "file": "sfx/uihit3.mp3",
+  "id": 736850,
+  "title": "Stab reverb hit (minimal)",
+  "author": "xkeril",
+  "url": "https://freesound.org/people/xkeril/sounds/736850/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.4,
+  "kb": 17
+ },
+ {
+  "file": "sfx/uirise1.mp3",
+  "id": 523057,
+  "title": "ENERGY RISER 2",
+  "author": "magnuswaker",
+  "url": "https://freesound.org/people/magnuswaker/sounds/523057/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.58,
+  "kb": 7
+ },
+ {
+  "file": "sfx/uirise2.mp3",
+  "id": 683101,
+  "title": "quick woosh",
+  "author": "florianreichelt",
+  "url": "https://freesound.org/people/florianreichelt/sounds/683101/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.35,
+  "kb": 4
+ },
+ {
+  "file": "sfx/uirise3.mp3",
+  "id": 614170,
+  "title": "Swishes_4_strong_fast.wav",
+  "author": "videofueralle",
+  "url": "https://freesound.org/people/videofueralle/sounds/614170/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.73,
+  "kb": 9
+ },
+ {
+  "file": "sfx/uitick1.mp3",
+  "id": 268108,
+  "title": "Button Tick",
+  "author": "NenadSimic",
+  "url": "https://freesound.org/people/NenadSimic/sounds/268108/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.09,
+  "kb": 1
+ },
+ {
+  "file": "sfx/uitick2.mp3",
+  "id": 367997,
+  "title": "Sci Fi Interface",
+  "author": "Jofae",
+  "url": "https://freesound.org/people/Jofae/sounds/367997/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.4,
+  "kb": 5
+ },
+ {
+  "file": "sfx/uitick3.mp3",
+  "id": 220206,
+  "title": "Beep Space Button",
+  "author": "GameAudio",
+  "url": "https://freesound.org/people/GameAudio/sounds/220206/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.32,
+  "kb": 4
+ },
+ {
+  "file": "sfx/jump1.mp3",
+  "id": 683096,
+  "title": "Woosh",
+  "author": "florianreichelt",
+  "url": "https://freesound.org/people/florianreichelt/sounds/683096/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.0,
+  "kb": 12
+ },
+ {
+  "file": "sfx/jump2.mp3",
+  "id": 263595,
+  "title": "swoosh.wav",
+  "author": "PorkMuncher",
+  "url": "https://freesound.org/people/PorkMuncher/sounds/263595/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.0,
+  "kb": 12
+ },
+ {
+  "file": "sfx/jump3.mp3",
+  "id": 724527,
+  "title": "swoosh",
+  "author": "ImATaco",
+  "url": "https://freesound.org/people/ImATaco/sounds/724527/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.91,
+  "kb": 11
+ },
+ {
+  "file": "sfx/land1.mp3",
+  "id": 385933,
+  "title": "S019_Landing_Impact_Mono.wav",
+  "author": "Pól",
+  "url": "https://freesound.org/people/P%C3%B3l/sounds/385933/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.66,
+  "kb": 8
+ },
+ {
+  "file": "sfx/land2.mp3",
+  "id": 467230,
+  "title": "Jumping on Car Hood",
+  "author": "sanlega",
+  "url": "https://freesound.org/people/sanlega/sounds/467230/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 0.96,
+  "kb": 11
+ },
+ {
+  "file": "sfx/land3.mp3",
+  "id": 446135,
+  "title": "Car Land/Hit",
+  "author": "JustInvoke",
+  "url": "https://freesound.org/people/JustInvoke/sounds/446135/",
+  "license": "CC BY",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "seconds": 0.41,
+  "kb": 5
+ },
+ {
+  "file": "sfx/win1.mp3",
+  "id": 333405,
+  "title": "Cheer 1 short.wav",
+  "author": "jayfrosting",
+  "url": "https://freesound.org/people/jayfrosting/sounds/333405/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 3.0,
+  "kb": 35
+ },
+ {
+  "file": "sfx/win2.mp3",
+  "id": 182571,
+  "title": "Short Crowd Cheer.flac",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/182571/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 3.0,
+  "kb": 35
+ },
+ {
+  "file": "sfx/win3.mp3",
+  "id": 400587,
+  "title": "Medium crowd cheering 01",
+  "author": "misjoc",
+  "url": "https://freesound.org/people/misjoc/sounds/400587/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 3.0,
+  "kb": 35
  }
 ]
