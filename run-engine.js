@@ -1021,7 +1021,7 @@ function addBall(s, ph = 0) { const L = 7.2; frame2(s, 9.2);
   scene.add(ball); OBS.balls.push({ s, L, pivot: new V3(0, 9.0, -s), chain, ball, amp: 1.0, w: 2.1, r: 0.95, near: false, pos: new V3(), ph }); }
 for (const [s, ph] of L.balls) addBall(s, ph);
 // 1b. giant hammer: a steel head on a long shaft, swinging across the road like a pendulum (level option L.hammers = [[s, phase], ...])
-function addHammer(s, ph = 0, k = 1) { const L = 9.6 * k, piv = L + (k > 1 ? 2.3 : 1.6); // the giant one hangs low enough to hit the car frame2(s, piv + 0.3, 9.2 * k);
+function addHammer(s, ph = 0, k = 1) { const L = 9.6 * k, piv = L + (k > 1 ? 2.3 : 1.6); frame2(s, piv + 0.3, 9.2 * k); // the giant one hangs low enough to hit the car
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.17 * k, 0.17 * k, 1, 12), new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.7 })); shaft.castShadow = true; scene.add(shaft);
   const head = new THREE.Group(); const hm = hdMat('metal', [3, 1], { color: 0x6b7078, metalness: 0.9 }) || new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.85, roughness: 0.35 });
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.6, 28), hm); body.rotation.z = Math.PI / 2; body.castShadow = true; head.add(body);
@@ -1976,7 +1976,7 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
 // names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', 'hdboom', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdwhoosh'] : [], MODE === 'lab' ? ['bazooka', 'recoil', 'fieldgun', 'tankgun', 'howitzer', 'w_conc', 'w_armor', 'w_crystal', 'w_gold', 'w_steel', 'w_ply', 'w_oak', 'w_hay', 'w_thick'] : []), started: false };
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'd_glass', 'd_wood', 'd_rock', 'd_metal', 'd_soft', 'hdwind', 'hdboom', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdwhoosh'] : [], MODE === 'lab' ? ['bazooka', 'recoil', 'fieldgun', 'tankgun', 'howitzer', 'w_conc', 'w_armor', 'w_crystal', 'w_gold', 'w_steel', 'w_ply', 'w_oak', 'w_hay', 'w_thick', 'f_glass', 'f_rock', 'f_wood', 'f_metal'] : []), started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
 function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); if (L.hd) hdIrLoad(); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
@@ -2004,11 +2004,12 @@ function winRec() { recEvt('W', []); if (!AC) return false; OUT(); const a = sfx
 function ping(t, f, dur, vol) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o2.type = 'sine'; o.frequency.value = f; o2.frequency.value = f * 2.76; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); const g2 = AC.createGain(); g2.gain.value = 0.35; o.connect(g); o2.connect(g2); g2.connect(g); sendOut(g, 0.35); o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02); }
 
 // ---------- sound that follows the physics: every piece that lands makes its own small sound, and the flight has wind ----------
-const DSND = { tokens: 25, last: 0 };
+const DSND = { tokens: 25, last: 0, rec: 0, k: {} };
 function debrisHit(kind, v, size) { // v: speed at which the piece hit the floor (m/s), size: its largest dimension; at most ~45 of these a second so a phone can follow
   if (!AC) return; const now = AC.currentTime; DSND.tokens = Math.min(10, DSND.tokens + Math.max(0, now - DSND.last) * 22); DSND.last = now; if (DSND.tokens < 1) return; DSND.tokens--; OUT();
   const t = now, vv = clamp(v / 8, 0.2, 1), sz = clamp(size, 0.05, 1.5); SND_WIDE = 0.7;
-  { const n = { glass: 'ice', wood: 'wood', stone: 'stone', metal: 'metal', box: 'thud', barrel: 'metal', soft: 'thud', pin: 'wood', melon: 'thud' }[kind]; if (n && SFX.buf[n] && SFX.buf[n].length) { try { sfxPlay(n, (0.12 + 0.3 * vv) * (n === 'thud' ? 1.3 : 1), rand(1.05, 1.4) / Math.pow(sz * 2 + 0.5, 0.2), 0.25); } finally { SND_WIDE = 0; } return; } } // small pieces: the same recordings, quieter and a little higher
+  { const n = { glass: 'd_glass', wood: 'd_wood', stone: 'd_rock', metal: 'd_metal', box: 'd_soft', barrel: 'd_metal', soft: 'd_soft', pin: 'd_wood', melon: 'd_soft' }[kind]; if (n && SFX.buf[n] && SFX.buf[n].length) { // small pieces landing: short recordings of their own material, sparse and quiet so they never turn into a rattle
+    try { if (v < 3 || now - DSND.rec < 0.14 || now - (DSND.k[n] || -1) < 0.3) return; DSND.rec = now; DSND.k[n] = now; sfxPlay(n, (0.06 + 0.2 * vv) * clamp(sz * 2.5, 0.5, 1.2), rand(0.94, 1.08), 0.15); } finally { SND_WIDE = 0; } return; } }
   try {
     if (kind === 'glass') { ping(t, clamp(4200 * Math.exp(rand(-0.5, 0.5)) / Math.pow(sz * 4, 0.35), 1500, 11000), rand(0.03, 0.12), (0.03 + 0.05 * vv) * 1.6); if (v > 4) noise(t, 0.012, 0.05 * vv, 'highpass', 6000, 3000, 0.7); }
     else if (kind === 'wood') { noise(t, rand(0.025, 0.06), 0.16 * vv, 'bandpass', rand(900, 2200), 600, 3); sweep(t, rand(180, 300), 90, 0.05, 0.1 * vv, 'sine'); }
@@ -3033,7 +3034,7 @@ function stepRide(dt, now) {
     if (h !== null && R.y <= h && R.vy <= 0) {
       const hard = -R.vy; R.grounded = true; R.hop = false; R.y = h; R.slope = 0;
       if (Math.abs(R.roll) > 0.7 || (Math.abs(R.yaw) > 0.9 && R.speed > 16)) { crash('rollover'); return; } // came down on its side
-      if (hard > 5) carHit((hard - 5) * 0.05, Math.sign(R.roll) || 0, 0); // a hard landing bends things landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10);
+      if (hard > 5) carHit((hard - 5) * 0.05, Math.sign(R.roll) || 0, 0); landImpact(hard); if (hard > 13 && !R.slam) setHP(HP - 10); // a hard landing bends things
       if (R.slam) { R.slam = false; for (const n of TNTS) if (n.alive && Math.hypot(n.x - R.x, n.s - R.s) < 3.2) { n.alive = false; n.g.visible = false; explodeAt(new V3(n.x, 0.6, -n.s)); } burst(new V3(R.x, h + 0.1, -R.s), 50, SPARK, 8); pop('SLAM!', 'lilac'); if (!reduceMotion) shake = 0.5; tone(90, 35, 0.35, 'sine', 0.3); for (const c of OBS.cones) if (!c.hit && Math.hypot(c.x0 - R.x, c.s0 - R.s) < 4) { c.hit = true; c.v.set((c.x0 - R.x) * 3, rand(5, 8), (R.s - c.s0) * 2); c.w.set(rand(-12, 12), 0, rand(-12, 12)); } }
       burst(new V3(R.x, h + 0.1, -R.s), 18, SPARK, 5); tone(160, 50, 0.2, 'sine', Math.min(0.3, 0.05 + hard * 0.02));
       if (!reduceMotion) shake = Math.min(0.4, hard * 0.03);
@@ -5622,17 +5623,18 @@ function canHoleR(h, th) { // radius of the hole in direction th: uneven all the
   return h.R * (0.5 + 0.35 * n) * (1 + h.A * saw);
 }
 function canWallMat(map, W) { // the wall's own material: a smooth, pixel-exact hole is cut by the fragment shader
-  const clear = W.kind === 'glass' || W.kind === 'ice' || W.kind === 'window', U = { uCrk: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uCrC: { value: new THREE.Vector4(W.crk[0], W.crk[1], W.crk[2], W.crk[3]) }, uHole: { value: new THREE.Vector4(0, 0, 1, 0) }, uPh: { value: new THREE.Vector4() }, uJag: { value: new THREE.Vector4(W.jag[0], W.jag[1], W.jag[2], W.jag[3]) }, uEdge: { value: new THREE.Color(W.edge) } };
+  const clear = W.kind === 'glass' || W.kind === 'ice' || W.kind === 'window', U = { uCrk: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) }, uCrC: { value: new THREE.Vector4(W.crk[0], W.crk[1], W.crk[2], W.crk[3]) }, uHole: { value: new THREE.Vector4(0, 0, 1, 0) }, uPh: { value: new THREE.Vector4() }, uJag: { value: new THREE.Vector4(W.jag[0], W.jag[1], W.jag[2], W.jag[3]) }, uEdge: { value: new THREE.Color(W.edge) }, uSil: { value: null }, uSilOn: { value: 0 } };
   const mat = new THREE.MeshStandardMaterial({ map, roughness: W.kind === 'glass' || W.kind === 'ice' ? 0.08 : W.kind === 'metal' ? 0.35 : 0.75, metalness: W.kind === 'metal' ? 0.85 : 0.05, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear });
   mat.userData.U = U; const BUMP = { brick: -1.6, stone: 2, concrete: 1.5, oak: 1.2, ply: 1, hay: 1.5, steel: 1.5, gold: 1.6, vault: 2, diamond: 1, window: 0.8 }[W.draw]; if (BUMP) { mat.bumpMap = map; mat.bumpScale = BUMP; } // relief from the picture itself: mortar, grain, rivets, bolts
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLP = position;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vLP; uniform vec4 uHole, uPh, uJag, uCrk[8], uCrC; uniform vec3 uEdge;
+varying vec3 vLP; uniform vec4 uHole, uPh, uJag, uCrk[8], uCrC; uniform vec3 uEdge; uniform sampler2D uSil; uniform float uSilOn;
 float holeR(float th) { float n = 0.5 + 0.22 * sin(2.0 * th + uPh.x) + 0.17 * sin(4.0 * th + uPh.y) + 0.12 * sin(7.0 * th + uPh.z) + 0.09 * sin(11.0 * th + uPh.w); float x = (th + uPh.x) * uJag.y / 6.2831853; float saw = fract(x) * 2.0 - 1.0; return uHole.z * (0.5 + 0.35 * n) * (1.0 + uJag.x * saw); }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
-if (uHole.w > 0.5) {
+if (uSilOn > 0.5) { vec4 sm = texture2D(uSil, vec2((vLP.x + 3.0) / 6.0, vLP.y / 3.8)); if (sm.r > 0.5) discard; float rim = smoothstep(0.02, 0.7, sm.g); diffuseColor.rgb = mix(diffuseColor.rgb, uEdge, rim * 0.6); diffuseColor.rgb *= 1.0 - uJag.z * rim * 0.9; }
+else if (uHole.w > 0.5) {
   vec2 d = vLP.xy - uHole.xy; float dist = length(d), ang = atan(d.y, d.x), r = uHole.w > 1.5 ? uHole.z : holeR(ang);
   if (uHole.w < 1.5) { if (dist < r) discard; float rim = 1.0 - smoothstep(0.0, uJag.w, dist - r); diffuseColor.rgb = mix(diffuseColor.rgb, uEdge, rim * 0.9); float dk = 1.0 - smoothstep(0.0, 0.4, dist - r); diffuseColor.rgb *= 1.0 - uJag.z * dk; }
   else { float cr = 1.0 - smoothstep(0.0, 0.3, dist); diffuseColor.rgb *= 1.0 - uJag.z * cr * 1.3; }
@@ -5843,7 +5845,7 @@ function cannonBuild() {
       else if (W.draw === 'ice' || W.draw === 'diamond') for (const m of [mat, smat]) labSkin(m, 'frost', [CAN_W / 2, CAN_H / 2], { map: false, ns: W.draw === 'ice' ? 0.9 : 0.5 }); // frosted, uneven surface
       else if (W.draw === 'glass2' || W.draw === 'armor') for (const m of [mat, smat]) labSkin(m, 'frost', [CAN_W / 3, CAN_H / 3], { map: false, ns: 0.18 }); } // thick panes are never perfectly flat // painted ones keep their picture, under the relief of steel plate
     if (W.draw === 'diamond') for (const m of [mat, smat]) { m.emissive = new THREE.Color(0x9fd8ff); m.emissiveMap = map; m.emissiveIntensity = 0.35; }
-    const geo = new THREE.BoxGeometry(CAN_W, CAN_H, W.T); geo.translate(0, CAN_H / 2, 0); const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh); grp.userData.panel = mesh;
+    const geo = W.kind === 'metal' ? new THREE.BoxGeometry(CAN_W, CAN_H, W.T, 96, 60, 1) : new THREE.BoxGeometry(CAN_W, CAN_H, W.T); geo.translate(0, CAN_H / 2, 0); const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh); grp.userData.panel = mesh; // metal is fine-meshed: it bends
     { const N = 72, tg = new THREE.BufferGeometry(), idx = []; tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array((N + 1) * 6), 3)); tg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((N + 1) * 4), 2));
       for (let j = 0; j < N; j++) { const a = j * 2; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); } tg.setIndex(idx); const tm = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ map, color: 0x9a9a9a, roughness: 0.9, side: THREE.DoubleSide })); tm.visible = false; tm.frustumCulled = false; grp.add(tm); grp.userData.tube = tm; }
     for (const sx of [-3.1, 3.1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, W.T + 0.2), frameM); p.position.set(sx, 2.0, 0); grp.add(p); }
@@ -5876,10 +5878,11 @@ function cannonBuild() {
   for (let p = 0; p < 24; p++) { const mesh = new THREE.Mesh(G.paper[0], new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); mesh.visible = false; scene.add(mesh); CAN.paper.push({ m: mesh, v: new V3(), w: new V3(), life: 0 }); }
 }
 function canWallSnap(i) { const m = CAN.wallMats[i], U = m.userData.U, w = CAN.walls[i], tb = w.userData.tube, pm = w.userData.panel;
-  return { i, hole: U.uHole.value.toArray(), ph: U.uPh.value.toArray(), jag: U.uJag.value.toArray(), crk: U.uCrk.value.map(v => v.toArray()), panel: pm.visible, shadow: pm.castShadow, tube: tb.visible, tpos: tb.visible ? tb.geometry.attributes.position.array.slice() : null, tuv: tb.visible ? tb.geometry.attributes.uv.array.slice() : null, win: !!CAN.winBroken && m.map === CAN.winBroken }; }
+  return { i, hole: U.uHole.value.toArray(), ph: U.uPh.value.toArray(), jag: U.uJag.value.toArray(), crk: U.uCrk.value.map(v => v.toArray()), panel: pm.visible, shadow: pm.castShadow, tube: tb.visible, tpos: tb.visible ? tb.geometry.attributes.position.array.slice() : null, tuv: tb.visible ? tb.geometry.attributes.uv.array.slice() : null, win: !!CAN.winBroken && m.map === CAN.winBroken, sil: U.uSilOn.value }; }
 function canWallApply(sn) { const i = sn.i, m = CAN.wallMats[i], U = m.userData.U, w = CAN.walls[i], tb = w.userData.tube, pm = w.userData.panel;
   U.uHole.value.fromArray(sn.hole); U.uPh.value.fromArray(sn.ph); U.uJag.value.fromArray(sn.jag); sn.crk.forEach((a, k) => U.uCrk.value[k].fromArray(a)); pm.visible = sn.panel; pm.castShadow = sn.shadow;
   tb.visible = sn.tube; if (sn.tube) { tb.geometry.attributes.position.array.set(sn.tpos); tb.geometry.attributes.uv.array.set(sn.tuv); tb.geometry.attributes.position.needsUpdate = true; tb.geometry.attributes.uv.needsUpdate = true; tb.geometry.computeVertexNormals(); tb.geometry.computeBoundingSphere(); }
+  U.uSilOn.value = sn.sil || 0; if (CANNON_WALLS[i].kind === 'metal') canBulge(i, null, !!sn.sil);
   const want = sn.win ? CAN.winBroken : CAN.mats[i].map; if (m.map !== want) { m.map = want; m.needsUpdate = true; } }
 function canLamp(i, state) { // 0 off, 1 green (broken through), 2 red (hit, did not break)
   const L = CAN.lamps[i]; if (!L) return; L.state = state; L.flash = state ? 1 : 0; if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'lamp', a: [i, state] });
@@ -5896,7 +5899,7 @@ function cannonShow(on) {
   const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L; canGlbUse(lv);
   const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
   CAN.lamps.forEach((l, i) => canLamp(i, 0));
-  CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; for (const c of CAN.wallMats[i].userData.U.uCrk.value) c.set(0, 0, 0, 0); if (CANNON_WALLS[i].draw === 'window') { CAN.wallMats[i].map = CAN.mats[i].map; CAN.wallMats[i].needsUpdate = true; } w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
+  CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; CAN.wallMats[i].userData.U.uSilOn.value = 0; if (CANNON_WALLS[i].kind === 'metal') canBulge(i, null, false); for (const c of CAN.wallMats[i].userData.U.uCrk.value) c.set(0, 0, 0, 0); if (CANNON_WALLS[i].draw === 'window') { CAN.wallMats[i].map = CAN.mats[i].map; CAN.wallMats[i].needsUpdate = true; } w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
   CAN.smoke.clear(); CAN.fire.clear(); CAN.tl = null;
   CAN.glass.clear(); for (const st of CAN.sets) { st.main.clear(); if (st.aux) st.aux.clear(); } for (const p of CAN.paper) { p.m.visible = false; p.life = 0; } CAN.touch = new Array(15).fill(false);
   board.position.set(LAB_LANE, CAN_SPEC[lv - 1].wr + 0.35 - 0.75, MUZZLE_Z - 0.7);
@@ -5955,8 +5958,48 @@ class CanDebris { // one InstancedMesh = one draw call for hundreds of flying pi
 }
 const _cdA = new V3(), _cdQ = new THREE.Quaternion(), _cdZ = new THREE.Matrix4().makeScale(0, 0, 0);
 const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 0.7;
-function canHole(i, px, py, small) { // a hole with an uneven edge, cut in the shader (no pixel steps) and lined with a tube so the wall has thickness
+// ---------- holes in his shape: the pose he had when he went through, only the limbs he still had ----------
+const CAN_SIL = { w: 192, h: 122 }; // 32 px per metre over the 6 x 3.8 m wall
+const CAN_BONES = [['pel', 'waist', 0.2], ['waist', 'chest', 0.23], ['chest', 'neck', 0.17], ['neck', 'top', 0.2], ['chest', 'shL', 0.14], ['chest', 'shR', 0.14], ['shL', 'elL', 0.1], ['elL', 'wrL', 0.085], ['wrL', 'haL', 0.095],
+  ['shR', 'elR', 0.1], ['elR', 'wrR', 0.085], ['wrR', 'haR', 0.095], ['pel', 'hipL', 0.14], ['pel', 'hipR', 0.14], ['hipL', 'knL', 0.12], ['knL', 'anL', 0.1], ['anL', 'toL', 0.085], ['hipR', 'knR', 0.12], ['knR', 'anR', 0.1], ['anR', 'toR', 0.085]];
+function canSilDraw(i, c, I) { // returns { R, G } (hard hole, soft surroundings, 0..1 per pixel) and fills the wall's mask texture
+  const W = CANNON_WALLS[i], w = CAN.walls[i], cut = c.cuts || [], on = nm => !cut.some(q => q.done && q.set.has(I[nm])), ppm = CAN_SIL.w / CAN_W;
+  const grow = W.kind === 'metal' ? 1.12 : W.kind === 'wood' ? 1.3 : W.kind === 'brick' || W.kind === 'stone' ? 1.55 : 1.35, jag = W.kind === 'metal' ? 0.04 : W.kind === 'wood' ? 0.1 : 0.16; // brittle walls break away wider and rougher
+  const cv = w.userData.silC || (w.userData.silC = document.createElement('canvas')); cv.width = CAN_SIL.w; cv.height = CAN_SIL.h; const g = cv.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height); g.fillStyle = '#fff';
+  const P = nm => { const k = I[nm] * 3; return [(c.x[k] - LAB_LANE + CAN_W / 2) * ppm, (1 - c.x[k + 1] / CAN_H) * CAN_SIL.h]; };
+  for (const [a, b, r] of CAN_BONES) { if (!on(a) || !on(b)) continue; const A = P(a), B = P(b), L = Math.hypot(B[0] - A[0], B[1] - A[1]), n = Math.max(2, Math.ceil(L / 2)), R = r * grow * ppm;
+    for (let q = 0; q <= n; q++) { const t = q / n, x = A[0] + (B[0] - A[0]) * t, y = A[1] + (B[1] - A[1]) * t, rr = R * (1 + rand(-jag, jag) * 2); g.beginPath(); g.arc(x + rand(-1, 1) * jag * R, y + rand(-1, 1) * jag * R, Math.max(1.5, rr), 0, TAU); g.fill(); } }
+  { const T = P('top'); if (on('top')) { g.beginPath(); g.arc(T[0], T[1], 0.22 * grow * ppm, 0, TAU); g.fill(); } } // the helmet
+  const N = CAN_SIL.w * CAN_SIL.h, src = g.getImageData(0, 0, CAN_SIL.w, CAN_SIL.h).data, Rm = new Float32Array(N); for (let p = 0; p < N; p++) Rm[p] = src[p * 4] / 255;
+  const blur = (a, rad) => { const b = new Float32Array(N), o = new Float32Array(N), Wd = CAN_SIL.w, Hd = CAN_SIL.h; // two box passes
+    for (let y = 0; y < Hd; y++) { let s = 0; for (let x = -rad; x <= rad; x++) s += a[y * Wd + clamp(x, 0, Wd - 1)]; for (let x = 0; x < Wd; x++) { b[y * Wd + x] = s / (2 * rad + 1); s += a[y * Wd + Math.min(Wd - 1, x + rad + 1)] - a[y * Wd + Math.max(0, x - rad)]; } }
+    for (let x = 0; x < Wd; x++) { let s = 0; for (let y = -rad; y <= rad; y++) s += b[clamp(y, 0, Hd - 1) * Wd + x]; for (let y = 0; y < Hd; y++) { o[y * Wd + x] = s / (2 * rad + 1); s += b[Math.min(Hd - 1, y + rad + 1) * Wd + x] - b[Math.max(0, y - rad) * Wd + x]; } } return o; };
+  const G1 = blur(Rm, 6), G = blur(G1, 6), img = g.createImageData(CAN_SIL.w, CAN_SIL.h);
+  for (let p = 0; p < N; p++) { img.data[p * 4] = Rm[p] * 255; img.data[p * 4 + 1] = Math.min(1, G[p] * 2.2) * 255; img.data[p * 4 + 3] = 255; } g.putImageData(img, 0, 0);
+  const U = CAN.wallMats[i].userData.U; if (!U.uSil.value) { U.uSil.value = new THREE.CanvasTexture(cv); U.uSil.value.minFilter = THREE.LinearFilter; U.uSil.value.generateMipmaps = false; } else U.uSil.value.needsUpdate = true;
+  return { R: Rm, G };
+}
+const canSilAt = (S, arr, x, y) => { const px = clamp(Math.round((x + CAN_W / 2) / CAN_W * CAN_SIL.w), 0, CAN_SIL.w - 1), py = clamp(Math.round((1 - y / CAN_H) * CAN_SIL.h), 0, CAN_SIL.h - 1); return arr[py * CAN_SIL.w + px]; };
+function canBulge(i, S, on) { // metal walls are punched out, not broken: the plate around his shape is pushed out the back
+  const pm = CAN.walls[i].userData.panel, ge = pm.geometry, pa = ge.attributes.position; if (!ge.userData.p0) ge.userData.p0 = pa.array.slice();
+  if (!on) { pa.array.set(ge.userData.p0); pa.needsUpdate = true; ge.computeVertexNormals(); return; }
+  if (S) { const a = ge.userData.p0.slice(), T = CANNON_WALLS[i].T; for (let k = 0; k < a.length; k += 3) { const b = canSilAt(S, S.G, a[k], a[k + 1]) * (1 - canSilAt(S, S.R, a[k], a[k + 1]) * 0.3); if (b <= 0.01) continue; const th = Math.atan2(a[k + 1] - 1.9, a[k]), petal = 0.7 + 0.45 * Math.abs(Math.sin(th * 5 + i)); a[k + 2] -= Math.pow(b, 0.8) * (1.15 + T * 2) * petal; } ge.userData.pB = a; } // torn petals: some bent further back than others
+  if (ge.userData.pB) { pa.array.set(ge.userData.pB); pa.needsUpdate = true; ge.computeVertexNormals(); ge.computeBoundingSphere(); }
+}
+function canSilHole(i, W, px, py, body) {
+  const S = canSilDraw(i, body.c, body.I), w = CAN.walls[i], m = CAN.wallMats[i], U = m.userData.U, gone = [], edge = [];
+  for (let q = 0; q < 4000 && gone.length < 70; q++) { const x = rand(-3, 3), y = rand(0, CAN_H); if (canSilAt(S, S.R, x, y) > 0.5) gone.push([x, y]); }
+  for (let q = 0; q < 4000 && edge.length < 40; q++) { const x = rand(-3, 3), y = rand(0, CAN_H), r = canSilAt(S, S.R, x, y), gg = canSilAt(S, S.G, x, y); if (r < 0.5 && gg > 0.35) edge.push([x, y]); }
+  if (!gone.length) gone.push([px, py]);
+  const rad = th => { let r = 0.05; while (r < 3 && canSilAt(S, S.R, px + Math.cos(th) * r, py + Math.sin(th) * r) > 0.5) r += 0.05; return Math.max(0.2, r); };
+  U.uSilOn.value = 1; U.uHole.value.set(px, py, W.R, 1); w.userData.tube.visible = false; w.userData.panel.castShadow = false;
+  if (W.draw === 'window') { m.map = CAN.winBroken; m.needsUpdate = true; } else canCracks(i, px, py, 7, 0.9 + W.R * 0.55, false);
+  if (W.kind === 'metal') canBulge(i, S, true);
+  return { gone, px, py, rad, edge };
+}
+function canHole(i, px, py, small, body) { // a hole with an uneven edge, cut in the shader (no pixel steps) and lined with a tube so the wall has thickness; with body: a hole in his shape
   const W = CANNON_WALLS[i], full = (W.draw === 'glass' || W.draw === 'glass2') && !small;
+  if (body && !full && !small && CAN.wallMats[i]) return canSilHole(i, W, px, py, body);
   px = clamp(px, -2.3, 2.3); py = clamp(py, 0.7, 3.1);
   const h = { px, py, R: W.R * (small ? 0.45 : 1), ph: [rand(0, 6.3), rand(0, 6.3), rand(0, 6.3), rand(0, 6.3)], A: W.jag[0], F: W.jag[1] + (Math.random() < 0.5 ? 0 : 1), full }; h.rad = th => canHoleR(h, th);
   const gone = [], cnt = full ? 160 : clamp(Math.round(Math.PI * h.R * h.R * 6), 8, 70);
@@ -5998,7 +6041,7 @@ function canDebris(W, i, h, stuck) { // what a broken wall turns into
     else { const sz = rand(0.07, 0.2); main.spawn(px, py, z + rand(-0.1, 0.1), ux * sp, uy * sp + rand(0, 3), vz, sz * rand(0.7, 1.4), sz * rand(0.6, 1.2), sz * rand(0.7, 1.3), life); if (W.kind === 'ice' && Math.random() < 0.5) gl.spawn(px, py, z, ux * sp, uy * sp + rand(0, 2), vz, rand(0.05, 0.18), rand(0.05, 0.18), 1, life, 0xeaf8ff); }
   }
   if (stuck) return;
-  const T = W.T, ring = (k, fn) => { for (let q = 0; q < k; q++) { const th = rand(0, 6.283), r = h.rad(th) * rand(0.92, 1.04); fn(ix + Math.cos(th) * r, iy + Math.sin(th) * r, th); } };
+  const T = W.T, ring = (k, fn) => { for (let q = 0; q < k; q++) { if (h.edge && h.edge.length) { const [x, y] = pick(h.edge); fn(x, y, Math.atan2(y - iy, x - ix)); continue; } const th = rand(0, 6.283), r = h.rad(th) * rand(0.92, 1.04); fn(ix + Math.cos(th) * r, iy + Math.sin(th) * r, th); } };
   if (W.kind === 'wood') ring(14, (x, y) => set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z - T / 2 - rand(0.05, 0.25), 0, 0, 0, rand(0.5, 1.2), rand(0.5, 1.2), rand(0.35, 0.9), 999, undefined, true)); // splintered teeth around the hole, pointing out the back
   else if (W.kind === 'metal') ring(9, (x, y, th) => { set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z - T / 2 - 0.05, 0, 0, 0, 0.9, 0.9, 1, 999, undefined, true, [Math.sin(th) * 0.9, -Math.cos(th) * 0.9, th]); }); // torn petals bent outwards
   else if (W.kind === 'brick' || W.kind === 'stone') ring(8, (x, y) => set.main.spawn(LAB_LANE + x, clamp(y, 0.1, 3.8), z + rand(-0.1, 0.1), 0, 0, 0, rand(0.08, 0.16), rand(0.08, 0.16), rand(0.08, 0.16), 999, undefined, true));
@@ -6011,9 +6054,13 @@ function canDive(S) { // head first, arms stretched forward, legs trailing: the 
     for (const [a, b] of [['sh', 'el'], ['el', 'wr'], ['wr', 'ha']]) { const len = Math.hypot(rest[a + sd][0] - rest[b + sd][0], rest[a + sd][1] - rest[b + sd][1], rest[a + sd][2] - rest[b + sd][2]), dx = side * 0.14, dy = -0.03, dz = -1, dl = Math.hypot(dx, dy, dz); prev = P[b + sd] = [prev[0] + dx / dl * len, prev[1] + dy / dl * len, prev[2] + dz / dl * len]; } }
   for (const n of RAG_NAMES) { const k = I[n] * 3; c.x[k] = c.o[k] = P[n][0]; c.x[k + 1] = c.o[k + 1] = P[n][1]; c.x[k + 2] = c.o[k + 2] = P[n][2]; }
 }
-function cannonSpin(c, I, wz, wx) { // wind him up: roll about the flight line (wz) and a bit of somersault (wx), rad/s
-  const pk = I.pel * 3, cx = c.x[pk], cy = c.x[pk + 1], cz = c.x[pk + 2];
-  for (let q = 0; q < c.n; q++) { const k = q * 3, rx = c.x[k] - cx, ry = c.x[k + 1] - cy, rz = c.x[k + 2] - cz; c.o[k] -= (-wz * ry) / 240; c.o[k + 1] -= (wz * rx - wx * rz) / 240; c.o[k + 2] -= (wx * ry) / 240; }
+function cannonSpin(c, I, wz, wx, wy) { // spin him: roll about the flight line (wz), somersault (wx), turn about the vertical (wy), rad/s
+  wy = wy || 0; const pk = I.pel * 3, cx = c.x[pk], cy = c.x[pk + 1], cz = c.x[pk + 2];
+  for (let q = 0; q < c.n; q++) { const k = q * 3, rx = c.x[k] - cx, ry = c.x[k + 1] - cy, rz = c.x[k + 2] - cz; c.o[k] -= (-wz * ry + wy * rz) / 240; c.o[k + 1] -= (wz * rx - wx * rz) / 240; c.o[k + 2] -= (wx * ry - wy * rx) / 240; } // w x r
+}
+function cannonTumble(c, I, a) { // a hit throws him into a new, lopsided tumble: a random axis, one limb whipped harder than the rest
+  const roll = canRoll(c, I); cannonSpin(c, I, rand(-1, 1) * a - roll * 0.35, rand(-1, 1) * a, rand(-1, 1) * a * 0.8); // and it eats into the roll he had, so he never settles into a spinning star
+  cannonFlail(c, I, rand(0.6, 1.4)); const nm = pick(['haL', 'haR', 'toL', 'toR', 'knL', 'knR', 'top']), k = I[nm] * 3; c.o[k] -= rand(-6, 6) / 240; c.o[k + 1] -= rand(-6, 6) / 240; c.o[k + 2] -= rand(-3, 3) / 240;
 }
 function cannonKick(c, amt) { for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k] -= rand(-0.7, 0.7) * amt / 240; c.o[k + 1] -= rand(-0.7, 0.7) * amt / 240; } }
 function cannonShardStep(dt) {
@@ -6024,6 +6071,8 @@ function cannonShardStep(dt) {
 }
 function wallSound(W, i) {
   windDuck(); duckTail(); tone(480 + i * 55, 480 + i * 55, 0.14, 'sine', 0.05); // a rising ding for every wall: the satisfying count
+  { const F = { glass: 'f_glass', window: 'f_glass', glass2: 'f_glass', armor: 'f_glass', ice: 'f_glass', diamond: 'f_glass', ply: 'f_wood', oak: 'f_wood', brick: 'f_rock', stone: 'f_rock', concrete: 'f_rock', steel: 'f_metal', gold: 'f_metal', vault: 'f_metal' }[W.draw];
+    if (F) setTimeout(() => sfxPlay(F, 0.4, rand(0.95, 1.05), 0.3), 220); } // then the pieces of this wall raining down: one sound for all of them
   const d = W.draw, S = { glass: [['glass'], 1, 1], window: [['window', 'glass'], 1, 1.05], glass2: [['w_thick', 'glass'], 1, 1], armor: [['w_armor', 'glass'], 1, 1], hay: [['w_hay', 'hay', 'wood'], 0.9, 1], ply: [['w_ply', 'wood'], 1, 1], oak: [['w_oak', 'wood'], 1, 1], brick: [['brick'], 1, 1], stone: [['stone'], 1, 1], concrete: [['w_conc', 'stone'], 1, 1], ice: [['ice'], 1, 1], diamond: [['w_crystal', 'ice'], 1, 1], steel: [['w_steel', 'metal'], 1, 1], gold: [['w_gold', 'metal'], 1, 1], vault: [['vault', 'metal'], 1, 0.6] }[d];
   if (S && sfxPlay(S[0], S[1], S[2], 0.25)) return; if (!AC) return; OUT(); const t = AC.currentTime;
   if (d === 'glass' || d === 'window') { glassSound(d === 'window' ? 1.05 : 1); if (d === 'window') matSound('wood', 0.5, 1.4); }
@@ -6051,6 +6100,7 @@ function cannonDrive(c, I, dt) { // keeps his body at the model speed: the speed
   const C = CAN; if (C.stuck >= 0 || C.next >= 15) return;
   const z = (c.x[I.pel * 3 + 2] + c.x[I.chest * 3 + 2] + c.x[I.waist * 3 + 2]) / 3; if (C.lastZ === undefined) C.lastZ = z; const dz = Math.max(0, C.lastZ - z); C.lastZ = z;
   C.vmph *= Math.exp(-CAN_KD * dz);
+  C.turb = (C.turb || 0) - dt; if (C.turb <= 0) { C.turb = rand(0.18, 0.45); const roll = canRoll(c, I); cannonSpin(c, I, rand(-1.6, 1.6) - (Math.abs(roll) > 7 ? roll * 0.15 : 0), rand(-1.4, 1.4), rand(-1.2, 1.2)); cannonFlail(c, I, rand(0.3, 0.8)); } // the air buffets him: the tumble keeps changing
   let cur = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; cur += -(c.x[k + 2] - c.o[k + 2]) * 240; } cur /= 3;
   const d = cannonVis(C.vmph) - cur; for (let q = 0; q < c.n; q++) c.o[q * 3 + 2] += d / 240;
   let y = 0, vy = 0; for (const nm of ['pel', 'waist', 'chest']) { const k = I[nm] * 3; y += c.x[k + 1]; vy += (c.x[k + 1] - c.o[k + 1]) * 240; } y /= 3; vy /= 3; // height keeping: the kicks and the spin used to lift him up over the top of the walls
@@ -6078,13 +6128,13 @@ function cannonWalls() {
     if (v2 > 0) { // through: he slows down by what the wall took, a hole opens, pieces fly
       const r = cannonVis(Math.sqrt(v2)) / cannonVis(vEff); C.vmph = Math.sqrt(v2);
       for (let q = 0; q < c.n; q++) { const k = q * 3; c.o[k + 2] = c.x[k + 2] - (c.x[k + 2] - c.o[k + 2]) * r; }
-      C.broken++; C.next++; canLamp(i, 1); const h = canHole(i, sx, sy); canDebris(W, i, h, false);
+      C.broken++; C.next++; canLamp(i, 1); const h = canHole(i, sx, sy, false, { c, I }); canDebris(W, i, h, false);
       for (const p of CAN.posters) if (p.wi === i && p.alive && Math.hypot(p.x - h.px, p.y - h.py) < W.R + 0.7) { p.alive = false; p.mesh.visible = false; if (CREC.on) CREC.ev.push({ t: CREC.t, k: 'poster', a: [CAN.posters.indexOf(p)] }); canPaper(i, p, 9); burst(new V3(LAB_LANE + p.x, p.y, cannonWallZ(i)), 10, [[4, 4, 4]], 3); }
       const pal = CAN_PAL[W.kind] || SPARK; burst(new V3(sx + LAB_LANE, h.py, cannonWallZ(i)), 30 + Math.round(W.c / 6000), pal, 5 + W.c / 40000); wallSound(W, i); if (CREC.on) { CREC.ev.push({ t: CREC.t, k: 'ws', a: [i] }); CREC.ev.push({ t: CREC.t, k: 'wall', a: canWallSnap(i) }); }
       if (W.c >= 10000 && Math.random() < clamp(W.c / 140000, 0.12, 0.85)) { const g = pick(['armL', 'armR', 'legL', 'legR'].filter(x => !c.broken.includes(x))); if (g) c.breakGroup(g); } // the wall tears something off him
       if (W.c >= 100000 && Math.random() < 0.35 && !c.broken.includes('head')) c.breakGroup('head');
       cannonKick(c, Math.min(2.4, 0.3 + W.c / 70000));
-      { const n = C.broken, target = Math.min(22, 6 + 1.9 * n); if (!C.sd) C.sd = Math.random() < 0.5 ? -1 : 1; const add = Math.max(2.5, target - Math.abs(canRoll(c, I))); C.spun = target; cannonSpin(c, I, C.sd * add, rand(-1, 1) * (0.8 + 0.2 * n)); cannonFlail(c, I, 1 + 0.5 * n); } // every wall winds him up more: faster roll and wilder flailing
+      cannonTumble(c, I, clamp(3 + W.c / 40000 + C.broken * 0.25, 3, 9)); // every wall knocks him into a different tumble
       if (W.c >= 25000) hitStopUntil = performance.now() + 45; if (!reduceMotion) shake = Math.max(shake, 0.12 + W.c / 400000);
       lastPop = 0; pop(W.n + '!');
     } else { // stopped inside this wall
