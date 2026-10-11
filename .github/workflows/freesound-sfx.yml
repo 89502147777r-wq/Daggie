@@ -24,4 +24,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A sfx tools
           git diff --cached --quiet || git commit -m "Freesound: candidates or chosen sounds (CC0 / CC BY)"
-          git push
+          git pull --rebase -q origin "$GITHUB_REF_NAME" && git push
