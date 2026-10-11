@@ -220,3 +220,13 @@ Loops (roll, cart, road, drone, amb*) are made seamless and written twice; the g
 - `models/s_spruce.glb` (snow, spruce): [Spruce tree](https://sketchfab.com/3d-models/spruce-tree-7a5db417827244d98827459bce0cc944) by **intice184**, CC Attribution
 - `models/s_fir.glb` (snow, fir): [Fir tree](https://sketchfab.com/3d-models/fir-tree-0965de5def1342cd8b8b1a0fa5643e27) by **intice184**, CC Attribution
 - `models/s_dozer.glb` (quarry, bulldozer): [Bulldozer Photogrammetry](https://sketchfab.com/3d-models/bulldozer-photogrammetry-baa53594134f4a4f99d96ce4ba25492e) by **bertanbaday**, CC Attribution
+- `models/s_saguaro1.glb` (desert, saguaro): [Realistic HD Saguaro cactus (27/30)](https://sketchfab.com/3d-models/realistic-hd-saguaro-cactus-2730-124202937a8c45e091f3af365446a087) by **PlantCatalog**, CC Attribution
+- `models/s_saguaro2.glb` (desert, saguaro): [Realistic HD Saguaro cactus (16/30)](https://sketchfab.com/3d-models/realistic-hd-saguaro-cactus-1630-5b3c008df0bb4410b1596b5483605a8b) by **PlantCatalog**, CC Attribution
+- `models/s_shed.glb` (desert, shack): [Worn Shed PBR Game-Ready](https://sketchfab.com/3d-models/worn-shed-pbr-game-ready-be6edd62e55a4f9a99da940fc164a5b9) by **donnichols**, CC Attribution
+- `models/s_wtower.glb` (desert, water tower): [Water Tower](https://sketchfab.com/3d-models/water-tower-4e98f8c8fe4e4e9fae250a026974fe99) by **ahmagh2e**, CC Attribution
+- `models/s_rustcar.glb` (desert, abandoned car): [Abandoned Car - BMW E30 Sedan](https://sketchfab.com/3d-models/abandoned-car-bmw-e30-sedan-32498418a32d43a78d0847ce4c55fcb0) by **roh3d**, CC Attribution
+- `models/s_hut.glb` (snow, log hut): [Snowy Wooden Hut](https://sketchfab.com/3d-models/snowy-wooden-hut-857c02ab61834df8a8d125ccce6fec2a) by **gecko0307**, CC Attribution
+- `models/s_snowman.glb` (snow, snowman): [Snowman](https://sketchfab.com/3d-models/snowman-7d683ce4a9c54f158cc73d65a16a9a29) by **alixor22**, CC Attribution
+- `models/s_container.glb` (quarry, shipping container): [Freight shipping container - Rusted](https://sketchfab.com/3d-models/freight-shipping-container-rusted-2b787d1a02174d0bbca9eac34eb3a486) by **sousinho**, CC Attribution
+- `models/s_excav.glb` (quarry, excavator): [Excavator](https://sketchfab.com/3d-models/excavator-84cd8adb9d104010b10f3fa89e5f6a70) by **rhymone**, CC Attribution
+- The parked cars of the night city reuse `models/o_car.glb` (above), repainted.
