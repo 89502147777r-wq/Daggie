@@ -182,3 +182,8 @@ Loops (roll, cart, road, drone, amb*) are made seamless and written twice; the g
 - `sfx/hdengine1.mp3`, `sfx/hdengine2.mp3`: [racing car engine sound loops](https://opengameart.org/content/racing-car-engine-sound-loops) by **domasx2**
 - `sfx/hdcity_ir.mp3` (the city reverb): the echo tail of two outdoor firework bangs from
   [25 CC0 bang / firework SFX](https://opengameart.org/content/25-cc0-bang-firework-sfx) by **rubberduck**, with the bang itself removed
+- Debris and shard sounds by **rubberduck** (CC0), trimmed and levelled:
+  - `sfx/d_glass1-3.mp3`, `sfx/d_rock1-3.mp3`, `sfx/d_metal1-2.mp3`, `sfx/d_wood3.mp3`, `sfx/f_glass1-2.mp3`, `sfx/f_rock1-2.mp3`, `sfx/f_wood1-2.mp3`, `sfx/f_metal1-2.mp3`:
+    [75 CC0 breaking / falling / hit sfx](https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx)
+  - `sfx/d_wood1-2.mp3`, `sfx/d_metal3.mp3`: [100 CC0 metal and wood SFX](https://opengameart.org/content/100-cc0-metal-and-wood-sfx)
+  - `sfx/d_soft1-2.mp3`: [100 CC0 SFX](https://opengameart.org/content/100-cc0-sfx)
