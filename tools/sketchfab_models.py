@@ -2,7 +2,12 @@
 # convert them to compact .glb files (WebP textures <= 1024 px, no Draco) and write models/info.json for CREDITS.md.
 # Runs in GitHub Actions (.github/workflows/sketchfab-models.yml). Picks: tools/sketchfab_picks.json {name: uid}.
 import json, os, subprocess, sys, urllib.request, zipfile, glob, shutil
-TOKEN = os.environ['SKETCHFAB_API_TOKEN']
+TOKEN = os.environ.get('SKETCHFAB_API_TOKEN', '').strip().strip('"').strip("'")
+print('token length', len(TOKEN), 'hex' if all(c in '0123456789abcdef' for c in TOKEN) else 'not hex')
+if not TOKEN: raise SystemExit('SKETCHFAB_API_TOKEN is empty: add it under Settings > Secrets and variables > Actions')
+try:
+    with urllib.request.urlopen(urllib.request.Request('https://api.sketchfab.com/v3/me', headers={'Authorization': 'Token ' + TOKEN}), timeout=30) as r: print('token ok for user', json.load(r).get('username'))
+except Exception as e: raise SystemExit('Sketchfab does not accept the token (%s): copy it again from sketchfab.com/settings/password' % e)
 OK = ('CC Attribution', 'CC0', 'Public Domain')
 picks = json.load(open('tools/sketchfab_picks.json'))
 os.makedirs('models', exist_ok=True)
