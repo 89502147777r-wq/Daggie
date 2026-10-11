@@ -105,3 +105,29 @@
 - `sfx/recoil1.mp3`: [BGM 71 TOW Missile Launch 1 (less echo)](https://freesound.org/people/qubodup/sounds/67542/) by **qubodup**, CC0
 - `sfx/recoil2.mp3`: [C4 Rocket Launch (M1 Assault Breacher Vehicle)](https://freesound.org/people/qubodup/sounds/159610/) by **qubodup**, CC0
 - `sfx/recoil3.mp3`: [AGM-114 Hellfire Rocket Missile Launch.flac](https://freesound.org/people/qubodup/sounds/162368/) by **qubodup**, CC0
+- `sfx/w_conc1.mp3`: [Sledgehammer - using to break a block of concrete.](https://freesound.org/people/SoundsnapFX/sounds/583964/) by **SoundsnapFX**, CC BY ([http://creativecommons.org/licenses/by/3.0/](http://creativecommons.org/licenses/by/3.0/))
+- `sfx/w_conc2.mp3`: [PieceofConcrete01.wav](https://freesound.org/people/kingsrow/sounds/194688/) by **kingsrow**, CC0
+- `sfx/w_conc3.mp3`: [PieceofConcrete02.wav](https://freesound.org/people/kingsrow/sounds/194687/) by **kingsrow**, CC0
+- `sfx/w_armor1.mp3`: [Hard Glass Impact](https://freesound.org/people/deleted_user_3656686/sounds/418194/) by **deleted_user_3656686**, CC0
+- `sfx/w_armor2.mp3`: [Breaking Glass 2.mp3](https://freesound.org/people/FunWithSound/sounds/390721/) by **FunWithSound**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_armor3.mp3`: [Breaking Glass 25.mp3](https://freesound.org/people/FunWithSound/sounds/390723/) by **FunWithSound**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_crystal1.mp3`: [Shattering Chandelier.mp3](https://freesound.org/people/matt_ratz/sounds/541601/) by **matt_ratz**, CC0
+- `sfx/w_crystal2.mp3`: [Vidrios_Rotos.wav](https://freesound.org/people/Thingy17/sounds/470898/) by **Thingy17**, CC BY ([http://creativecommons.org/licenses/by/3.0/](http://creativecommons.org/licenses/by/3.0/))
+- `sfx/w_crystal3.mp3`: [Breaking Glass 3](https://freesound.org/people/AleXZavesa/sounds/853697/) by **AleXZavesa**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_gold1.mp3`: [Metallic Slam (Anvil)](https://freesound.org/people/OOF9/sounds/841804/) by **OOF9**, CC0
+- `sfx/w_gold2.mp3`: [Iron Hits.wav](https://freesound.org/people/Mrthenoronha/sounds/371353/) by **Mrthenoronha**, CC0
+- `sfx/w_gold3.mp3`: [long-metal-hit-02.wav](https://freesound.org/people/newagesoup/sounds/337831/) by **newagesoup**, CC0
+- `sfx/w_steel1.mp3`: [Big stereo metal hit](https://freesound.org/people/LPA134/sounds/329515/) by **LPA134**, CC0
+- `sfx/w_steel2.mp3`: [Steel_Sheet_Bang.wav](https://freesound.org/people/mickyman5000/sounds/340492/) by **mickyman5000**, CC0
+- `sfx/w_steel3.mp3`: [Steel_Sheet_Hitting.wav](https://freesound.org/people/mickyman5000/sounds/340494/) by **mickyman5000**, CC0
+- `sfx/w_ply1.mp3`: [JBF Plywood Breaking 2.aif](https://freesound.org/people/cmusounddesign/sounds/96167/) by **cmusounddesign**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_ply2.mp3`: [JBF Plywood Breaking 1.aif](https://freesound.org/people/cmusounddesign/sounds/96166/) by **cmusounddesign**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_ply3.mp3`: [wooden plank snap.wav](https://freesound.org/people/Tomlija/sounds/98056/) by **Tomlija**, CC BY ([http://creativecommons.org/licenses/by/3.0/](http://creativecommons.org/licenses/by/3.0/))
+- `sfx/w_oak1.mp3`: [Boards Fall 4](https://freesound.org/people/AleXZavesa/sounds/853904/) by **AleXZavesa**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_oak2.mp3`: [Boards Fall 1](https://freesound.org/people/AleXZavesa/sounds/853901/) by **AleXZavesa**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_oak3.mp3`: [Smash.ogg](https://freesound.org/people/egomassive/sounds/536777/) by **egomassive**, CC0
+- `sfx/w_hay1.mp3`: [Dry Grass Crunch.wav](https://freesound.org/people/worthahep88/sounds/319206/) by **worthahep88**, CC0
+- `sfx/w_hay2.mp3`: [Bush sound effect](https://freesound.org/people/darceyprodanovic/sounds/833454/) by **darceyprodanovic**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_thick1.mp3`: [A glass door shatters and breaks](https://freesound.org/people/justiningo/sounds/437623/) by **justiningo**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/w_thick2.mp3`: [Slow Motion Glass Shatter](https://freesound.org/people/bevibeldesign/sounds/349905/) by **bevibeldesign**, CC0
+- `sfx/w_thick3.mp3`: [Glass.ogg](https://freesound.org/people/egomassive/sounds/536763/) by **egomassive**, CC0
