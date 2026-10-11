@@ -4528,19 +4528,19 @@ function obsSound(kind, st, v) {
   else if (kind === 'pins') for (let i = 0; i < 12; i++) { const tt = t + Math.pow(Math.random(), 1.4) * 0.7, f = rand(700, 1400); noise(tt, 0.04, 0.2, 'bandpass', f, f * 0.6, 3); ping(tt, f * 1.3, 0.05, 0.04); }
 }
 
-function mixPickVis(on) { const el = MIX.el; if (!el) { if (!on || LAB.machine !== 'mix') return; mixPickUI(); } MIX.el.style.display = on && LAB.machine === 'mix' ? 'flex' : 'none'; }
+function mixPickVis(on) { const can = LAB.machine === 'cannon', show = on && (LAB.machine === 'mix' || can); if (!MIX.el) { if (!show) return; mixPickUI(); } MIX.el.style.display = show ? 'flex' : 'none'; for (const c of MIX.cards || []) if (c.k !== 'loc') c.el.style.display = can ? 'none' : 'flex'; } // the wall cannon picks only its place
 function mixPickUI() { // three small cards in one row: VEHICLE, OBSTACLE, PLACE; tap the arrows or the name to change
   const el = document.createElement('div'); el.id = 'mixPick'; el.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 118px);z-index:8;display:none;gap:6px;width:min(95vw,440px);font:700 12px "Chakra Petch",ui-sans-serif,sans-serif;color:#fff;pointer-events:auto';
   const save = () => { try { localStorage.setItem('daggie-mix', JSON.stringify({ veh: MIX.veh, obs: MIX.obs, loc: MIX.loc, txt: MIX.txt })); } catch (x2) { /* private mode */ } };
   const mk = (key, cap, list, names) => { const card = document.createElement('div'); card.style.cssText = 'flex:1;min-width:0;display:flex;align-items:stretch;background:rgba(14,16,30,.74);border:1.5px solid rgba(255,255,255,.5);border-radius:12px;overflow:hidden'; const mid = document.createElement('div'); mid.style.cssText = 'flex:1;min-width:0;text-align:center;padding:5px 2px;line-height:1.12;display:flex;flex-direction:column;justify-content:center;gap:1px;cursor:pointer;user-select:none;-webkit-user-select:none';
     const go = d => { const i = (list.indexOf(MIX[key]) + d + list.length) % list.length; MIX[key] = list[i]; save(); mixApply(); };
     const arrow = d => { const x = document.createElement('div'); x.textContent = d < 0 ? '\u2039' : '\u203a'; x.style.cssText = 'width:24px;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(255,255,255,.13);user-select:none;-webkit-user-select:none;cursor:pointer'; x.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); go(d); }); return x; };
-    mid.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); go(1); }); card.append(arrow(-1), mid, arrow(1)); el.appendChild(card);
+    mid.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); go(1); }); card.append(arrow(-1), mid, arrow(1)); el.appendChild(card); (MIX.cards || (MIX.cards = [])).push({ k: key, el: card });
     return () => { mid.innerHTML = '<span style="font-size:9px;opacity:.72;letter-spacing:1.4px">' + cap + '</span><span style="font-size:11.5px;letter-spacing:.2px">' + names(MIX[key]) + '</span>'; }; };
   MIX.upd = [mk('veh', 'VEHICLE', VEH_ORDER, k => VEH_DEFS[k].name), mk('obs', 'OBSTACLE', OBS_ORDER, k => OBST[k].name), mk('loc', 'PLACE', LOC.order, k => LOCS[k].name)];
   stage.appendChild(el); MIX.el = el; MIX.upd.forEach(f => f());
 }
-function mixApply() { MIX.upd && MIX.upd.forEach(f => f()); if (LAB.machine !== 'mix') return; if (MIX.obs === 'hatch') hatchLoad(); locApply(MIX.loc); labVehicle(MIX.veh); obsApply(); board.visible = true; labCartReset(); }
+function mixApply() { MIX.upd && MIX.upd.forEach(f => f()); if (LAB.machine === 'cannon') { locApply(MIX.loc); return; } if (LAB.machine !== 'mix') return; if (MIX.obs === 'hatch') hatchLoad(); locApply(MIX.loc); labVehicle(MIX.veh); obsApply(); board.visible = true; labCartReset(); }
 function warmDebris() { // every part that can fly is shown for one compile, so the shaders exist before the crash
   try { const hid = [], on = m => { if (m && !m.visible) { hid.push(m); m.visible = true; } }; for (const d of CDEB.list) on(d.m); if (OBX.shards) on(OBX.shards.mesh); if (OBX.frag) on(OBX.frag.mesh); const o = OBX.built[OBX.cur]; if (o) for (const t in o.sets) on(o.sets[t].mesh); renderer.compile(scene, camera); for (const m of hid) m.visible = false; } catch (e) { /* a missing warm-up is only a hitch */ } }
 function labCartReset() {
@@ -5514,10 +5514,10 @@ function labReset() {
   crashBudget(false); idleSharp(true);
   if (FACE_N) LAB_YAW = Math.atan2(-FACE_N.x, FACE_N.z); // before the build: the posters are photographed facing the camera
   if (!labBuilt) buildLab();
-  locApply(labBol() ? MIX.loc : 'hall'); if (labBol() && HATCH.state === 0) setTimeout(hatchLoad, 4000);
+  locApply(labBol() || LAB.machine === 'cannon' ? MIX.loc : 'hall'); if (labBol() && HATCH.state === 0) setTimeout(hatchLoad, 4000);
   Object.assign(R, { s: 0, x: 0, xT: 0, xv: 0, y: REST_Y, vy: 0, carry: false, speed: 0, grounded: false });
   drone.visible = false; BB.free = false; RAGSIM = null;
-  if (labBol()) { labVehicle(labVehKind()); obsApply(); board.visible = true; labCartReset(); mixPickVis(true); } else { mixPickVis(false); board.visible = false; board.position.set(0, -50, 0); daggie.position.y = BOARD_TOP; }
+  if (labBol()) { labVehicle(labVehKind()); obsApply(); board.visible = true; labCartReset(); mixPickVis(true); } else { mixPickVis(LAB.machine === 'cannon'); board.visible = false; board.position.set(0, -50, 0); daggie.position.y = BOARD_TOP; }
   state = 'lab'; stateT = performance.now(); LAB.phase = 'idle'; LAB.t = 0; LAB.exploded = false; LAB.spin = 0; LAB.dist = 0; labDmg(false);
   if (LEG) { LEG.visible = false; }
   PRESS.mode = 'idle'; PRESS.visible = LAB.machine === 'press'; if (PRESS.visible) { PRESS.rotation.y = pressYaw(); pressPlace(HEAD_TOP + 1.6); }

@@ -1,5 +1,11 @@
 {
- "s_spruce": {"uid": "7a5db417827244d98827459bce0cc944"},
- "s_fir": {"uid": "0965de5def1342cd8b8b1a0fa5643e27"},
- "s_dozer": {"uid": "baa53594134f4a4f99d96ce4ba25492e"}
+ "s_saguaro1": {"uid": "124202937a8c45e091f3af365446a087", "simplify": 0.5},
+ "s_saguaro2": {"uid": "5b3c008df0bb4410b1596b5483605a8b"},
+ "s_shed": {"uid": "be6edd62e55a4f9a99da940fc164a5b9"},
+ "s_wtower": {"uid": "4e98f8c8fe4e4e9fae250a026974fe99"},
+ "s_rustcar": {"uid": "32498418a32d43a78d0847ce4c55fcb0"},
+ "s_hut": {"uid": "857c02ab61834df8a8d125ccce6fec2a"},
+ "s_snowman": {"uid": "7d683ce4a9c54f158cc73d65a16a9a29"},
+ "s_container": {"uid": "2b787d1a02174d0bbca9eac34eb3a486"},
+ "s_excav": {"uid": "84cd8adb9d104010b10f3fa89e5f6a70", "simplify": 0.5}
 }
