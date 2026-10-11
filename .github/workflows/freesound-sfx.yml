@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [claude/freesound-sfx]
-    paths: [tools/freesound_sfx.py, .github/workflows/freesound-sfx.yml]
+    paths: [tools/freesound_sfx.py, tools/freesound_picks.json, .github/workflows/freesound-sfx.yml]
 permissions:
   contents: write
 jobs:
@@ -22,6 +22,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add sfx tools/freesound_credits.json tools/freesound_credits.md
-          git diff --cached --quiet || git commit -m "Sound effects from Freesound (CC0 / CC BY)"
+          git add -A sfx tools
+          git diff --cached --quiet || git commit -m "Freesound: candidates or chosen sounds (CC0 / CC BY)"
           git push

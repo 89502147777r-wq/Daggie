@@ -14,27 +14,29 @@ LICENSES = {'Creative Commons 0': 'CC0', 'Attribution': 'CC BY'}
 BANNED = ('sonniss', 'gdc', 'bbc')  # bundles we do not take, whatever their licence says
 
 # name: (search queries, min s, max s, kept length s, target loudness dB, low boost dB)
+# Mode: with tools/freesound_picks.json ({name: [sound ids]}) only those sounds are fetched; without it the script lists candidates
+# (tools/freesound_candidates.json) for a person to choose from, and leaves sfx/ alone.
 WANT = {
-    'cannon':   (['cannon fire', 'cannon shot'], 0.8, 8, 2.4, -11, 4),
-    'glass':    (['glass shatter', 'glass smash'], 0.4, 5, 2.0, -14, 0),
+    'cannon':   (['cannon fire', 'cannon shot', 'artillery blast'], 0.8, 8, 2.4, -11, 4),
+    'glass':    (['glass shatter', 'glass smash', 'glass break large'], 0.4, 5, 2.0, -14, 0),
     'window':   (['window break', 'window smash'], 0.4, 5, 2.0, -14, 0),
-    'wood':     (['wood break', 'wood crack impact'], 0.3, 4, 1.4, -14, 3),
-    'hay':      (['hay bale impact', 'straw impact'], 0.3, 4, 1.2, -17, 0),
+    'wood':     (['wood break', 'wood smash', 'plank break', 'wooden crate break'], 0.3, 4, 1.4, -14, 3),
+    'hay':      (['hay bale', 'straw', 'hay impact', 'cardboard box impact'], 0.3, 4, 1.2, -17, 0),
     'brick':    (['brick wall collapse', 'bricks falling'], 0.5, 6, 2.0, -14, 4),
-    'stone':    (['rock impact', 'stone smash'], 0.3, 5, 1.8, -14, 4),
+    'stone':    (['rock impact', 'stone smash', 'concrete smash', 'rock break'], 0.3, 5, 1.8, -14, 4),
     'ice':      (['ice break', 'ice shatter'], 0.3, 5, 1.6, -14, 0),
-    'metal':    (['metal impact', 'metal hit heavy'], 0.3, 4, 1.6, -14, 2),
+    'metal':    (['metal impact', 'metal hit heavy', 'steel clang', 'anvil hit'], 0.3, 4, 1.6, -14, 2),
     'vault':    (['heavy metal door slam', 'vault door slam'], 0.5, 6, 2.4, -12, 5),
-    'rip':      (['metal tear', 'metal rip'], 0.3, 4, 1.4, -14, 0),
-    'thud':     (['body fall thud', 'heavy thud'], 0.2, 3, 0.8, -15, 5),
-    'truck':    (['truck crash', 'heavy metal crash'], 0.6, 6, 2.2, -12, 5),
-    'car':      (['car crash', 'car impact'], 0.6, 6, 2.2, -12, 4),
-    'tires':    (['tire impact', 'rubber thud'], 0.2, 3, 0.9, -15, 5),
-    'sand':     (['sand pour', 'sand falling'], 0.5, 6, 1.6, -18, 0),
-    'body':     (['robot impact', 'metal body hit'], 0.2, 3, 1.0, -15, 3),
+    'rip':      (['metal tear', 'metal rip', 'metal bend scrape', 'sheet metal tear'], 0.3, 4, 1.4, -14, 0),
+    'thud':     (['body fall thud', 'heavy thud', 'body fall'], 0.2, 3, 0.8, -15, 5),
+    'truck':    (['truck crash', 'heavy metal crash', 'car crash heavy'], 0.6, 6, 2.2, -12, 5),
+    'car':      (['car crash', 'car impact', 'car collision'], 0.6, 6, 2.2, -12, 4),
+    'tires':    (['tire impact', 'rubber thud', 'tyre bounce', 'tire hit'], 0.2, 3, 0.9, -15, 5),
+    'sand':     (['sand pour', 'sand falling', 'gravel pour'], 0.5, 6, 1.6, -18, 0),
+    'body':     (['robot impact', 'robot fall', 'metal body hit', 'armor impact'], 0.2, 3, 1.0, -15, 3),
     'creak':    (['metal creak', 'metal groan'], 0.5, 5, 1.6, -17, 0),
-    'hdboom':   (['cinematic boom', 'cinematic impact sub'], 1.0, 8, 3.2, -9, 4),
-    'hdwhoosh': (['heavy whoosh', 'swing whoosh'], 0.4, 4, 2.0, -14, 0),
+    'hdboom':   (['cinematic boom', 'cinematic impact', 'sub boom', 'trailer hit', 'sub drop'], 1.0, 8, 3.2, -9, 4),
+    'hdwhoosh': (['heavy whoosh', 'swing whoosh', 'whoosh large', 'pass by whoosh'], 0.4, 4, 2.0, -14, 0),
 }
 PER_NAME = 3
 
@@ -48,9 +50,10 @@ def api(path, **q):
             print('  retry', path, e); time.sleep(2 * (i + 1))
     raise SystemExit('API failed: ' + path)
 
-def search(query, dmin, dmax):
+FIELDS = 'id,name,username,license,url,previews,duration,tags,description,pack,avg_rating,num_downloads'
+def search(query, dmin, dmax, sort='score'):
     lic = ' OR '.join('"%s"' % k for k in LICENSES)
-    r = api('search/text/', query=query, filter='license:(%s) duration:[%s TO %s]' % (lic, dmin, dmax), sort='downloads_desc', page_size=30,
+    r = api('search/text/', query=query, filter='license:(%s) duration:[%s TO %s]' % (lic, dmin, dmax), sort=sort, page_size=25,
             fields='id,name,username,license,url,previews,duration,tags,description,pack,avg_rating,num_downloads')
     return r.get('results', [])
 
@@ -88,37 +91,39 @@ def save(name, y):
         if os.path.getsize(p) <= 100 * 1024: break
     return os.path.getsize(p)
 
-credits, used = [], set()
-only = sys.argv[1:]
-for name, (queries, dmin, dmax, keep, rms, bass) in WANT.items():
-    if only and name not in only: continue
-    print('==', name)
-    cands = []
-    for q in queries:
-        for s in search(q, dmin, dmax):
-            text = (s['name'] + ' ' + ' '.join(s.get('tags') or []) + ' ' + (s.get('description') or '') + ' ' + str(s.get('pack') or '')).lower()
-            if s['id'] in used or any(b in text for b in BANNED): continue
-            short, lic = lic_short(s['license'])
-            if not short: continue
-            s['_lic'] = short; cands.append(s)
-        time.sleep(1)
-    cands.sort(key=lambda s: (-(s.get('avg_rating') or 0) * min(1, (s.get('num_downloads') or 0) / 500), -(s.get('num_downloads') or 0)))
-    n, users = 0, {}
-    for s in cands:
-        if n >= PER_NAME: break
-        if users.get(s['username'], 0) >= 2: continue  # some variety between recordists
-        src = os.path.join(TMP, '%d.mp3' % s['id'])
-        try: urllib.request.urlretrieve(s['previews']['preview-hq-mp3'], src)
-        except Exception as e: print('  skip', s['id'], e); continue
-        y = process(load(src), keep, rms, bass)
-        if y is None or len(y) < 0.12 * SR: continue
-        n += 1; used.add(s['id']); users[s['username']] = users.get(s['username'], 0) + 1
-        size = save(name + str(n), y)
-        credits.append({'file': 'sfx/%s%d.mp3' % (name, n), 'title': s['name'], 'author': s['username'], 'url': s['url'], 'license': s['_lic'], 'license_url': s['license'],
-                        'rating': s.get('avg_rating'), 'downloads': s.get('num_downloads'), 'seconds': round(len(y) / SR, 2), 'kb': size // 1024})
-        print('  %s%d  %-40.40s by %-18.18s %s  %.2fs %d KB' % (name, n, s['name'], s['username'], s['_lic'], len(y) / SR, size // 1024))
-    if n == 0: print('  nothing found: the OpenGameArt files stay')
+def banned(s):
+    text = (s['name'] + ' ' + ' '.join(s.get('tags') or []) + ' ' + (s.get('description') or '') + ' ' + str(s.get('pack') or '')).lower()
+    return any(b in text for b in BANNED)
 
+only = sys.argv[1:]
+if not os.path.exists('tools/freesound_picks.json'):  # step 1: candidates
+    out = {}
+    for name, (queries, dmin, dmax, *_rest) in WANT.items():
+        seen, L = set(), []
+        for q in queries:
+            for sort in ('score', 'downloads_desc'):
+                for s in search(q, dmin, dmax, sort):
+                    if s['id'] in seen or banned(s) or not lic_short(s['license'])[0]: continue
+                    seen.add(s['id']); L.append({'id': s['id'], 'name': s['name'], 'user': s['username'], 'lic': lic_short(s['license'])[0], 'dur': round(s['duration'], 2),
+                        'rating': round(s.get('avg_rating') or 0, 2), 'dl': s.get('num_downloads'), 'tags': (s.get('tags') or [])[:12], 'desc': (s.get('description') or '')[:200], 'q': q})
+                time.sleep(0.5)
+        out[name] = L; print(name, len(L))
+    json.dump(out, open('tools/freesound_candidates.json', 'w'), indent=0, ensure_ascii=False)
+    sys.exit(0)
+
+# step 2: the chosen sounds
+picks = json.load(open('tools/freesound_picks.json'))
+credits = []
+for name, ids in picks.items():
+    if only and name not in only: continue
+    _q, _a, _b, keep, rms, bass = WANT[name]
+    for n, sid in enumerate(ids, 1):
+        s = api('sounds/%d/' % sid, fields=FIELDS); short = lic_short(s['license'])[0]
+        if not short or banned(s): raise SystemExit('not allowed: %d %s' % (sid, s['license']))
+        src = os.path.join(TMP, '%d.mp3' % sid); urllib.request.urlretrieve(s['previews']['preview-hq-mp3'], src)
+        y = process(load(src), keep, rms, bass); size = save(name + str(n), y)
+        credits.append({'file': 'sfx/%s%d.mp3' % (name, n), 'id': sid, 'title': s['name'], 'author': s['username'], 'url': s['url'], 'license': short, 'license_url': s['license'], 'seconds': round(len(y) / SR, 2), 'kb': size // 1024})
+        print('%s%d  %-40.40s by %-18.18s %s  %.2fs %d KB' % (name, n, s['name'], s['username'], short, len(y) / SR, size // 1024)); time.sleep(0.5)
 json.dump(credits, open('tools/freesound_credits.json', 'w'), indent=1, ensure_ascii=False)
 with open('tools/freesound_credits.md', 'w') as f:
     for c in credits:
