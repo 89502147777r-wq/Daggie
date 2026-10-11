@@ -53,5 +53,159 @@
   "license_url": "http://creativecommons.org/licenses/by/4.0/",
   "faces": 16387,
   "kb": 512
+ },
+ "v_cart": {
+  "uid": "5770a906c5004041b65604126e71b620",
+  "title": "Shopping Trolley",
+  "author": "mehran1500",
+  "author_name": "MehraN",
+  "url": "https://sketchfab.com/3d-models/shopping-trolley-5770a906c5004041b65604126e71b620",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 35796,
+  "kb": 1497
+ },
+ "v_tub": {
+  "uid": "3350f81025974c53808a2efd2b31d4fd",
+  "title": "Bathtub",
+  "author": "roughdominator",
+  "author_name": "3ddominator",
+  "url": "https://sketchfab.com/3d-models/bathtub-3350f81025974c53808a2efd2b31d4fd",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 8639,
+  "kb": 453
+ },
+ "v_chair": {
+  "uid": "b228a29fa84544c2be501c295653ffe7",
+  "title": "Office Chair",
+  "author": "nokillnando",
+  "author_name": "Red Fox / nokillnando",
+  "url": "https://sketchfab.com/3d-models/office-chair-b228a29fa84544c2be501c295653ffe7",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 9454,
+  "kb": 970
+ },
+ "v_sofa": {
+  "uid": "443d9bb95e944afe8ebc4ff489e2886c",
+  "title": "Old Couch",
+  "author": "oisougabo",
+  "author_name": "oisougabo",
+  "url": "https://sketchfab.com/3d-models/old-couch-443d9bb95e944afe8ebc4ff489e2886c",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 7964,
+  "kb": 612
+ },
+ "v_toilet": {
+  "uid": "132a8ee2af3a40d39d270fbed3d3666c",
+  "title": "Toilet",
+  "author": "hippostance",
+  "author_name": "HippoStance",
+  "url": "https://sketchfab.com/3d-models/toilet-132a8ee2af3a40d39d270fbed3d3666c",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 10492,
+  "kb": 536
+ },
+ "v_barrow": {
+  "uid": "c0dcebcb0d4b47bd98df534334f4caf6",
+  "title": "Wheelbarrow",
+  "author": "i.aleksey.yakovlev",
+  "author_name": "Alex",
+  "url": "https://sketchfab.com/3d-models/wheelbarrow-c0dcebcb0d4b47bd98df534334f4caf6",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 7224,
+  "kb": 487
+ },
+ "v_trike": {
+  "uid": "d30c207f4c0246588f766b0dd49b459c",
+  "title": "Tricycle",
+  "author": "Marousiya",
+  "author_name": "Marousiya",
+  "url": "https://sketchfab.com/3d-models/tricycle-d30c207f4c0246588f766b0dd49b459c",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 16418,
+  "kb": 822
+ },
+ "v_bin": {
+  "uid": "093e5b05faa947729b1be24c013e563b",
+  "title": "LOW POLY - DUMPSTER",
+  "author": "Colin.Greenall",
+  "author_name": "Colin.Greenall",
+  "url": "https://sketchfab.com/3d-models/low-poly-dumpster-093e5b05faa947729b1be24c013e563b",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 6292,
+  "kb": 594
+ },
+ "o_truck": {
+  "uid": "010b0518d3f946b98e2ae3bddf52fbd8",
+  "title": "Shacman F3000 Dump Truck",
+  "author": "benjamintang2012",
+  "author_name": "benjamintang2012",
+  "url": "https://sketchfab.com/3d-models/shacman-f3000-dump-truck-010b0518d3f946b98e2ae3bddf52fbd8",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 23208,
+  "kb": 1059
+ },
+ "o_car": {
+  "uid": "892b2684fb37442299bfad9222cf331c",
+  "title": "Negotiator '80 - Low poly model",
+  "author": "DanielZhabotinsky",
+  "author_name": "Daniel Zhabotinsky",
+  "url": "https://sketchfab.com/3d-models/negotiator-80-low-poly-model-892b2684fb37442299bfad9222cf331c",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 19747,
+  "kb": 2184
+ },
+ "o_tire": {
+  "uid": "ec06c0af626746e7a44de65436037173",
+  "title": "Old Dirty Tire",
+  "author": "tahircakir",
+  "author_name": "Tahir",
+  "url": "https://sketchfab.com/3d-models/old-dirty-tire-ec06c0af626746e7a44de65436037173",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 5708,
+  "kb": 446
+ },
+ "o_barrel": {
+  "uid": "b973a95ff3bb478a941ccb06a70b14bb",
+  "title": "Dirty oil barrel - 5MB",
+  "author": "ahmagh2e",
+  "author_name": "Mehdi Shahsavan",
+  "url": "https://sketchfab.com/3d-models/dirty-oil-barrel-5mb-b973a95ff3bb478a941ccb06a70b14bb",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 11400,
+  "kb": 598
+ },
+ "o_barrier": {
+  "uid": "b52246c9611a42a99a03b425535a0237",
+  "title": "Jersey Barrier",
+  "author": "emran.bayati",
+  "author_name": "emran.bayati",
+  "url": "https://sketchfab.com/3d-models/jersey-barrier-b52246c9611a42a99a03b425535a0237",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 1714,
+  "kb": 328
+ },
+ "o_bollard": {
+  "uid": "9b9db79ae21c4e118423efae658e7fb7",
+  "title": "Street Bollard",
+  "author": "FameProductions",
+  "author_name": "Faheem Yusuf",
+  "url": "https://sketchfab.com/3d-models/street-bollard-9b9db79ae21c4e118423efae658e7fb7",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 1504,
+  "kb": 294
  }
 }

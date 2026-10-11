@@ -3913,13 +3913,14 @@ let LAB_VEH = 'cart', CART_SPEC0 = null; const VEHS = {};
 function labVehicle(kind) {
   if (VEH !== 'cart') return; // the lab hall is a cart level: every vehicle lives on the same board
   if (!VEHS.cart) { VEHS.cart = { root: CART_ROOT, wheels: wheels.slice() }; CART_SPEC0 = { hw: CART.box.hw, y0: CART.box.y0, y1: CART.box.y1, zf: CART.box.zf, zb: CART.box.zb, zfOut: CART.zfOut, zbOut: CART.zbOut, H: CART.H }; }
-  if (!VEH_DEFS[kind]) kind = 'cart'; if (kind === LAB_VEH) return;
+  if (!VEH_DEFS[kind]) kind = 'cart'; if (VEHS[kind]) vehSkinSet(kind, LAB.machine === 'mix'); if (kind === LAB_VEH) return;
   const d = VEH_DEFS[kind]; if (!VEHS[kind]) { const w = [], root = d.build(w); board.add(root); VEHS[kind] = { root, wheels: w }; }
   LAB_VEH = kind; PEDAL.use = kind === 'trike'; for (const k in VEHS) VEHS[k].root.visible = k === kind; CART_ROOT = VEHS[kind].root;
   wheels.length = 0; wheels.push(...VEHS[kind].wheels); CART.tipW = d.tipW || 1; CART.rebound = d.rebound || 1; CART.setSpec(d.box || CART_SPEC0); CART.openFront = !!d.open; CART.box.frontOpen = !!d.open;
   const cart = kind === 'cart'; CART_SEAT.set(0, cart ? 0.17 : d.seat[0], cart ? 0.32 : d.seat[1]); CART_RIM_Y = cart ? (1.02 - 0.4) * CART_S : d.rimY; CART_RIM_X = cart ? (0.32 + 0.03) * CART_S : d.rimX; CART_RIM_Z = cart || d.rimZ === undefined ? -0.06 : d.rimZ;
   daggie.position.y = (cart ? 0.4 * CART_S : d.floorY) + 0.012; // he sits on the floor of whichever vehicle it is
   for (const dd of CDEB.list) scene.remove(dd.m); CDEB.list.length = 0; CDEB.built = false; CDEB.on = false; // pieces are rebuilt from the new vehicle
+  vehSkinSet(kind, LAB.machine === 'mix'); // the real model in the crash mix
 }
 
 // ---------- obstacles for the crash hall: the steel post, or anything that can be hit (blocks that fly apart) ----------
@@ -4242,6 +4243,98 @@ const OBS_KIT = {
   barrier: () => { const sh = new THREE.Shape(); sh.moveTo(-0.25, 0); sh.lineTo(0.25, 0); sh.lineTo(0.25, 0.1); sh.lineTo(0.12, 0.45); sh.lineTo(0.08, 0.8); sh.lineTo(-0.08, 0.8); sh.lineTo(-0.12, 0.45); sh.lineTo(-0.25, 0.1); sh.closePath(); const ge = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false }); ge.translate(0, 0, -0.5); ge.rotateY(Math.PI / 2); const map = tex(256, 160, (c, w, h) => CAN_DRAW.concrete(c, w, h)); map.wrapS = map.wrapT = THREE.RepeatWrapping; map.repeat.set(1.5, 1); return { geo: ge, mat: new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: 1.2, roughness: 0.9 }), fl: 0.25 }; },
   pin: () => { const pts = [[0, 0], [0.17, 0], [0.2, 0.03], [0.31, 0.2], [0.35, 0.34], [0.3, 0.52], [0.2, 0.64], [0.15, 0.74], [0.17, 0.82], [0.2, 0.9], [0.17, 0.97], [0, 1]].map(([r, y]) => new THREE.Vector2(r, y)); const geo = new THREE.LatheGeometry(pts, 18); const map = tex(16, 128, (g, w, h) => { g.fillStyle = '#f7f7f4'; g.fillRect(0, 0, w, h); g.fillStyle = '#c1272d'; g.fillRect(0, h * 0.53, w, h * 0.06); g.fillRect(0, h * 0.66, w, h * 0.06); }); return { geo, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.15, metalness: 0.0 }), fl: 0.1 }; },
 };
+// ---------- real 3D models for the crash mix (Sketchfab, CC BY: see CREDITS.md): every vehicle and obstacle is a modelled object, fitted to the size its physics expects ----------
+const MIXG = { busy: {}, obs: {} };
+function mixGlb(f) { /* resolves to [{ geo, mat, name }] with every node transform baked in (null if the file is missing; the drawn stand-in stays) */
+  return MIXG.busy[f] || (MIXG.busy[f] = import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync('models/' + f + '.glb?v=1')).then(gl => {
+    gl.scene.updateMatrixWorld(true); const out = [];
+    gl.scene.traverse(o => { if (!o.isMesh) return; let ge = o.geometry.clone(); ge.applyMatrix4(o.matrixWorld); if (ge.index) ge = ge.toNonIndexed();
+      for (const k of Object.keys(ge.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') ge.deleteAttribute(k);
+      if (!ge.attributes.normal) ge.computeVertexNormals(); if (!ge.attributes.uv) ge.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(ge.attributes.position.count * 2), 2));
+      out.push({ geo: ge, mat: o.material, name: o.name + ' ' + (o.material.name || '') }); });
+    for (const m of new Set(out.map(q => q.mat))) { if (m.transparent && !/glass|transp|window/i.test(m.name || '')) { m.transparent = false; m.alphaTest = 0.5; m.depthWrite = true; } // decals stay cut-out, only glass is see-through
+      for (const k in m) if (m[k] && m[k].isTexture) m[k].channel = 0; // only the first set of texture coordinates is kept
+      try { if (!m.envMap) { m.envMap = labEnv(); m.envMapIntensity = 0.75; } } catch (e) { /* no reflections, still fine */ } }
+    return out; }).catch(e => { console.warn('model not loaded', f, e); return null; })); }
+function mixFit(list, C) { /* a copy of the model turned (rx, ry, rz), scaled and placed: C.fit = target [x, y, z] (null = free), one scale for all axes (the smallest), or each its own with C.stretch; C.at = [x, y, z]: the centre in x and z, the floor in y (the middle with C.mid); C.front puts the front face (+z) there instead */
+  const M = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(C.rx || 0, C.ry || 0, C.rz || 0)), L = list.map(q => ({ geo: q.geo.clone().applyMatrix4(M), mat: q.mat, name: q.name })), b = new THREE.Box3();
+  for (const q of L) { q.geo.computeBoundingBox(); b.union(q.geo.boundingBox); }
+  const sz = b.getSize(new V3()).toArray(), r = sz.map((s, i) => C.fit[i] ? C.fit[i] / Math.max(1e-6, s) : Infinity), u = Math.min(...r), k = r.map(x => (C.stretch && x < Infinity ? x : u)), at = C.at || [0, 0, 0];
+  const c = b.getCenter(new V3()), tx = at[0] - c.x * k[0], ty = at[1] - (C.mid ? c.y : b.min.y) * k[1], tz = C.front !== undefined ? C.front - b.max.z * k[2] : at[2] - c.z * k[2];
+  for (const q of L) { q.geo.scale(k[0], k[1], k[2]); q.geo.translate(tx, ty, tz); q.geo.computeBoundingBox(); q.geo.computeBoundingSphere(); }
+  return L; }
+function mixIslands(geo) { /* the separate pieces inside one mesh: triangles that share a corner belong together */
+  const p = geo.attributes.position.array, n = p.length / 9, par = new Int32Array(n), key = new Map(); for (let i = 0; i < n; i++) par[i] = i;
+  const find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  for (let t = 0; t < n; t++) for (let c = 0; c < 3; c++) { const k = t * 9 + c * 3, h = Math.round(p[k] * 2000) + ',' + Math.round(p[k + 1] * 2000) + ',' + Math.round(p[k + 2] * 2000), o = key.get(h); if (o === undefined) key.set(h, t); else { const a = find(o), bb = find(t); if (a !== bb) par[a] = bb; } }
+  const g = new Map(); for (let t = 0; t < n; t++) { const r = find(t); let a = g.get(r); if (!a) g.set(r, a = []); a.push(t); } return [...g.values()]; }
+function mixSub(geo, tris) { /* a geometry with only these triangles */
+  const out = new THREE.BufferGeometry(); for (const k of ['position', 'normal', 'uv']) { const a = geo.attributes[k], s = a.itemSize, src = a.array, dst = new Float32Array(tris.length * 3 * s); tris.forEach((t, j) => dst.set(src.subarray(t * 3 * s, (t + 1) * 3 * s), j * 3 * s)); out.setAttribute(k, new THREE.BufferAttribute(dst, s)); } return out; }
+function mixJoin(parts) { /* parts [{ geo, mat }] -> one geometry, one group per material */
+  const by = new Map(); for (const p of parts) { let a = by.get(p.mat); if (!a) by.set(p.mat, a = []); a.push(p.geo); } const mats = [...by.keys()];
+  const geo = mergeGeometries(mats.map(m => (by.get(m).length > 1 ? mergeGeometries(by.get(m)) : by.get(m)[0])), mats.length > 1); return { geo, mat: mats.length > 1 ? mats : mats[0] }; }
+function mixPieces(list, N) { /* the model in about N parts for a crash: its islands, the small ones joined to the nearest big one */
+  const cand = []; for (const q of list) { const p = q.geo.attributes.position.array; for (const tris of mixIslands(q.geo)) { const c = new V3(); for (const t of tris) c.x += p[t * 9], c.y += p[t * 9 + 1], c.z += p[t * 9 + 2]; c.multiplyScalar(1 / tris.length); cand.push({ q, tris, c }); } }
+  cand.sort((a, b) => b.tris.length - a.tris.length); const A = cand.slice(0, N).map(a => [a]);
+  for (const a of cand.slice(N)) { let best = A[0], bd = Infinity; for (const g of A) { const d = a.c.distanceToSquared(g[0].c); if (d < bd) { bd = d; best = g; } } best.push(a); }
+  return A.map(g => mixJoin(g.map(a => ({ geo: mixSub(a.q.geo, a.tris), mat: a.q.mat })))); }
+// the vehicles: the model replaces the drawn parts (they come back for the other lab machines); it breaks into its own pieces
+const VEH_GLB = { cart: { f: 'v_cart', ry: Math.PI, mk: 'metal' }, tub: { f: 'v_tub', ry: Math.PI / 2, mk: 'ceramic' }, chair: { f: 'v_chair', ry: Math.PI, mk: 'plastic' }, sofa: { f: 'v_sofa', ry: Math.PI, mk: 'fabric' },
+  toilet: { f: 'v_toilet', ry: Math.PI, mk: 'ceramic' }, barrow: { f: 'v_barrow', ry: Math.PI / 2, mk: 'metal' }, trike: { f: 'v_trike', ry: 0, mk: 'metal' }, bin: { f: 'v_bin', ry: Math.PI / 2, mk: 'metal' } };
+function vehSkin(kind) {
+  const C = VEH_GLB[kind], V = VEHS[kind]; if (!C || !V || V.skin) return; V.skin = 1;
+  mixGlb(C.f).then(list => { if (!list) return; const root = V.root, g = root.userData.g, S = g.scale.x, tb = new THREE.Box3(), bb = new THREE.Box3(), mm = new THREE.Matrix4();
+    root.updateMatrixWorld(true); const inv = g.matrixWorld.clone().invert(); // the drawn vehicle's box, in the units of its parts
+    g.traverse(o => { if (!o.isMesh || !o.geometry) return; o.geometry.computeBoundingBox(); bb.copy(o.geometry.boundingBox).applyMatrix4(mm.multiplyMatrices(inv, o.matrixWorld)); tb.union(bb); });
+    const sz = tb.getSize(new V3()).multiplyScalar(S), c = tb.getCenter(new V3()).multiplyScalar(S), fit = mixFit(list, { ry: C.ry, fit: [sz.x, sz.y, sz.z], at: [c.x, tb.min.y * S, c.z] }), kids = [];
+    for (const pc of mixPieces(fit, C.n || 10)) { const ge = pc.geo; ge.scale(1 / S, 1 / S, 1 / S); ge.computeBoundingBox(); const cc = ge.boundingBox.getCenter(new V3()); ge.translate(-cc.x, -cc.y, -cc.z); const m = new THREE.Mesh(ge, pc.mat); m.position.copy(cc); m.castShadow = true; m.receiveShadow = true; m.userData.mk = C.mk; m.name = 'glb'; kids.push(m); }
+    V.old = { kids: [...g.children], extras: root.userData.extras, pieces: root.userData.pieces, big: root.userData.bigPieces, wheels: V.wheels.slice() }; V.glb = kids; V.on = false;
+    vehSkinSet(kind, LAB.machine === 'mix'); }); }
+function vehSkinSet(kind, on) { /* the model (on) or the drawn vehicle (off) */
+  const V = VEHS[kind]; if (!V) return; if (on && !V.skin) vehSkin(kind); if (!V.glb || V.on === on) return; V.on = on;
+  const root = V.root, g = root.userData.g, here = CART_ROOT === root; if (here) cartDebrisReset();
+  for (const ch of [...g.children]) g.remove(ch); for (const ch of on ? V.glb : V.old.kids) g.add(ch);
+  root.userData.extras = on ? V.glb : V.old.extras; root.userData.pieces = on ? [] : V.old.pieces; root.userData.bigPieces = on ? true : V.old.big; V.wheels.length = 0; if (!on) V.wheels.push(...V.old.wheels);
+  if (here) { wheels.length = 0; wheels.push(...V.wheels); for (const dd of CDEB.list) scene.remove(dd.m); CDEB.list.length = 0; CDEB.built = false; CDEB.on = false; } }
+// the obstacles: the same kits (one instanced mesh each), from the model; a car's glass still cracks (its panes are found by the way they face)
+const OBS_GLB = {
+  truck: { f: 'o_truck', fit: [null, null, 7.4], front: 0.3, kits: { truck: 'body', truckg: 'glass' } },
+  car: { f: 'o_car', fit: [4.75, null, null], yoff: 0.75, kits: { car: 'body', carg: 'glass' } },
+  tire: { f: 'o_tire', rz: Math.PI / 2, fit: [0.714, null, 0.714], mid: true, kits: { tire: 'body' } },
+  barrel: { f: 'o_barrel', split: 2, fit: [1, 1, 1], stretch: true, mid: true, kits: { barrel0: 0, barrel1: 1, barrel2: 0, barrel3: 1 } },
+  barrier: { f: 'o_barrier', ry: Math.PI / 2, fit: [null, 0.8, 0.56], kits: { barrier: 'body' } } };
+const OBS_GLB_OF = { truck: 'truck', car: 'car', tires: 'tire', barrels: 'barrel', barrier: 'barrier' }, OBS_GLB_FL = { truck: 0.5, truckg: 0.5, car: 0.45, carg: 0.5, tire: 0.12, barrel0: 0.29, barrel1: 0.29, barrel2: 0.29, barrel3: 0.29, barrier: 0.25 };
+function mixPanes(geos) { /* glass split by the way it faces (sides, front, back, roof), each with a planar map into one cell of the crack atlas */
+  const groups = {}, pa = new V3(), pb = new V3(), pc = new V3(), nn = new V3();
+  for (const ge of geos) { const p = ge.attributes.position.array, by = {}; for (let t = 0; t * 9 < p.length; t++) { pa.fromArray(p, t * 9); pb.fromArray(p, t * 9 + 3); pc.fromArray(p, t * 9 + 6); nn.subVectors(pb, pa).cross(pc.sub(pa));
+    const ax = Math.abs(nn.x), ay = Math.abs(nn.y), az = Math.abs(nn.z), k = ay > ax && ay > az ? 'y' : ax > az ? (nn.x > 0 ? 'px' : 'nx') : nn.z > 0 ? 'pz' : 'nz'; (by[k] = by[k] || []).push(t); }
+    for (const k in by) (groups[k] = groups[k] || []).push(mixSub(ge, by[k])); }
+  const NRM = { px: [1, 0.1, 0], nx: [-1, 0.1, 0], pz: [0, 0.1, 1], nz: [0, 0.1, -1], y: [0, 1, 0] }, glass = [], panes = []; let cell = 0;
+  for (const k in groups) { const ge = groups[k].length > 1 ? mergeGeometries(groups[k]) : groups[k][0]; ge.computeBoundingBox(); const bx = ge.boundingBox, bb = [bx.min.x, bx.max.x, bx.min.y, bx.max.y, bx.min.z, bx.max.z], w = i => Math.max(1e-6, bb[i + 1] - bb[i]);
+    const uv = k === 'px' || k === 'nx' ? (x, y, z) => [(z - bb[4]) / w(4), (y - bb[2]) / w(2)] : k === 'y' ? (x, y, z) => [(x - bb[0]) / w(0), (z - bb[4]) / w(4)] : (x, y) => [(x - bb[0]) / w(0), (y - bb[2]) / w(2)];
+    const col = cell % 3, row = Math.floor(cell / 3) % 2, pane = { bb, rect: [col / 3, row / 2, (col + 1) / 3, (row + 1) / 2], nrm: NRM[k], uv }; cell++; obxUVfill(ge, pane); glass.push(ge); panes.push(pane); }
+  return { glass, panes }; }
+function mixObsLoad(id) { /* load the model of this obstacle once; when it is in, the obstacle is built again from it */
+  const name = OBS_GLB_OF[id], C = OBS_GLB[name]; if (!C || MIXG.obs[name]) return; MIXG.obs[name] = { state: 1 };
+  mixGlb(C.f).then(list => { if (!list) { MIXG.obs[name].state = -1; return; } const isGlass = q => q.mat.transparent && /glass|transp|window/i.test(q.name), O = { state: 2, kits: {} };
+    if (C.split) { // one file, several objects side by side along z: one kit each
+      const all = list.map(q => ({ geo: q.geo.clone(), mat: q.mat })), parts = []; for (const q of all) for (const tris of mixIslands(q.geo)) { const p = q.geo.attributes.position.array; let z = 0; for (const t of tris) z += p[t * 9 + 2]; parts.push({ z: z / tris.length, geo: mixSub(q.geo, tris), mat: q.mat }); }
+      const zs = parts.map(p => p.z), z0 = Math.min(...zs), z1 = Math.max(...zs); for (let s = 0; s < C.split; s++) { const mine = parts.filter(p => Math.min(C.split - 1, Math.floor((p.z - z0) / Math.max(1e-6, z1 - z0) * C.split)) === s); if (!mine.length) continue;
+        const j = mixJoin(mine), f = mixFit([{ geo: j.geo, mat: j.mat, name: '' }], C)[0]; O[s] = { geo: f.geo, mat: j.mat }; }
+    } else { const fit = mixFit(list, C), body = fit.filter(q => !isGlass(q)), gl = fit.filter(isGlass), j = mixJoin(body); O.body = { geo: j.geo, mat: j.mat }; if (C.yoff) O.body.geo.translate(0, -C.yoff, 0);
+      if (gl.length) { const P = mixPanes(gl.map(q => q.geo)); OBX_MODELS[id] = { body: [], glass: P.glass, panes: P.panes }; O.glass = 1; } else { OBX_MODELS[id] = { body: [], glass: [], panes: [] }; O.glass = 0; } }
+    MIXG.obs[name] = O; obsDrop(id); if (OBX.cur === id && LAB.machine === 'mix') { try { mixApply(); } catch (e) { /* the next change of the menu will do it */ } } }); }
+function mixObsKit(t) { /* the kit of block type t from its model, or null while it is not in */
+  for (const name in OBS_GLB) { const C = OBS_GLB[name], role = C.kits[t]; if (role === undefined) continue; const O = MIXG.obs[name]; if (!O || O.state !== 2) return null;
+    if (role === 'glass') { const id = Object.keys(OBS_GLB_OF).find(k => OBS_GLB_OF[k] === name); return O.glass ? obxGlassKit(OBX_MODELS[id], new THREE.BoxGeometry(0.05, 0.05, 0.05), C.yoff || 0) : HATCH_NOTHING(); }
+    const B = O[role]; return B ? { geo: B.geo, mat: B.mat, fl: OBS_GLB_FL[t] } : null; } return null; }
+for (const t of Object.keys(OBS_GLB_FL)) { const drawn = OBS_KIT[t]; OBS_KIT[t] = () => mixObsKit(t) || drawn(); }
+{ const drawn = OBST.barrier.layout; OBST.barrier.layout = function () { const O = MIXG.obs.barrier; if (!O || O.state !== 2) return drawn.call(this); const gb = O.body.geo; if (!gb.boundingBox) gb.computeBoundingBox(); const L = gb.boundingBox.max.x - gb.boundingBox.min.x; // a row of two real barriers, end to end
+  return [-0.5, 0.5].map(s => ({ t: 'barrier', x: s * L * 0.98, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff })); }; }
+function mixBollard() { /* the steel post as a real street bollard (it still bends as one piece) */
+  if (!BOLLARD || BOLLARD.userData.glb) return; BOLLARD.userData.glb = 1;
+  mixGlb('o_bollard').then(list => { if (!list) return; const f = mixFit(list, { fit: [BOLLARD_R * 2, BOLLARD_H + 0.04, BOLLARD_R * 2], stretch: true, at: [0, -0.12, 0] }), j = mixJoin(f), m = new THREE.Mesh(j.geo, j.mat); m.castShadow = true; m.receiveShadow = true;
+    for (const ch of BOLLARD.children) ch.visible = false; BOLLARD.add(m); }); }
 function obsBuild(id) {
   if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
   for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
@@ -4310,6 +4403,7 @@ function obsDentShow(dented) { // the replay: the vehicle is whole before the hi
 }
 function obsApply() { // choose the obstacle for this machine, give the vehicle's physics its strengths, show it and hide the rest
   const id = LAB.machine === 'mix' && OBST[MIX.obs] ? MIX.obs : 'post', sp = OBST[id]; OBX.cur = id;
+  if (labBol()) { mixObsLoad(id); mixBollard(); } // the real models (built again from them once they are in)
   CART.br = sp.r; CART.knockV = sp.knock; CART.bendV = sp.bend; CART.tumbleV = sp.tumble; CART.solid = !!sp.solid; CART.solidMax = sp.solidMax || Infinity; CART.obsH = sp.h; CART.obsCyls = sp.cyls || null;
   if (BOLLARD) BOLLARD.visible = labBol() && id === 'post';
   for (const k in OBX.built) for (const t in OBX.built[k].sets) OBX.built[k].sets[t].mesh.visible = false;

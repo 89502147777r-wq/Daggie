@@ -23,6 +23,24 @@ the recoilless rifle is painted olive (it came untextured); the bazooka stands o
 - `models/tank.glb` (level 4, tank): [Tank T-34](https://sketchfab.com/3d-models/tank-t-34-01af3ca4a7bf41ebbd5f1986edeb77fd) by **RomanGurd**, CC Attribution
 - `models/spg.glb` (level 5, self-propelled howitzer): [PANZERHAUBITZE 2000 ARTILLERY (PzH-2000)](https://sketchfab.com/3d-models/panzerhaubitze-2000-artillery-pzh-2000-da078be6bc66461e87034f29600a4982) by **MirzaArrafiERV_45**, CC Attribution
 
+### Crash mix vehicles and obstacles
+Same source and licence. Changes made for the game: converted to glTF binary with WebP textures (max 1024 px); turned, scaled and placed to the size of each vehicle or obstacle;
+cut into pieces that fly apart in a crash; the car and the truck crumple where they are hit, the car's glass cracks; the two barrels of one model are used as two kinds of barrel.
+- `models/v_cart.glb` (vehicle, shopping cart): [Shopping Trolley](https://sketchfab.com/3d-models/shopping-trolley-5770a906c5004041b65604126e71b620) by **mehran1500**, CC Attribution
+- `models/v_tub.glb` (vehicle, bathtub): [Bathtub](https://sketchfab.com/3d-models/bathtub-3350f81025974c53808a2efd2b31d4fd) by **roughdominator**, CC Attribution
+- `models/v_chair.glb` (vehicle, office chair): [Office Chair](https://sketchfab.com/3d-models/office-chair-b228a29fa84544c2be501c295653ffe7) by **nokillnando**, CC Attribution
+- `models/v_sofa.glb` (vehicle, sofa): [Old Couch](https://sketchfab.com/3d-models/old-couch-443d9bb95e944afe8ebc4ff489e2886c) by **oisougabo**, CC Attribution
+- `models/v_toilet.glb` (vehicle, toilet): [Toilet](https://sketchfab.com/3d-models/toilet-132a8ee2af3a40d39d270fbed3d3666c) by **hippostance**, CC Attribution
+- `models/v_barrow.glb` (vehicle, wheelbarrow): [Wheelbarrow](https://sketchfab.com/3d-models/wheelbarrow-c0dcebcb0d4b47bd98df534334f4caf6) by **i.aleksey.yakovlev**, CC Attribution
+- `models/v_trike.glb` (vehicle, tricycle): [Tricycle](https://sketchfab.com/3d-models/tricycle-d30c207f4c0246588f766b0dd49b459c) by **Marousiya**, CC Attribution
+- `models/v_bin.glb` (vehicle, waste container): [LOW POLY - DUMPSTER](https://sketchfab.com/3d-models/low-poly-dumpster-093e5b05faa947729b1be24c013e563b) by **Colin.Greenall**, CC Attribution
+- `models/o_truck.glb` (obstacle, dump truck): [Shacman F3000 Dump Truck](https://sketchfab.com/3d-models/shacman-f3000-dump-truck-010b0518d3f946b98e2ae3bddf52fbd8) by **benjamintang2012**, CC Attribution
+- `models/o_car.glb` (obstacle, car): [Negotiator '80 - Low poly model](https://sketchfab.com/3d-models/negotiator-80-low-poly-model-892b2684fb37442299bfad9222cf331c) by **DanielZhabotinsky**, CC Attribution
+- `models/o_tire.glb` (obstacle, tire stack): [Old Dirty Tire](https://sketchfab.com/3d-models/old-dirty-tire-ec06c0af626746e7a44de65436037173) by **tahircakir**, CC Attribution
+- `models/o_barrel.glb` (obstacle, barrel wall): [Dirty oil barrel - 5MB](https://sketchfab.com/3d-models/dirty-oil-barrel-5mb-b973a95ff3bb478a941ccb06a70b14bb) by **ahmagh2e**, CC Attribution
+- `models/o_barrier.glb` (obstacle, concrete barrier): [Jersey Barrier](https://sketchfab.com/3d-models/jersey-barrier-b52246c9611a42a99a03b425535a0237) by **emran.bayati**, CC Attribution
+- `models/o_bollard.glb` (obstacle, steel post): [Street Bollard](https://sketchfab.com/3d-models/street-bollard-9b9db79ae21c4e118423efae658e7fb7) by **FameProductions**, CC Attribution
+
 ## PBR surfaces (HD look, `tex/`)
 All from [Poly Haven](https://polyhaven.com), CC0. 1k JPG sets (diffuse, OpenGL normal, roughness), recompressed for the web.
 - `tex/asphalt_*.jpg`: [Asphalt Pit Lane](https://polyhaven.com/a/asphalt_pit_lane) by Dimitrios Savva. Road and ramp, tiled every 3 m, diffuse lifted in the game.
