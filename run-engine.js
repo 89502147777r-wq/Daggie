@@ -1921,7 +1921,7 @@ function OUT() {
     const sat = AC.createWaveShaper(), cv = new Float32Array(2048); for (let i = 0; i < 2048; i++) { const x = i * 2 / 2048 - 1; cv[i] = Math.tanh(x * 1.7) / Math.tanh(1.7); } sat.curve = cv; sat.oversample = '2x'; // density
     const comp = AC.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 3.5; comp.attack.value = 0.003; comp.release.value = 0.22;
     SLOWLP = AC.createBiquadFilter(); SLOWLP.type = 'lowpass'; SLOWLP.frequency.value = 20000; SLOWLP.Q.value = 0.5;
-    DUCK = AC.createGain(); HITBUS = AC.createGain(); MASTER.connect(DUCK); DUCK.connect(ls); HITBUS.connect(ls); ls.connect(pk); // DUCK: everything but the cinematic hit, which rides HITBUS past it pk.connect(hs); hs.connect(SLOWLP); SLOWLP.connect(sat); sat.connect(comp); comp.connect(AC.destination);
+    DUCK = AC.createGain(); HITBUS = AC.createGain(); MASTER.connect(DUCK); DUCK.connect(ls); HITBUS.connect(ls); ls.connect(pk); pk.connect(hs); hs.connect(SLOWLP); SLOWLP.connect(sat); sat.connect(comp); comp.connect(AC.destination); // DUCK: everything but the cinematic hit, which rides HITBUS past it
     try { AUDIO_DEST = AC.createMediaStreamDestination(); comp.connect(AUDIO_DEST); } catch (e) { AUDIO_DEST = null; }
     try { const sr = AC.sampleRate, len = Math.floor(sr * 1.4), ir = AC.createBuffer(2, len, sr); // a hall: no sound for 20 ms, then early reflections, then a tail that gets darker
       for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let lp = 0; for (let i = 0; i < len; i++) { const t = i / len; lp += ((Math.random() * 2 - 1) - lp) * (1 - (0.15 + 0.8 * t) * 0.9); d[i] = i < sr * 0.02 ? 0 : lp * Math.pow(1 - t, 2.6); }
