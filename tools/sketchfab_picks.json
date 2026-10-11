@@ -1,0 +1,17 @@
+{
+ "bazooka": {
+  "uid": "6b1d0c8c2f78483d8b398b8d923a8928"
+ },
+ "recoilless": {
+  "uid": "6c31a440a65145e8814e9974eabf2227"
+ },
+ "fieldgun": {
+  "uid": "f717828c62264b66a2235f585b85d729"
+ },
+ "tank": {
+  "uid": "01af3ca4a7bf41ebbd5f1986edeb77fd"
+ },
+ "spg": {
+  "uid": "da078be6bc66461e87034f29600a4982"
+ }
+}

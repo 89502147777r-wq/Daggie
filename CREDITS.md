@@ -13,6 +13,16 @@
 ## HDRI
 - File: `venice_sunset_1k.hdr`: [Venice Sunset](https://polyhaven.com/a/venice_sunset) by Greg Zaal, [Poly Haven](https://polyhaven.com), CC0
 
+## 3D models: the five lab cannons (`models/`)
+From [Sketchfab](https://sketchfab.com), [Creative Commons Attribution](https://creativecommons.org/licenses/by/4.0/). Fetched by `tools/sketchfab_models.py` (GitHub Actions workflow "Sketchfab models").
+Changes made for the game: converted to glTF binary with WebP textures (max 1024 px); turned, scaled and placed in the lab; the barrel is widened so Daggie fits in it head first;
+the recoilless rifle is painted olive (it came untextured); the bazooka stands on a tripod added in the game.
+- `models/bazooka.glb` (level 1, bazooka): [WW2 US Bazooka](https://sketchfab.com/3d-models/ww2-us-bazooka-6b1d0c8c2f78483d8b398b8d923a8928) by **Tactical_Beard**, CC Attribution
+- `models/recoilless.glb` (level 2, recoilless rifle): [SPG-9](https://sketchfab.com/3d-models/spg-9-6c31a440a65145e8814e9974eabf2227) by **Jack512kb**, CC Attribution
+- `models/fieldgun.glb` (level 3, field gun): [75mm Field Gun](https://sketchfab.com/3d-models/75mm-field-gun-f717828c62264b66a2235f585b85d729) by **kisotsu**, CC Attribution
+- `models/tank.glb` (level 4, tank): [Tank T-34](https://sketchfab.com/3d-models/tank-t-34-01af3ca4a7bf41ebbd5f1986edeb77fd) by **RomanGurd**, CC Attribution
+- `models/spg.glb` (level 5, self-propelled howitzer): [PANZERHAUBITZE 2000 ARTILLERY (PzH-2000)](https://sketchfab.com/3d-models/panzerhaubitze-2000-artillery-pzh-2000-da078be6bc66461e87034f29600a4982) by **MirzaArrafiERV_45**, CC Attribution
+
 ## PBR surfaces (HD look, `tex/`)
 All from [Poly Haven](https://polyhaven.com), CC0. 1k JPG sets (diffuse, OpenGL normal, roughness), recompressed for the web.
 - `tex/asphalt_*.jpg`: [Asphalt Pit Lane](https://polyhaven.com/a/asphalt_pit_lane) by Dimitrios Savva. Road and ramp, tiled every 3 m, diffuse lifted in the game.
@@ -126,8 +136,6 @@ Loops (roll, cart, road, drone, amb*) are made seamless and written twice; the g
 - `sfx/bazooka1.mp3`: [Huge rocket launcher.wav](https://freesound.org/people/CGEffex/sounds/100772/) by **CGEffex**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/bazooka2.mp3`: [S19-34 Bazooka shot.wav](https://freesound.org/people/craigsmith/sounds/675581/) by **craigsmith**, CC0
 - `sfx/bazooka3.mp3`: [Rocket launcher fire](https://freesound.org/people/ValhallaProject/sounds/761514/) by **ValhallaProject**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
-- `sfx/mortar1.mp3`: [M-327 Mortar Shots.flac](https://freesound.org/people/qubodup/sounds/187542/) by **qubodup**, CC0
-- `sfx/mortar2.mp3`: [M224 Mortar Firing Close 01](https://freesound.org/people/Nanashi/sounds/426158/) by **Nanashi**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/fieldgun1.mp3`: [CivilWarCannonFire_01.WAV](https://freesound.org/people/daveincamas/sounds/368270/) by **daveincamas**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/fieldgun2.mp3`: [CW_Cannon_Single1.wav](https://freesound.org/people/richardemoore/sounds/162626/) by **richardemoore**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/fieldgun3.mp3`: [Cannon explosion sound](https://freesound.org/people/SamsterBirdies/sounds/621000/) by **SamsterBirdies**, CC0
@@ -137,6 +145,9 @@ Loops (roll, cart, road, drone, amb*) are made seamless and written twice; the g
 - `sfx/howitzer1.mp3`: [Artillery Gunfire](https://freesound.org/people/qubodup/sounds/239137/) by **qubodup**, CC0
 - `sfx/howitzer2.mp3`: [ArtilleryTankFireSynthetic3.wav](https://freesound.org/people/zimbot/sounds/117801/) by **zimbot**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/howitzer3.mp3`: [Howitzer Artillery Gun Shot Sound Effect 03](https://freesound.org/people/qubodup/sounds/161341/) by **qubodup**, CC0
+- `sfx/recoil1.mp3`: [BGM 71 TOW Missile Launch 1 (less echo)](https://freesound.org/people/qubodup/sounds/67542/) by **qubodup**, CC0
+- `sfx/recoil2.mp3`: [C4 Rocket Launch (M1 Assault Breacher Vehicle)](https://freesound.org/people/qubodup/sounds/159610/) by **qubodup**, CC0
+- `sfx/recoil3.mp3`: [AGM-114 Hellfire Rocket Missile Launch.flac](https://freesound.org/people/qubodup/sounds/162368/) by **qubodup**, CC0
 
 ### From [OpenGameArt](https://opengameart.org) (CC0)
 - `sfx/hdwind1.mp3`: [Wind](https://opengameart.org/content/wind) by **IgnasD**, made into a seamless loop

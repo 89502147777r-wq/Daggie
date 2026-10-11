@@ -1,0 +1,27 @@
+# Download 3D models from Sketchfab (CC BY / CC0) with the repository secret SKETCHFAB_API_TOKEN and commit them as compact .glb files.
+name: Sketchfab models
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/cannon-models]
+    paths: [tools/sketchfab_models.py, tools/sketchfab_picks.json, .github/workflows/sketchfab-models.yml]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Download and convert
+        env:
+          SKETCHFAB_API_TOKEN: ${{ secrets.SKETCHFAB_API_TOKEN }}
+        run: python3 tools/sketchfab_models.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A models
+          git diff --cached --quiet || git commit -m "Sketchfab models (CC BY / CC0)"
+          git pull --rebase -q origin "$GITHUB_REF_NAME" && git push
