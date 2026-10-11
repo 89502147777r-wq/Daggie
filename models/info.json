@@ -42,5 +42,16 @@
   "license_url": "http://creativecommons.org/licenses/by/4.0/",
   "faces": 53310,
   "kb": 2361
+ },
+ "recoilless": {
+  "uid": "6c31a440a65145e8814e9974eabf2227",
+  "title": "SPG-9",
+  "author": "Jack512kb",
+  "author_name": "Jack512kb",
+  "url": "https://sketchfab.com/3d-models/spg-9-6c31a440a65145e8814e9974eabf2227",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 16387,
+  "kb": 512
  }
 }
