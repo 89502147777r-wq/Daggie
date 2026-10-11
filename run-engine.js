@@ -1976,7 +1976,7 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
 // names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', 'hdboom', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdwhoosh'] : [], MODE === 'lab' ? ['bazooka', 'mortar', 'fieldgun', 'tankgun', 'howitzer'] : []), started: false };
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', 'hdboom', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdwhoosh'] : [], MODE === 'lab' ? ['bazooka', 'recoil', 'fieldgun', 'tankgun', 'howitzer'] : []), started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
 function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); if (L.hd) hdIrLoad(); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
@@ -2114,7 +2114,7 @@ function hdHitSound(p, power) { // the hammer lands: the world goes quiet, then 
 function cannonBoom(lv) { SND_GAIN = 0.5; SND_WIDE = 0.85; try { cannonBoom0(lv); } finally { SND_GAIN = 1; SND_WIDE = 0; } }
 // five guns, five voices: a bazooka's hiss and crack, a mortar's thump, a field gun's boom, a tank gun's hard slam, a self-propelled howitzer that shakes the room
 function cannonVoice(lv) {
-  const V = ['bazooka', 'mortar', 'fieldgun', 'tankgun', 'howitzer'][lv - 1], B = SFX.buf[V]; if (!AC || !B || !B.length) return false; OUT(); const t = AC.currentTime;
+  const V = ['bazooka', 'recoil', 'fieldgun', 'tankgun', 'howitzer'][lv - 1], B = SFX.buf[V]; if (!AC || !B || !B.length) return false; OUT(); const t = AC.currentTime;
   sfxPlay(V, [1.3, 1.45, 2.1, 1.75, 1.9][lv - 1], 1, 0.22 + 0.06 * lv); // (cannonBoom halves everything: these are about 0.65 to 0.95)
   if (lv >= 2) sfxPlay('uihit', 0.35 + 0.15 * lv, 1.15 - 0.08 * lv, 0.3); // the punch in the chest
   if (lv >= 3) sfxPlay('hdboom', 0.4 + 0.25 * (lv - 3), 1.1 - 0.1 * (lv - 3), 0.4); // the sub under it
@@ -5751,6 +5751,44 @@ function canModel(lv) {
   }
   g.visible = false; return g;
 }
+// ---------- the five guns as real 3D models (Sketchfab, CC BY, see CREDITS.md), loaded only for the level being played ----------
+// Each is turned to fire along -z, scaled, and its barrel is widened to a bore Daggie fits in head first (radius CAN_BORE);
+// the muzzle lands where the procedural gun's muzzle was, and the procedural gun stays as a stand-in while the file loads.
+const CAN_BORE = 0.42;
+const CAN_GLB = { // f: file, ry: turn so the barrel points -z, s: scale, len: how much of the barrel (from the muzzle, m) is widened, cut: radius around the axis that counts as barrel, paint: colour for untextured models
+  1: { f: 'bazooka', ry: -Math.PI / 2, s: 3.0, len: 4.6, cut: 0.35, lift: 0.85, tripod: true }, // the bazooka alone would lie on the floor: it rests on a tripod
+  2: { f: 'recoilless', ry: Math.PI, s: 2.8, len: 3.6, cut: 0.32, paint: 0x4b5326 },
+  3: { f: 'fieldgun', ry: Math.PI / 2, s: 1.6, len: 2.6, cut: 0.3 },
+  4: { f: 'tank', ry: 0, s: 1.25, len: 2.3, cut: 0.22 },
+  5: { f: 'spg', ry: Math.PI, s: 1.0, len: 4.6, cut: 0.32 },
+};
+const CANG = { done: {}, busy: {} };
+function canGlb(lv) { // resolves to a group laid out like canModel(lv): userData.barrel holds everything and recoils
+  if (CANG.busy[lv]) return CANG.busy[lv]; const C = CAN_GLB[lv];
+  return (CANG.busy[lv] = import('three/addons/loaders/GLTFLoader.js').then(({ GLTFLoader }) => new GLTFLoader().loadAsync('models/' + C.f + '.glb?v=1')).then(gl => {
+    const src = gl.scene; src.rotation.y = C.ry; src.scale.setScalar(C.s); src.updateMatrixWorld(true);
+    const meshes = []; src.traverse(o => { if (!o.isMesh) return; const ge = o.geometry.clone(); ge.applyMatrix4(o.matrixWorld); const m = new THREE.Mesh(ge, o.material); m.castShadow = true; m.receiveShadow = true; meshes.push(m); }); // bake every transform into the vertices
+    let minZ = 1e9, minY = 1e9; const v = new V3(); for (const m of meshes) { const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) { minZ = Math.min(minZ, p.getZ(i)); minY = Math.min(minY, p.getY(i)); } }
+    let cx = 0, cy = 0, n = 0, r0 = 0; for (const m of meshes) { const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) if (p.getZ(i) < minZ + 0.06) { cx += p.getX(i); cy += p.getY(i); n++; } } cx /= n; cy /= n; // the muzzle: the front-most ring of vertices
+    for (const m of meshes) { const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) if (p.getZ(i) < minZ + 0.06) r0 = Math.max(r0, Math.hypot(p.getX(i) - cx, p.getY(i) - cy)); }
+    const k = Math.max(1, CAN_BORE / Math.max(0.02, r0));
+    for (const m of meshes) { const p = m.geometry.attributes.position; let hit = false; // widen the barrel: full width from the muzzle back, blending into the mount over the last 0.6 m
+      for (let i = 0; i < p.count; i++) { const z = p.getZ(i), along = z - minZ; if (along > C.len) continue; const dx = p.getX(i) - cx, dy = p.getY(i) - cy, d = Math.hypot(dx, dy); if (d > C.cut) continue;
+        const t = clamp((C.len - along) / 0.6, 0, 1), f = 1 + (k - 1) * t * t * (3 - 2 * t); p.setXYZ(i, cx + dx * f, cy + dy * f, z); hit = true; }
+      if (hit) { p.needsUpdate = true; m.geometry.computeBoundingSphere(); } }
+    for (const m of meshes) { if (C.paint && !m.material.map) { m.material = m.material.clone(); m.material.color.setHex(C.paint); m.material.roughness = 0.6; m.material.metalness = 0.4; } try { m.material.envMap = labEnv(); m.material.envMapIntensity = 0.8; } catch (e) {} }
+    const S = CAN_SPEC[lv - 1], yb = cy - minY + (C.lift || 0), g = new THREE.Group(), barrel = new THREE.Group(), inner = new THREE.Group(); g.add(barrel); barrel.add(inner);
+    for (const m of meshes) inner.add(m); inner.position.set(-cx, -cy, -S.L - minZ); // muzzle at barrel-local (0, 0, -L)
+    if (C.tripod) { const st = new THREE.MeshStandardMaterial({ color: 0x3a3d33, metalness: 0.8, roughness: 0.45 }), zc = MUZZLE_Z + 0.55 * C.len, top = yb - 0.32, head = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.3, 16), st); head.position.set(LAB_LANE, top, zc); g.add(head);
+      for (let q = 0; q < 3; q++) { const a = q / 3 * TAU + Math.PI / 2, fx = LAB_LANE + Math.cos(a) * 1.1, fz = zc + Math.sin(a) * 1.1, len = Math.hypot(top, 1.1), leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, len, 10), st);
+        leg.position.set((LAB_LANE + fx) / 2, top / 2, (zc + fz) / 2); leg.lookAt(fx, 0, fz); leg.rotateX(Math.PI / 2); leg.castShadow = true; g.add(leg); const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 12), st); foot.position.set(fx, 0.025, fz); g.add(foot); } }
+    barrel.position.set(LAB_LANE, yb, MUZZLE_Z + S.L); g.userData.barrel = barrel; g.userData.yb = yb; g.visible = false; return g;
+  }).catch(e => { console.warn('cannon model ' + C.f + ' failed, keeping the simple one', e); return null; }));
+}
+function canGlbUse(lv) { // show the real model for this level once it is there; the muzzle height follows it
+  canGlb(lv).then(g => { if (!g || !CAN.group) return; if (!CANG.done[lv]) { CANG.done[lv] = true; const old = CAN.models[lv]; if (old) { old.visible = false; CAN.group.remove(old); } CAN.group.add(g); CAN.models[lv] = g; CAN_SPEC[lv - 1].wr = g.userData.yb - 0.35; }
+    if (CAN.lv === lv && (LAB.phase === 'cannon' || LAB.phase === 'idle' || state === 'lab')) { CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); if (CAN.barrel !== g.userData.barrel) { CAN.barrel = g.userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L; } } });
+}
 let LAB_ENV = null;
 function labEnv() { // a small studio: warm top light, soft boxes, dark floor: what polished things reflect
   if (LAB_ENV) return LAB_ENV;
@@ -5823,7 +5861,7 @@ function cannonShow(on) {
   CAN.group.visible = on; CAN.walls.forEach(w => { w.visible = on; }); if (!on) return;
   if (!CAN_IN) { canInput(); CAN.hint(); } if (CAN.phase !== 'replay' && !CREC.play && LAB.phase !== 'cannon') stage.classList.remove('cannonrun');
   CAN.phase = 'idle'; CAN.next = 0; CAN.stuck = -1; CAN.broken = 0;
-  const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L;
+  const lv = clamp(LAB.level, 1, 5); CAN.lv = lv; CAN.models.forEach((m, k) => { if (m) m.visible = k === lv; }); CAN.barrel = CAN.models[lv].userData.barrel; CAN.barrel.position.z = MUZZLE_Z + CAN_SPEC[lv - 1].L; canGlbUse(lv);
   const hp = CAN.posters; for (const p of hp) { p.alive = true; p.mesh.visible = true; }
   CAN.lamps.forEach((l, i) => canLamp(i, 0));
   CAN.walls.forEach((w, i) => { const pm = w.userData.panel; pm.visible = true; pm.castShadow = true; CAN.wallMats[i].userData.U.uHole.value.w = 0; for (const c of CAN.wallMats[i].userData.U.uCrk.value) c.set(0, 0, 0, 0); if (CANNON_WALLS[i].draw === 'window') { CAN.wallMats[i].map = CAN.mats[i].map; CAN.wallMats[i].needsUpdate = true; } w.userData.tube.visible = false; CAN.cracks[i].visible = false; });
