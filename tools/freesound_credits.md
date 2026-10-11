@@ -1,0 +1,58 @@
+- `sfx/cannon1.mp3`: [cannon_boom10.wav](https://freesound.org/people/ReadeOnly/sounds/186930/) by **ReadeOnly**, CC0
+- `sfx/cannon2.mp3`: [Cannon2.wav](https://freesound.org/people/Isaac200000/sounds/184649/) by **Isaac200000**, CC0
+- `sfx/cannon3.mp3`: [Mortar](https://freesound.org/people/Mozfoo/sounds/529239/) by **Mozfoo**, CC0
+- `sfx/glass1.mp3`: [break-window.mp3](https://freesound.org/people/Kneeling/sounds/448004/) by **Kneeling**, CC0
+- `sfx/glass2.mp3`: [break-window.mp3](https://freesound.org/people/Kneeling/sounds/448004/) by **Kneeling**, CC0
+- `sfx/glass3.mp3`: [Bottle Shattering.wav](https://freesound.org/people/spookymodem/sounds/202093/) by **spookymodem**, CC0
+- `sfx/window1.mp3`: [004.wav](https://freesound.org/people/gevaroy/sounds/173557/) by **gevaroy**, CC0
+- `sfx/window2.mp3`: [glass11.flac](https://freesound.org/people/Craxic/sounds/204132/) by **Craxic**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/window3.mp3`: [Glass Breaking](https://freesound.org/people/ToxicFilmzSRsounds/sounds/378568/) by **ToxicFilmzSRsounds**, CC0
+- `sfx/wood1.mp3`: [Wood Break.wav](https://freesound.org/people/Deathscyp/sounds/443293/) by **Deathscyp**, CC0
+- `sfx/wood2.mp3`: [TankDoorCrashBones.wav](https://freesound.org/people/T.42/sounds/194193/) by **T.42**, CC0
+- `sfx/wood3.mp3`: [Knife thrust into wall](https://freesound.org/people/NeoSpica/sounds/504618/) by **NeoSpica**, CC0
+- `sfx/hay1.mp3`: [wireingrass1.wav](https://freesound.org/people/AGC66/sounds/395224/) by **AGC66**, CC0
+- `sfx/brick1.mp3`: [BricksFalling_OWI.wav](https://freesound.org/people/JamesCato101/sounds/542330/) by **JamesCato101**, CC0
+- `sfx/brick2.mp3`: [Stones Falling](https://freesound.org/people/iwanPlays/sounds/567251/) by **iwanPlays**, CC0
+- `sfx/brick3.mp3`: [Bricks/Stones/Rocks/Gravel Falling](https://freesound.org/people/iwanPlays/sounds/567249/) by **iwanPlays**, CC0
+- `sfx/stone1.mp3`: [S020_Rock_Impact_Mono.wav](https://freesound.org/people/P%C3%B3l/sounds/385938/) by **Pól**, CC0
+- `sfx/stone2.mp3`: [stonehit2.wav](https://freesound.org/people/aerror/sounds/350749/) by **aerror**, CC0
+- `sfx/stone3.mp3`: [Rocks - Effects - Source Recordings - 05](https://freesound.org/people/GregorQuendel/sounds/424997/) by **GregorQuendel**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/ice1.mp3`: [Breaking ice - small 1](https://freesound.org/people/Aurelon/sounds/422618/) by **Aurelon**, CC0
+- `sfx/ice2.mp3`: [Earth & Ice Impact Spell Skill](https://freesound.org/people/EminYILDIRIM/sounds/550262/) by **EminYILDIRIM**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/ice3.mp3`: [ICEBrk_Break04_InMotionAudio_FREESampleSunday](https://freesound.org/people/InMotionAudio/sounds/719973/) by **InMotionAudio**, CC0
+- `sfx/metal1.mp3`: [Opening Garage Door Handle 8.wav](https://freesound.org/people/F.M.Audio/sounds/620435/) by **F.M.Audio**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/metal2.mp3`: [heavy_hard_metal_resonant_impact.wav](https://freesound.org/people/Artninja/sounds/703595/) by **Artninja**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/metal3.mp3`: [Heavy Metal Thud on Ground](https://freesound.org/people/7of9Designs/sounds/640204/) by **7of9Designs**, CC0
+- `sfx/vault1.mp3`: [Closing large metal door-001](https://freesound.org/people/AudioPapkin/sounds/814976/) by **AudioPapkin**, CC0
+- `sfx/vault2.mp3`: [Closing large metal door-001](https://freesound.org/people/AudioPapkin/sounds/814976/) by **AudioPapkin**, CC0
+- `sfx/vault3.mp3`: [door metal big heavy close kinda slam thud echo offmic.wav](https://freesound.org/people/kyles/sounds/406197/) by **kyles**, CC0
+- `sfx/rip1.mp3`: [Gut Rip (Bladed)](https://freesound.org/people/magnuswaker/sounds/522168/) by **magnuswaker**, CC0
+- `sfx/rip2.mp3`: [Locked door being forced open.wav](https://freesound.org/people/Talitha5/sounds/262538/) by **Talitha5**, CC0
+- `sfx/rip3.mp3`: [Spacey Teleport Rip 2](https://freesound.org/people/GameAudio/sounds/220165/) by **GameAudio**, CC0
+- `sfx/thud1.mp3`: [Heavy, wet impact.wav](https://freesound.org/people/puppetmaster685719/sounds/626405/) by **puppetmaster685719**, CC0
+- `sfx/thud2.mp3`: [traditional stamp.wav](https://freesound.org/people/I.fekry/sounds/470710/) by **I.fekry**, CC0
+- `sfx/thud3.mp3`: [GROSS IMPACT](https://freesound.org/people/magnuswaker/sounds/641040/) by **magnuswaker**, CC0
+- `sfx/truck1.mp3`: [Droid falls over (messy).mp3](https://freesound.org/people/J.R.Mythical/sounds/589621/) by **J.R.Mythical**, CC0
+- `sfx/truck2.mp3`: [throw garbage garbage truck.wav](https://freesound.org/people/klankbeeld/sounds/348842/) by **klankbeeld**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/truck3.mp3`: [Fall debris (crash)](https://freesound.org/people/xkeril/sounds/703248/) by **xkeril**, CC0
+- `sfx/car1.mp3`: [SZ_Squish_09.wav](https://freesound.org/people/PaulMorek/sounds/196726/) by **PaulMorek**, CC0
+- `sfx/car2.mp3`: [big metal side impact 1.wav](https://freesound.org/people/Halleck/sounds/121621/) by **Halleck**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/car3.mp3`: [S021_Metal_Impact_Mono.wav](https://freesound.org/people/P%C3%B3l/sounds/385937/) by **Pól**, CC0
+- `sfx/tires1.mp3`: [Car Land/Hit](https://freesound.org/people/JustInvoke/sounds/446135/) by **JustInvoke**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/tires2.mp3`: [Rubber Band Thud.wav](https://freesound.org/people/datsinoil/sounds/689246/) by **datsinoil**, CC0
+- `sfx/tires3.mp3`: [Bike Drop Front Tire 3](https://freesound.org/people/Geoff-Bremner-Audio/sounds/730975/) by **Geoff-Bremner-Audio**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/sand1.mp3`: [Sand slidding out of shovel slowly.wav](https://freesound.org/people/XfiXy8/sounds/467301/) by **XfiXy8**, CC0
+- `sfx/sand2.mp3`: [rock hit.mp3](https://freesound.org/people/Link-Boy/sounds/414853/) by **Link-Boy**, CC0
+- `sfx/sand3.mp3`: [sandfall5.wav](https://freesound.org/people/Wagna/sounds/326304/) by **Wagna**, CC0
+- `sfx/body1.mp3`: [Big robot footstep](https://freesound.org/people/AudioPapkin/sounds/813056/) by **AudioPapkin**, CC0
+- `sfx/body2.mp3`: [Mecha - Effects - Elements - Impact 01](https://freesound.org/people/GregorQuendel/sounds/422114/) by **GregorQuendel**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/body3.mp3`: [robot step short medium-heavy.wav](https://freesound.org/people/keemocore/sounds/148309/) by **keemocore**, CC BY ([http://creativecommons.org/licenses/by/3.0/](http://creativecommons.org/licenses/by/3.0/))
+- `sfx/creak1.mp3`: [cemeterygate16.aif](https://freesound.org/people/celadon_noise/sounds/399449/) by **celadon_noise**, CC0
+- `sfx/creak2.mp3`: [3_Lift_STOP.wav](https://freesound.org/people/ValentinPetiteau/sounds/564406/) by **ValentinPetiteau**, CC0
+- `sfx/creak3.mp3`: [painful_squeek_rust.wav](https://freesound.org/people/j1987/sounds/335752/) by **j1987**, CC0
+- `sfx/hdboom1.mp3`: [Cinematic Woosh SFX-011.wav](https://freesound.org/people/AudioPapkin/sounds/648732/) by **AudioPapkin**, CC0
+- `sfx/hdboom2.mp3`: [Cinematic Woosh SFX-009.wav](https://freesound.org/people/AudioPapkin/sounds/648614/) by **AudioPapkin**, CC0
+- `sfx/hdboom3.mp3`: [Jingle Riser.wav](https://freesound.org/people/Reg1n0ld/sounds/500656/) by **Reg1n0ld**, CC0
+- `sfx/hdwhoosh1.mp3`: [Wooden Stick Swing 1_2](https://freesound.org/people/Joao_Janz/sounds/485277/) by **Joao_Janz**, CC0
+- `sfx/hdwhoosh2.mp3`: [Bamboo Swing, B17.wav](https://freesound.org/people/InspectorJ/sounds/394429/) by **InspectorJ**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
+- `sfx/hdwhoosh3.mp3`: [Whoosh Heavy Spear Hammer Large](https://freesound.org/people/EminYILDIRIM/sounds/540300/) by **EminYILDIRIM**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
