@@ -36,6 +36,11 @@ WANT = {
     'body':     (['robot impact', 'robot fall', 'metal body hit', 'armor impact'], 0.2, 3, 1.0, -15, 3),
     'creak':    (['metal creak', 'metal groan'], 0.5, 5, 1.6, -17, 0),
     'hdboom':   (['cinematic boom', 'cinematic impact', 'sub boom', 'trailer hit', 'sub drop'], 1.0, 8, 3.2, -9, 4),
+    'uihit':    (['cinematic hit short', 'impact punch cinematic', 'trailer hit', 'cinematic impact short'], 0.3, 4, 1.4, -13, 3),
+    'uirise':   (['whoosh riser short', 'swoosh up', 'riser whoosh', 'power up whoosh'], 0.4, 4, 1.6, -15, 0),
+    'uitick':   (['ui click metallic', 'mechanical click', 'interface click'], 0.03, 1, 0.4, -18, 0),
+    'jump':     (['car jump', 'car suspension bounce', 'car bump', 'car landing'], 0.3, 4, 1.4, -14, 3),
+    'win':      (['crowd cheer short', 'crowd cheering', 'audience cheer'], 1, 8, 3.0, -16, 0),
     'hdwhoosh': (['heavy whoosh', 'swing whoosh', 'whoosh large', 'pass by whoosh'], 0.4, 4, 2.0, -14, 0),
 }
 PER_NAME = 3
@@ -96,9 +101,11 @@ def banned(s):
     return any(b in text for b in BANNED)
 
 only = sys.argv[1:]
-if not os.path.exists('tools/freesound_picks.json'):  # step 1: candidates
+LIST = open('tools/freesound_list.txt').read().split() if os.path.exists('tools/freesound_list.txt') else None
+if LIST or not os.path.exists('tools/freesound_picks.json'):  # step 1: candidates (for the names in tools/freesound_list.txt, or all)
     out = {}
     for name, (queries, dmin, dmax, *_rest) in WANT.items():
+        if LIST and name not in LIST: continue
         seen, L = set(), []
         for q in queries:
             for sort in ('score', 'downloads_desc'):
