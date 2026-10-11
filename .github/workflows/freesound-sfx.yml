@@ -4,7 +4,7 @@ name: Freesound sounds
 on:
   workflow_dispatch:
   push:
-    branches: [claude/freesound-sfx, claude/real-ui-sounds, claude/sound-beds]
+    branches: [claude/freesound-sfx, claude/real-ui-sounds, claude/sound-beds, claude/cannon-voices]
     paths: [tools/freesound_sfx.py, tools/freesound_picks.json, tools/freesound_list.txt, .github/workflows/freesound-sfx.yml]
 permissions:
   contents: write

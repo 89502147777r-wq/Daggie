@@ -1976,7 +1976,7 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
 // names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdboom', 'hdwhoosh'] : []), started: false };
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', 'hdboom', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdwhoosh'] : [], MODE === 'lab' ? ['bazooka', 'mortar', 'fieldgun', 'tankgun', 'howitzer'] : []), started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
 function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); if (L.hd) hdIrLoad(); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
@@ -2112,8 +2112,17 @@ function hdHitSound(p, power) { // the hammer lands: the world goes quiet, then 
   return true;
 }
 function cannonBoom(lv) { SND_GAIN = 0.5; SND_WIDE = 0.85; try { cannonBoom0(lv); } finally { SND_GAIN = 1; SND_WIDE = 0; } }
+// five guns, five voices: a bazooka's hiss and crack, a mortar's thump, a field gun's boom, a tank gun's hard slam, a self-propelled howitzer that shakes the room
+function cannonVoice(lv) {
+  const V = ['bazooka', 'mortar', 'fieldgun', 'tankgun', 'howitzer'][lv - 1], B = SFX.buf[V]; if (!AC || !B || !B.length) return false; OUT(); const t = AC.currentTime;
+  sfxPlay(V, [1.3, 1.45, 2.1, 1.75, 1.9][lv - 1], 1, 0.22 + 0.06 * lv); // (cannonBoom halves everything: these are about 0.65 to 0.95)
+  if (lv >= 2) sfxPlay('uihit', 0.35 + 0.15 * lv, 1.15 - 0.08 * lv, 0.3); // the punch in the chest
+  if (lv >= 3) sfxPlay('hdboom', 0.4 + 0.25 * (lv - 3), 1.1 - 0.1 * (lv - 3), 0.4); // the sub under it
+  if (lv >= 4) { sweep(t, 70, 22, 1.2 + 0.6 * (lv - 4), 0.5 + 0.3 * (lv - 4), 'sine'); if (lv === 5) { sfxPlay(['truck', 'vault'], 0.6, 0.6, 0.5); sweep(t + 0.02, 48, 18, 2.4, 0.7, 'sine'); } } // the heaviest also rattles the steel around it
+  return true;
+}
 function cannonBoom0(lv) { // a cannon firing: the crack of the pressure wave, the blast, two thumps and a sub, the air it moves; then a SHORT tail (ring, two echoes, a rumble) on its own bus
-  lv = clamp(lv, 1, 5); if (sfxPlay('cannon', 0.95, [1.15, 1.05, 0.95, 0.85, 0.75][lv - 1], 0.3)) return; if (!AC) return; OUT(); const t = AC.currentTime, p = lv / 5;
+  lv = clamp(lv, 1, 5); if (cannonVoice(lv)) return; if (sfxPlay('cannon', 0.95, [1.15, 1.05, 0.95, 0.85, 0.75][lv - 1], 0.3)) return; if (!AC) return; OUT(); const t = AC.currentTime, p = lv / 5;
   noise(t, 0.03, 0.55, 'highpass', 5000, 2000, 0.7); noise(t, 0.07, 0.5, 'bandpass', 2400, 1100, 1);
   noiseDist(t, 0.3 + 0.35 * p, 0.6 + 0.3 * p, 3400, 120, 0.9); noiseDist(t + 0.01, 0.18 + 0.2 * p, 0.35, 1200, 90, 0.8);
   sweep(t, 125 - 25 * p, 26, 0.35 + 0.4 * p, 0.85 + 0.3 * p, 'sine'); sweep(t, 90, 24, 0.4 + 0.4 * p, 0.6, 'sine'); if (lv >= 2) sweep(t + 0.012, 58, 18, 0.5 + 0.6 * p, 0.3 + 0.55 * p, 'sine');
