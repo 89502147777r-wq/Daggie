@@ -25,7 +25,9 @@ the recoilless rifle is painted olive (it came untextured); the bazooka stands o
 
 ### Crash mix vehicles and obstacles
 Same source and licence. Changes made for the game: converted to glTF binary with WebP textures (max 1024 px); turned, scaled and placed to the size of each vehicle or obstacle;
-cut into pieces that fly apart in a crash; the car and the truck crumple where they are hit, the car's glass cracks; the two barrels of one model are used as two kinds of barrel.
+cut into pieces that fly apart in a crash; the car and the truck crumple where they are hit, the car's glass cracks; the two barrels of one model are used as four kinds (red, black, blue, yellow); repainted: blue sofa, green wheelbarrow, red tricycle, red car, white truck cab, yellow-and-black post;
+the truck's badge and name strip and the dumpster's lid are removed, the truck's windows and lamps are glass that cracks and breaks.
+- `tex/brick_*.jpg` (above) is also used for the bricks of the crash mix brick wall.
 - `models/v_cart.glb` (vehicle, shopping cart): [Shopping Trolley](https://sketchfab.com/3d-models/shopping-trolley-5770a906c5004041b65604126e71b620) by **mehran1500**, CC Attribution
 - `models/v_tub.glb` (vehicle, bathtub): [Bathtub](https://sketchfab.com/3d-models/bathtub-3350f81025974c53808a2efd2b31d4fd) by **roughdominator**, CC Attribution
 - `models/v_chair.glb` (vehicle, office chair): [Office Chair](https://sketchfab.com/3d-models/office-chair-b228a29fa84544c2be501c295653ffe7) by **nokillnando**, CC Attribution
