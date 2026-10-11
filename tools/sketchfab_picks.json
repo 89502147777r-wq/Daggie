@@ -1,17 +1,16 @@
 {
- "bazooka": {
-  "uid": "6b1d0c8c2f78483d8b398b8d923a8928"
- },
- "recoilless": {
-  "uid": "6c31a440a65145e8814e9974eabf2227"
- },
- "fieldgun": {
-  "uid": "f717828c62264b66a2235f585b85d729"
- },
- "tank": {
-  "uid": "01af3ca4a7bf41ebbd5f1986edeb77fd"
- },
- "spg": {
-  "uid": "da078be6bc66461e87034f29600a4982"
- }
+ "v_cart": {"uid": "5770a906c5004041b65604126e71b620"},
+ "v_tub": {"uid": "3350f81025974c53808a2efd2b31d4fd"},
+ "v_chair": {"uid": "b228a29fa84544c2be501c295653ffe7"},
+ "v_sofa": {"uid": "443d9bb95e944afe8ebc4ff489e2886c"},
+ "v_toilet": {"uid": "132a8ee2af3a40d39d270fbed3d3666c"},
+ "v_barrow": {"uid": "c0dcebcb0d4b47bd98df534334f4caf6"},
+ "v_trike": {"uid": "d30c207f4c0246588f766b0dd49b459c"},
+ "v_bin": {"uid": "093e5b05faa947729b1be24c013e563b"},
+ "o_truck": {"uid": "010b0518d3f946b98e2ae3bddf52fbd8"},
+ "o_car": {"uid": "892b2684fb37442299bfad9222cf331c"},
+ "o_tire": {"uid": "ec06c0af626746e7a44de65436037173"},
+ "o_barrel": {"uid": "b973a95ff3bb478a941ccb06a70b14bb"},
+ "o_barrier": {"uid": "b52246c9611a42a99a03b425535a0237"},
+ "o_bollard": {"uid": "9b9db79ae21c4e118423efae658e7fb7"}
 }
