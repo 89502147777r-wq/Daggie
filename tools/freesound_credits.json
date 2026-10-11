@@ -1010,5 +1010,170 @@
   "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
   "seconds": 12.0,
   "kb": 94
+ },
+ {
+  "file": "sfx/bazooka1.mp3",
+  "id": 100772,
+  "title": "Huge rocket launcher.wav",
+  "author": "CGEffex",
+  "url": "https://freesound.org/people/CGEffex/sounds/100772/",
+  "license": "CC BY",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "seconds": 2.2,
+  "kb": 26
+ },
+ {
+  "file": "sfx/bazooka2.mp3",
+  "id": 675581,
+  "title": "S19-34 Bazooka shot.wav",
+  "author": "craigsmith",
+  "url": "https://freesound.org/people/craigsmith/sounds/675581/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 2.2,
+  "kb": 26
+ },
+ {
+  "file": "sfx/bazooka3.mp3",
+  "id": 761514,
+  "title": "Rocket launcher fire",
+  "author": "ValhallaProject",
+  "url": "https://freesound.org/people/ValhallaProject/sounds/761514/",
+  "license": "CC BY",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "seconds": 2.2,
+  "kb": 26
+ },
+ {
+  "file": "sfx/mortar1.mp3",
+  "id": 187542,
+  "title": "M-327 Mortar Shots.flac",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/187542/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 2.4,
+  "kb": 28
+ },
+ {
+  "file": "sfx/mortar2.mp3",
+  "id": 426158,
+  "title": "M224 Mortar Firing Close 01",
+  "author": "Nanashi",
+  "url": "https://freesound.org/people/Nanashi/sounds/426158/",
+  "license": "CC BY",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "seconds": 1.19,
+  "kb": 14
+ },
+ {
+  "file": "sfx/mortar3.mp3",
+  "id": 161970,
+  "title": "Firing Mortar at Shooting Range",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/161970/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.73,
+  "kb": 21
+ },
+ {
+  "file": "sfx/fieldgun1.mp3",
+  "id": 368270,
+  "title": "CivilWarCannonFire_01.WAV",
+  "author": "daveincamas",
+  "url": "https://freesound.org/people/daveincamas/sounds/368270/",
+  "license": "CC BY",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "seconds": 2.0,
+  "kb": 24
+ },
+ {
+  "file": "sfx/fieldgun2.mp3",
+  "id": 162626,
+  "title": "CW_Cannon_Single1.wav",
+  "author": "richardemoore",
+  "url": "https://freesound.org/people/richardemoore/sounds/162626/",
+  "license": "CC BY",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "seconds": 2.12,
+  "kb": 25
+ },
+ {
+  "file": "sfx/fieldgun3.mp3",
+  "id": 621000,
+  "title": "Cannon explosion sound",
+  "author": "SamsterBirdies",
+  "url": "https://freesound.org/people/SamsterBirdies/sounds/621000/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 2.45,
+  "kb": 29
+ },
+ {
+  "file": "sfx/tankgun1.mp3",
+  "id": 127845,
+  "title": "Tank fire Mixed.wav",
+  "author": "GaryQ",
+  "url": "https://freesound.org/people/GaryQ/sounds/127845/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 3.0,
+  "kb": 35
+ },
+ {
+  "file": "sfx/tankgun2.mp3",
+  "id": 67524,
+  "title": "xm360_canon_shot_1.flac",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/67524/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 3.0,
+  "kb": 35
+ },
+ {
+  "file": "sfx/tankgun3.mp3",
+  "id": 67519,
+  "title": "m1a1_abrams_canon_shot_1.flac",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/67519/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.07,
+  "kb": 13
+ },
+ {
+  "file": "sfx/howitzer1.mp3",
+  "id": 239137,
+  "title": "Artillery Gunfire",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/239137/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 3.6,
+  "kb": 42
+ },
+ {
+  "file": "sfx/howitzer2.mp3",
+  "id": 117801,
+  "title": "ArtilleryTankFireSynthetic3.wav",
+  "author": "zimbot",
+  "url": "https://freesound.org/people/zimbot/sounds/117801/",
+  "license": "CC BY",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "seconds": 3.6,
+  "kb": 42
+ },
+ {
+  "file": "sfx/howitzer3.mp3",
+  "id": 161341,
+  "title": "Howitzer Artillery Gun Shot Sound Effect 03",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/161341/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.36,
+  "kb": 16
  }
 ]
