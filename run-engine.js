@@ -9,7 +9,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-const ASSETS = { model: 'daggie_model.bin?v=1', tex: 'daggie_tex.jpg?v=1' };
+const ASSETS = { model: 'daggie_model.bin?v=2', tex: 'daggie_tex.jpg?v=2', nor: 'daggie_nor.jpg?v=2', mr: 'daggie_mr.jpg?v=2' }; // the robot crash-test dummy (v2)
 
 window.__daggieStarted = true;
 // the level being played (set by run.html from a level file listed in levels.js)
@@ -314,6 +314,8 @@ try { bodyTex.image = await createImageBitmap(TEX_BLOB); bodyTex.needsUpdate = t
 catch (e) { const url = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(TEX_BLOB); }); const im = new Image(); im.onload = () => { bodyTex.image = im; bodyTex.needsUpdate = true; }; im.src = url; }
 const bodyMat = new THREE.MeshPhysicalMaterial({ map: bodyTex, roughness: 0.32, metalness: 0.0, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 0.7 });
 const capMat = new THREE.MeshPhysicalMaterial({ color: 0x141218, roughness: 0.6 });
+{ const L = new THREE.TextureLoader(); L.load(ASSETS.nor, t => { t.flipY = false; t.anisotropy = 8; bodyMat.normalMap = t; bodyMat.needsUpdate = true; }); // his armour's relief, and where it is bare metal, scuffed paint or rubber
+  L.load(ASSETS.mr, t => { t.flipY = false; bodyMat.roughnessMap = t; bodyMat.metalnessMap = t; bodyMat.roughness = 1; bodyMat.metalness = 1; bodyMat.clearcoat = 0.35; bodyMat.clearcoatRoughness = 0.25; bodyMat.needsUpdate = true; }); }
 for (const e of MODEL.hdr.parts) {
   const { bin, base } = MODEL;
   const q = new Uint16Array(bin, base + e.pos, e.v * 3), pos = new Float32Array(e.v * 3);
