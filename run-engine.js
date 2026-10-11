@@ -2695,7 +2695,8 @@ function limbIK(A, B, C, target, pole, P) {
 }
 function levelPart(n, P, extra) { parentQ(n, _iqp); _iq.copy(_iqp).invert().multiply(rootQ); if (extra) _iq.multiply(extra); _iE.setFromQuaternion(_iq, 'XYZ'); P[n] = [_iE.x, _iE.y, _iE.z]; }
 // seated in the basket, in model space where y = 0 is the basket floor
-const CART_SEAT = new V3(0, 0.17, 0.32); let CART_RIM_Y = BODY === 'car' ? 0.48 : (1.02 - 0.4) * CART_S, CART_RIM_X = BODY === 'car' ? 0.15 : (0.32 + 0.03) * CART_S, CART_RIM_Z = BODY === 'car' ? -0.28 : -0.06; // in the car the hands hold the steering wheel // both change when the bathtub is in use (labVehicle)
+let CART_LEAN = 0; // how far he leans forward (+) or back (-) in the seat
+const CART_SEAT = new V3(0, 0.17, 0.32), CART_FOOT = new V3(0.17, 0, -0.3); /* feet: x apart, y above his rest ankle height, z ahead */ let CART_RIM_Y = BODY === 'car' ? 0.48 : (1.02 - 0.4) * CART_S, CART_RIM_X = BODY === 'car' ? 0.15 : (0.32 + 0.03) * CART_S, CART_RIM_Z = BODY === 'car' ? -0.28 : -0.06; // in the car the hands hold the steering wheel // both change when the bathtub is in use (labVehicle)
 const HD_SEAT = !!(CART_ROOT && CART_ROOT.userData.hd); // the real car: Daggie in its centre driving seat, hands on its wheel, feet down at the pedals
 if (HD_SEAT) { CART_SEAT.set(0, 0.47 - BOARD_TOP, -0.28); CART_RIM_Y = 0.68 - BOARD_TOP; CART_RIM_X = 0.15; CART_RIM_Z = -0.96; }
 const hdZ = dz => !HD_SEAT ? dz : dz > 0 ? Math.max(0, dz - 2.35) : Math.min(0, dz + 1.9); // the long car: the gap from its nose or tail, not its middle
@@ -2717,7 +2718,7 @@ function poseCart(t) {
   const sk = R.grounded && state === 'ride' ? clamp(R.speed / 30, 0, 1) : 0, rat = (Math.sin(t * 53) + Math.sin(t * 37.7)) * 0.0035 * sk;
   const P = {
     pelvis: [-0.1, 0, bal * 0.05],
-    torso: [0.1 + comp * 0.35 + (air ? 0.06 : 0) - (party ? 0.15 : 0), Math.sin(t * 1.3) * 0.02, -bal * 0.08 - R.xv * 0.01],
+    torso: [0.1 + CART_LEAN + comp * 0.35 + (air ? 0.06 : 0) - (party ? 0.15 : 0), Math.sin(t * 1.3) * 0.02, -bal * 0.08 - R.xv * 0.01],
     head: [-0.08 - comp * 0.2 - (party ? 0.25 : 0) + Math.sin(t * 23) * 0.012 * sk, -bal * 0.15 + Math.sin(t * 1.9) * 0.04, bal * 0.06],
   };
   const sx = clamp(-R.xv * 0.008, -0.05, 0.05);
@@ -2725,7 +2726,7 @@ function poseCart(t) {
   rootPos.set(CART_SEAT.x + sx - hp.x, CART_SEAT.y - comp * 0.09 + rat + (air ? 0.03 : 0) - hp.y, CART_SEAT.z - hp.z); runFK(P);
   for (const s of ['L', 'R']) {
     const sd = SIDE[s];
-    let ft = HD_SEAT ? new V3(sd * 0.16, ANKLE_REST.y - 0.33 + rat * 0.5, -1.18) : new V3(sd * 0.17, ANKLE_REST.y + rat * 0.5 + (air ? 0.02 : 0), -0.3); if (PEDAL && PEDAL.use && PEDAL.crank) { const ph = PEDAL.phase + (sd > 0 ? 0 : Math.PI); ft = new V3(sd * PEDAL.px, PEDAL.cy - PEDAL.r * Math.cos(ph) + 0.015 + ANKLE_REST.y - 0.012, PEDAL.cz + PEDAL.r * Math.sin(ph)); } // on a trike each foot rides its pedal
+    let ft = HD_SEAT ? new V3(sd * 0.16, ANKLE_REST.y - 0.33 + rat * 0.5, -1.18) : new V3(sd * CART_FOOT.x, ANKLE_REST.y + CART_FOOT.y + rat * 0.5 + (air ? 0.02 : 0), CART_FOOT.z); if (PEDAL && PEDAL.use && PEDAL.crank) { const ph = PEDAL.phase + (sd > 0 ? 0 : Math.PI); ft = new V3(sd * PEDAL.px, PEDAL.cy - PEDAL.r * Math.cos(ph) + 0.015 + ANKLE_REST.y - 0.012, PEDAL.cz + PEDAL.r * Math.sin(ph)); } // on a trike each foot rides its pedal
     limbIK('thigh' + s, 'shin' + s, 'foot' + s, ft, new V3(sd * 0.25, 1, -0.7), P);
     levelPart('foot' + s, P);
   }
@@ -3916,11 +3917,18 @@ const VEH_DEFS = {
 };
 
 let LAB_VEH = 'cart', CART_SPEC0 = null, VEH_SCALE = 1; const VEHS = {}, PEDAL0 = {};
+const VEH_SEAT = { // how the robot sits in each real model (his hip, his feet, his hands; numbers in metres from the vehicle's floor where he sits): knees up in a cart, a bath or a barrow, upright on a chair, a sofa, a toilet, a tricycle
+  cart: { dy: 0.9, seat: [0, 0.14, 0.5], foot: [0.16, 0.04, -0.12], rim: [0.56, 0.9, 0.2] }, tub: { seat: [0, 0.13, 0.55], foot: [0.16, 0.02, -0.45], rim: [0.5, 0.45, 0.1], lean: -0.15 },
+  chair: { seat: [0, 0.82, 0.18], foot: [0.17, 0, -0.45], rim: [0.45, 1.0, 0.05], lean: -0.05 }, sofa: { seat: [0, 0.68, 0.05], foot: [0.17, 0, -0.6], rim: [0.3, 0.75, -0.25], lean: -0.1 },
+  toilet: { seat: [0, 0.6, 0.1], foot: [0.17, -0.15, -0.55], rim: [0.35, 0.65, -0.2] }, barrow: { seat: [0, 0.15, 0.25], foot: [0.16, 0.1, -0.45], rim: [0.45, 0.35, 0] },
+  trike: { seat: [0, 1.2, 0.25] }, bin: { seat: [0, 0.42, 0.15], foot: [0.17, 0, -0.3], rim: [0.55, 0.9, -0.35] } };
+function vehSeat(kind) { const V = VEHS[kind], S = V && V.on ? VEH_SEAT[kind] : null; CART_FOOT.set(0.17, 0, -0.3); CART_LEAN = 0; if (!S) return;
+  if (S.dy !== undefined) daggie.position.y = S.dy; CART_SEAT.set(...S.seat); if (S.foot) CART_FOOT.set(...S.foot); if (S.rim) { CART_RIM_X = S.rim[0]; CART_RIM_Y = S.rim[1]; CART_RIM_Z = S.rim[2]; } CART_LEAN = S.lean || 0; }
 function vehFit(kind) { /* the real model is bigger than the drawn vehicle: the vehicle, its physics box, his seat and his hands grow with it */
-  const V = VEHS[kind], C = VEH_GLB[kind], k = V && V.on && C ? C.k || 1 : 1; if (!V) return; V.root.scale.setScalar(k); if (k === VEH_SCALE) return; const r = k / VEH_SCALE; VEH_SCALE = k;
+  const V = VEHS[kind], C = VEH_GLB[kind], k = V && V.on && C ? C.k || 1 : 1; if (!V) return; V.root.scale.setScalar(k); if (k === VEH_SCALE) { vehSeat(kind); return; } const r = k / VEH_SCALE; VEH_SCALE = k;
   const b = CART.box, sp = { hw: b.hw * r, y0: b.y0 * r, y1: b.y1 * r, zf: CART.zf0 * r, zb: b.zb * r, zfOut: CART.zfOut * r, zbOut: CART.zbOut * r, H: CART.H * r }; CART.setSpec(sp);
   CART_SEAT.y *= r; CART_SEAT.z *= r; CART_RIM_Y *= r; CART_RIM_X *= r; CART_RIM_Z *= r; daggie.position.y = (daggie.position.y - 0.012) * r + 0.012;
-  if (!PEDAL0.cy) Object.assign(PEDAL0, { cx: PEDAL.cx, cy: PEDAL.cy, cz: PEDAL.cz, r: PEDAL.r, px: PEDAL.px }); for (const q of ['cx', 'cy', 'cz', 'r', 'px']) PEDAL[q] = PEDAL0[q] * (kind === 'trike' ? k : 1); }
+  if (!PEDAL0.cy) Object.assign(PEDAL0, { cx: PEDAL.cx, cy: PEDAL.cy, cz: PEDAL.cz, r: PEDAL.r, px: PEDAL.px }); for (const q of ['cx', 'cy', 'cz', 'r', 'px']) PEDAL[q] = PEDAL0[q] * (kind === 'trike' ? k : 1); vehSeat(kind); }
 function labVehicle(kind) {
   if (VEH !== 'cart') return; // the lab hall is a cart level: every vehicle lives on the same board
   if (!VEHS.cart) { VEHS.cart = { root: CART_ROOT, wheels: wheels.slice() }; CART_SPEC0 = { hw: CART.box.hw, y0: CART.box.y0, y1: CART.box.y1, zf: CART.box.zf, zb: CART.box.zb, zfOut: CART.zfOut, zbOut: CART.zbOut, H: CART.H }; }
@@ -4299,7 +4307,8 @@ function mixLook(list, C) { /* the parts a model should not have (badges, a lid)
   let L = C.drop ? list.filter(q => !C.drop.test(q.mat.name || '')) : list;
   if (C.paint) { const done = new Map(); L = L.map(q => { const P = C.paint.find(P => !P.match || P.match.test(q.mat.name || '')); if (!P) return q; if (!done.has(q.mat)) done.set(q.mat, mixPaint(q.mat, P)); return { geo: q.geo, mat: done.get(q.mat), name: q.name }; }); }
   if (C.dropTop) { const b = new THREE.Box3(); for (const q of L) { q.geo.computeBoundingBox(); b.union(q.geo.boundingBox); } const y0 = b.min.y + C.dropTop * (b.max.y - b.min.y), out = [];
-    for (const q of L) { const p = q.geo.attributes.position.array, keep = []; for (const tris of mixIslands(q.geo)) { let lo = Infinity; for (const t of tris) lo = Math.min(lo, p[t * 9 + 1], p[t * 9 + 4], p[t * 9 + 7]); if (lo < y0) keep.push(...tris); } if (keep.length) out.push({ geo: keep.length * 9 === p.length ? q.geo : mixSub(q.geo, keep.sort((a, b) => a - b)), mat: q.mat, name: q.name }); }
+    for (const q of L) { const p = q.geo.attributes.position.array, keep = []; for (const tris of mixIslands(q.geo)) { let lo = Infinity; for (const t of tris) lo = Math.min(lo, p[t * 9 + 1], p[t * 9 + 4], p[t * 9 + 7]); if (lo < y0) for (const t of tris) { const k = t * 9, ux = p[k + 3] - p[k], uy = p[k + 4] - p[k + 1], uz = p[k + 5] - p[k + 2], vx = p[k + 6] - p[k], vy = p[k + 7] - p[k + 1], vz = p[k + 8] - p[k + 2], nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        if (Math.min(p[k + 1], p[k + 4], p[k + 7]) > y0 - 0.02 * (b.max.y - b.min.y) && Math.abs(ny) > 0.8 * Math.hypot(nx, ny, nz)) continue; keep.push(t); } } /* a closed box keeps no flat top either */ if (keep.length) out.push({ geo: keep.length * 9 === p.length ? q.geo : mixSub(q.geo, keep.sort((a, b) => a - b)), mat: q.mat, name: q.name }); }
     L = out; }
   return L; }
 function mixPieces(list, N) { /* the model in about N parts for a crash: its islands, the small ones joined to the nearest big one */
