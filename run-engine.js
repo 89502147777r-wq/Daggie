@@ -1975,7 +1975,7 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
 // names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win'].concat(L.hd ? ['hdboom', 'hdwhoosh', 'hdwind', 'hdengine'] : []), started: false };
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win', 'hdwind', TH === 'city' ? 'ambcity' : MODE === 'lab' ? 'amblab' : 'ambsky', BODY === 'car' ? 'road' : VEH === 'cart' || MODE === 'lab' ? 'cart' : 'roll'].concat(MODE === 'lab' ? [] : ['drone'], BODY === 'car' ? ['hdengine'] : [], L.hd ? ['hdboom', 'hdwhoosh'] : []), started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
 function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); if (L.hd) hdIrLoad(); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
@@ -2062,19 +2062,39 @@ function hdWhistle() { // the hammer cutting the air: a band of noise around its
 }
 function hdAudioStep(dt, live) { // every frame: listener at the camera, the loops follow the speed, the hammer's whistle follows the hammer
   if (!HDSND.on || !AC || AC.state !== 'running' || !MASTER) return; const t = AC.currentTime; hdListener();
-  const v = RUSHFX.v || 0, k = clamp(v / 88, 0, 1);
-  const active = live ? (state === 'intro' || state === 'ride' || state === 'passed') : (state === 'replay' && !!PLAY);
-  const dead = live ? (state === 'crashed' || (state === 'result' && cause !== '')) : !!(PLAY && PLAY.crashT != null && PLAY.t > PLAY.crashT);
-  if (!HDSND.eng) HDSND.eng = hdLoop('hdengine', 0, HD_LOOPS.hdengine[0]); if (!HDSND.eng2) HDSND.eng2 = hdLoop('hdengine', 1, HD_LOOPS.hdengine[1]); if (!HDSND.wind) HDSND.wind = hdLoop('hdwind', 0, HD_LOOPS.hdwind); // (each starts once its file has arrived)
-  const E = HDSND.eng, E2 = HDSND.eng2, W = HDSND.wind, run = active && !dead;
-  if (E) { E.src.playbackRate.setTargetAtTime(run ? 0.72 + 1.15 * k : 0.45, t, run ? 0.12 : 0.5); E.lp.frequency.setTargetAtTime(900 + 4200 * k, t, 0.1); E.g.gain.setTargetAtTime(run ? 0.09 + 0.11 * k : 0, t, run ? 0.15 : 0.35); } // revs climb with the speed; a crash chokes it
-  if (E2) { E2.src.playbackRate.setTargetAtTime(run ? 0.8 + 0.7 * k : 0.5, t, 0.12); E2.lp.frequency.value = 5000; E2.g.gain.setTargetAtTime(run ? 0.13 * k * k : 0, t, run ? 0.15 : 0.3); } // the high scream on top past ~100 mph
-  if (W) { const wg = (active || dead) && v > 3 ? 0.02 + 0.55 * Math.pow(k, 1.5) : 0; W.src.playbackRate.setTargetAtTime(0.85 + 0.4 * k, t, 0.2); W.lp.frequency.setTargetAtTime(500 + 7500 * k * k, t, 0.15); W.g.gain.setTargetAtTime(dead ? wg * 0.5 : wg, t, dead ? 0.6 : 0.2); } // the roar of air grows all the way down the drop
   for (const b of OBS.balls) { if (!b.hammer) continue; let H = HDSND.sw.get(b); if (!H) { H = { w: hdWhistle(), last: b.pos.clone(), sx: Math.sign(b.pos.x) }; HDSND.sw.set(b, H); }
     const sp = dt > 0 ? Math.min(40, H.last.distanceTo(b.pos) / dt) : 0; H.last.copy(b.pos); const q = clamp(sp / (b.amp * b.w * b.L), 0, 1.2);
     hdPanTo(H.w.pn, b.pos); H.w.b1.frequency.setTargetAtTime(380 + 520 * q, t, 0.03); H.w.b2.frequency.setTargetAtTime(220 + 300 * q, t, 0.03); H.w.g.gain.setTargetAtTime(b.dead ? 0 : 0.5 * q * q * (b.big ? 1.6 : 1), t, 0.04);
     const sx = Math.sign(b.pos.x); if (sx && sx !== H.sx) { H.sx = sx; if (camera.position.distanceTo(b.pos) < 70 && !b.dead) sfx3D('hdwhoosh', b.pos, 0.9, b.big ? 0.75 : 1, 0.35); } } // a whoosh each time the head sweeps through the bottom
 }
+// ---------- sound beds, every level: the place, the wind that grows with speed, what he rides (wheels, the car's engine), the drone that brings him ----------
+const BED = { L: {}, v: 0, last: new V3(), first: true };
+const BED_P = { roll: 2.5, cart: 2.5, road: 2.5, drone: 3, ambcity: 6, ambsky: 6, amblab: 6, hdwind: 5.1353 };
+function bedLoop(key, name, i, P, pan) { // created once its file has arrived; null until then
+  if (BED.L[key]) return BED.L[key]; const B = SFX.buf[name]; if (!B || !B.length) return null; const L = hdLoop(name, Math.min(i, B.length - 1), P);
+  if (L && pan) { L.g.disconnect(); L.pn = hdPanner(drone.position, 4); L.g.connect(L.pn); L.pn.connect(OUT()); } return (BED.L[key] = L);
+}
+function bedStep(dt, live) {
+  if (!AC || AC.state !== 'running' || !MASTER) return; const t = AC.currentTime; if (!HDSND.on) hdListener();
+  const bp = board.getWorldPosition(_bedP), d = BED.first ? 0 : bp.distanceTo(BED.last); BED.last.copy(bp); BED.first = false; // speed measured from what is on screen: the same live and in replays
+  const lab = MODE === 'lab', meas = lab ? (LAB.phase === 'roll' && state === 'ride' ? LABCART.v : 0) : dt > 0 && d < 15 ? d / dt : BED.v; BED.v += (meas - BED.v) * Math.min(1, dt * 6);
+  const v = BED.v, car = BODY === 'car', k = clamp(v / (car ? 88 : 34), 0, 1);
+  const active = lab ? state === 'ride' : live ? (state === 'intro' || state === 'ride' || state === 'passed') : state === 'replay' && !!PLAY;
+  const dead = !lab && (live ? (state === 'crashed' || (state === 'result' && cause !== '')) : !!(PLAY && PLAY.crashT != null && PLAY.t > PLAY.crashT));
+  const run = active && !dead, onGround = !live || lab || R.grounded;
+  const amb = bedLoop('amb', TH === 'city' ? 'ambcity' : lab ? 'amblab' : 'ambsky', 0, 6); // the place, always there under everything
+  if (amb) { amb.lp.frequency.value = 9000; amb.g.gain.setTargetAtTime(state === 'result' ? 0.1 : 0.22, t, 0.8); }
+  const W = bedLoop('wind', 'hdwind', 0, BED_P.hdwind); // the rush of air
+  if (W) { const wg = (active || dead) && v > 3 ? 0.02 + (car ? 0.55 : 0.42) * Math.pow(k, 1.5) : 0; W.src.playbackRate.setTargetAtTime(0.85 + 0.4 * k, t, 0.2); W.lp.frequency.setTargetAtTime(500 + 7500 * k * k, t, 0.15); W.g.gain.setTargetAtTime(dead ? wg * 0.5 : wg, t, dead ? 0.6 : 0.2); }
+  const wn = car ? 'road' : VEH === 'cart' || lab ? 'cart' : 'roll', Wh = bedLoop('wheels', wn, 0, 2.5); // wheels on the road
+  if (Wh) { Wh.src.playbackRate.setTargetAtTime(0.7 + 0.75 * k, t, 0.15); Wh.lp.frequency.setTargetAtTime(1500 + 9000 * k, t, 0.15); Wh.g.gain.setTargetAtTime(run && onGround && v > 0.5 ? (car ? 0.06 + 0.22 * k : 0.12 + 0.4 * k) : 0, t, 0.06); }
+  if (car) { const E = bedLoop('eng', 'hdengine', 0, HD_LOOPS.hdengine[0]), E2 = bedLoop('eng2', 'hdengine', 1, HD_LOOPS.hdengine[1]); // the engine: revs climb with the speed, a crash chokes it
+    if (E) { E.src.playbackRate.setTargetAtTime(run ? 0.72 + 1.15 * k : 0.45, t, run ? 0.12 : 0.5); E.lp.frequency.setTargetAtTime(900 + 4200 * k, t, 0.1); E.g.gain.setTargetAtTime(run ? 0.09 + 0.11 * k : 0, t, run ? 0.15 : 0.35); }
+    if (E2) { E2.src.playbackRate.setTargetAtTime(run ? 0.8 + 0.7 * k : 0.5, t, 0.12); E2.lp.frequency.value = 5000; E2.g.gain.setTargetAtTime(run ? 0.13 * k * k : 0, t, run ? 0.15 : 0.3); } }
+  if (!lab) { const D = bedLoop('drone', 'drone', 0, 3, true); if (D) { D.lp.frequency.value = 8000; hdPanTo(D.pn, drone.getWorldPosition(_bedD)); D.g.gain.setTargetAtTime(drone.visible ? 0.7 : 0, t, 0.25); } } // the drone that carries him to the start, placed where it flies
+  if (rollGain && BED.L.wheels) rollGain.gain.value = 0; // the old synthesised rolling noise is replaced by the recording
+}
+const _bedP = new V3(), _bedD = new V3();
 function hdDebrisSound(p, v, glass) { // a piece of the car or a shard landing, where it lands (at most ~12 a second)
   if (!HDSND.on || !AC) return false; const now = AC.currentTime; HDSND.deb = Math.min(6, HDSND.deb + (now - HDSND.debLast) * 12); HDSND.debLast = now; if (HDSND.deb < 1) return true; HDSND.deb--;
   const vv = clamp(v / 10, 0.15, 1); return glass ? sfx3D('ice', p, 0.25 * vv, rand(1.3, 1.9), 0.3) : sfx3D(['metal', 'car'], p, 0.35 + 0.5 * vv, rand(0.85, 1.15), 0.3);
@@ -3308,7 +3328,7 @@ function frame(vts) {
     camera.position.copy(camPos); camera.lookAt(camLook); if (PLAY && PLAY.roll) camera.rotateZ(PLAY.roll);
     const wf = PLAY ? PLAY.fov : baseFov(); if (Math.abs(camera.fov - wf) > 0.05) { camera.fov += (wf - camera.fov) * (PLAY && PLAY.shotSnap ? 1 : 0.25); camera.updateProjectionMatrix(); }
     sunLight.position.copy(camLook).addScaledVector(SUN, 40); sunLight.target.position.copy(camLook);
-    rushStep(dt, false); composer.render(); if (PLAY && PLAY.wantRec) { PLAY.wantRec = false; startRecorder(); } if (recorder) composite(); requestAnimationFrame(frame); return;
+    rushStep(dt, false); bedStep(dt, false); composer.render(); if (PLAY && PLAY.wantRec) { PLAY.wantRec = false; startRecorder(); } if (recorder) composite(); requestAnimationFrame(frame); return;
   }
   let ts = now < hitStopUntil ? 0.02 : now < slowUntil ? slowK : 1; if (manualSlow) ts = Math.min(ts, 0.35); // hit-stop: the picture almost freezes for a moment on a hard hit
   const sdt = dt * ts; simT += sdt;
@@ -3380,10 +3400,10 @@ function frame(vts) {
   const tgtFov = baseFov() + (state === 'ride' ? Math.min(18, Math.max(0, R.speed - 14) * 0.5) : 0);
   if (Math.abs(camera.fov - tgtFov) > 0.05) { camera.fov += (tgtFov - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); }
   sunLight.position.copy(camLook).addScaledVector(SUN, 40); sunLight.target.position.copy(camLook);
-  rushStep(dt, true); lavaAnimate(simT, sdt);
+  rushStep(dt, true); bedStep(dt, true); lavaAnimate(simT, sdt);
   $('spd').textContent = String(Math.round((state === 'ride' ? R.speed : 0) * 2.237));
   $('dist').textContent = String(Math.round(R.maxS));
-  if (rollGain && AC) rollGain.gain.setTargetAtTime(state === 'ride' && R.grounded ? Math.min(0.09, R.speed * 0.003) : 0, AC.currentTime, 0.05);
+  if (rollGain && AC && !BED.L.wheels) rollGain.gain.setTargetAtTime(state === 'ride' && R.grounded ? Math.min(0.09, R.speed * 0.003) : 0, AC.currentTime, 0.05);
   recordFrame(dt);
   composer.render();
   if (liveWant && !PLAY) { liveWant = false; if (startRecorder()) { $('recDot').hidden = false; stage.classList.add('liverec'); } } // bottom bar hides while a ride is being recorded // start on a freshly drawn frame
