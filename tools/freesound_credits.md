@@ -58,7 +58,7 @@
 - `sfx/hdwhoosh1.mp3`: [Whoosh Heavy Spear Hammer Large](https://freesound.org/people/EminYILDIRIM/sounds/540300/) by **EminYILDIRIM**, CC BY ([https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/))
 - `sfx/hdwhoosh2.mp3`: [Very Big Whoosh](https://freesound.org/people/Paul368/sounds/237980/) by **Paul368**, CC0
 - `sfx/hdwhoosh3.mp3`: [FX - Swoosh - Low Pitch](https://freesound.org/people/bolkmar/sounds/475135/) by **bolkmar**, CC0
-- `sfx/uihit1.mp3`: [(SFX) Short Bassy Industrial Hit](https://freesound.org/people/waveplaySFX/sounds/402692/) by **waveplaySFX**, CC0
+- `sfx/uihit1.mp3`: [[SFX) Short Bassy Industrial Hit](https://freesound.org/people/waveplaySFX/sounds/402692/) by **waveplaySFX**, CC0
 - `sfx/uihit2.mp3`: [Sound Design Elements Impact SFX PS 019](https://freesound.org/people/AudioPapkin/sounds/755056/) by **AudioPapkin**, CC0
 - `sfx/uihit3.mp3`: [Stab reverb hit (minimal)](https://freesound.org/people/xkeril/sounds/736850/) by **xkeril**, CC0
 - `sfx/uirise1.mp3`: [ENERGY RISER 2](https://freesound.org/people/magnuswaker/sounds/523057/) by **magnuswaker**, CC0
@@ -76,3 +76,17 @@
 - `sfx/win1.mp3`: [Cheer 1 short.wav](https://freesound.org/people/jayfrosting/sounds/333405/) by **jayfrosting**, CC0
 - `sfx/win2.mp3`: [Short Crowd Cheer.flac](https://freesound.org/people/qubodup/sounds/182571/) by **qubodup**, CC0
 - `sfx/win3.mp3`: [Medium crowd cheering 01](https://freesound.org/people/misjoc/sounds/400587/) by **misjoc**, CC0
+- `sfx/roll1.mp3`: [Skateboard rolling down concrete ramp.wav](https://freesound.org/people/Bruno_Garcez/sounds/243765/) by **Bruno_Garcez**, CC0
+- `sfx/roll2.mp3`: [skateboard.wav](https://freesound.org/people/prometheus888/sounds/507714/) by **prometheus888**, CC0
+- `sfx/cart1.mp3`: [Shopping Cart 01.wav](https://freesound.org/people/Sonicorchestra/sounds/434885/) by **Sonicorchestra**, CC0
+- `sfx/cart2.mp3`: [Noisy Rolling Metal Cart on Rubber Wheels](https://freesound.org/people/reconsider59/sounds/397994/) by **reconsider59**, CC0
+- `sfx/road1.mp3`: [Car driving ambience](https://freesound.org/people/priesjensen/sounds/495795/) by **priesjensen**, CC0
+- `sfx/road2.mp3`: [Car Driving Interior](https://freesound.org/people/squareal/sounds/237374/) by **squareal**, CC0
+- `sfx/drone1.mp3`: [UAS Drone Hover 01.wav](https://freesound.org/people/DCPoke/sounds/387985/) by **DCPoke**, CC0
+- `sfx/drone2.mp3`: [Drone Flying](https://freesound.org/people/Sheyvan/sounds/470127/) by **Sheyvan**, CC0
+- `sfx/ambcity1.mp3`: [Ambience_Berlin_Rooftop.wav](https://freesound.org/people/danner/sounds/426894/) by **danner**, CC0
+- `sfx/ambcity2.mp3`: [Rooftop city heihbourhood afternoon, distant traffic, residents activity, distant muzein prayer.wav](https://freesound.org/people/risto_alcinov/sounds/371260/) by **risto_alcinov**, CC0
+- `sfx/ambsky1.mp3`: [wind_synth_high_altitude.wav](https://freesound.org/people/android_lime/sounds/570890/) by **android_lime**, CC0
+- `sfx/ambsky2.mp3`: [Winter wind.wav](https://freesound.org/people/Elanor1995/sounds/688841/) by **Elanor1995**, CC0
+- `sfx/amblab1.mp3`: [Roomtone Warehouse Fans Vents Large](https://freesound.org/people/leonelmail/sounds/427861/) by **leonelmail**, CC0
+- `sfx/amblab2.mp3`: [Factory_Ambiance.wav (48khz/24bit)](https://freesound.org/people/neilraouf/sounds/431480/) by **neilraouf**, CC0
