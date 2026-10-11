@@ -207,5 +207,38 @@
   "license_url": "http://creativecommons.org/licenses/by/4.0/",
   "faces": 1504,
   "kb": 294
+ },
+ "s_spruce": {
+  "uid": "7a5db417827244d98827459bce0cc944",
+  "title": "Spruce tree",
+  "author": "intice184",
+  "author_name": "Georgeous",
+  "url": "https://sketchfab.com/3d-models/spruce-tree-7a5db417827244d98827459bce0cc944",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 10387,
+  "kb": 1105
+ },
+ "s_fir": {
+  "uid": "0965de5def1342cd8b8b1a0fa5643e27",
+  "title": "Fir tree",
+  "author": "intice184",
+  "author_name": "Georgeous",
+  "url": "https://sketchfab.com/3d-models/fir-tree-0965de5def1342cd8b8b1a0fa5643e27",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 7784,
+  "kb": 1052
+ },
+ "s_dozer": {
+  "uid": "baa53594134f4a4f99d96ce4ba25492e",
+  "title": "Bulldozer Photogrammetry",
+  "author": "bertanbaday",
+  "author_name": "bertanbaday",
+  "url": "https://sketchfab.com/3d-models/bulldozer-photogrammetry-baa53594134f4a4f99d96ce4ba25492e",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 4562,
+  "kb": 253
  }
 }

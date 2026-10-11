@@ -3,7 +3,7 @@ name: Sketchfab models
 on:
   workflow_dispatch:
   push:
-    branches: [claude/cannon-models, claude/mix-models]
+    branches: [claude/cannon-models, claude/mix-models, claude/real-places]
     paths: [tools/sketchfab_models.py, tools/sketchfab_picks.json, .github/workflows/sketchfab-models.yml]
 permissions:
   contents: write

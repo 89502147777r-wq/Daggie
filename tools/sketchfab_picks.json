@@ -1,3 +1,5 @@
 {
- "o_truck": {"uid": "010b0518d3f946b98e2ae3bddf52fbd8", "raw": true}
+ "s_spruce": {"uid": "7a5db417827244d98827459bce0cc944"},
+ "s_fir": {"uid": "0965de5def1342cd8b8b1a0fa5643e27"},
+ "s_dozer": {"uid": "baa53594134f4a4f99d96ce4ba25492e"}
 }
