@@ -22,7 +22,7 @@ const RUSH = !!L.rush; // speed show: speed lines, a big speedometer, rumble and
 // HD look (level option hd: true): a real car model, HDRI light and reflections, scanned PBR surfaces, a body that crumples where it is hit.
 // Car: "Car Concept" by Eric Chadwick, Darmstadt Graphics Group GmbH, CC BY 4.0 (KhronosGroup glTF-Sample-Assets), roof and logos removed for the game.
 // Light: "Venice Sunset" HDRI from Poly Haven (CC0). Files: car-concept.bin (gzipped glb), venice_sunset_1k.hdr, tex/*.jpg
-// Surfaces (tex/): Poly Haven CC0 scans. Sound (sfx/hd*.mp3 plus the shared sfx/): OpenGameArt CC0 recordings, placed in 3D with HRTF, a city reverb, see CREDITS.md
+// Surfaces (tex/): Poly Haven CC0 scans. Sound (sfx/): Freesound CC0 / CC BY recordings (wind, engine, city reverb from OpenGameArt CC0), placed in 3D with HRTF, a city reverb, see CREDITS.md
 const HD_ASSETS = { car: 'car-concept.bin?v=1', hdr: 'venice_sunset_1k.hdr?v=1' };
 const HD_LOAD = L.hd ? (async () => {
   const [{ GLTFLoader }, { RGBELoader }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/loaders/RGBELoader.js')]);
@@ -2009,7 +2009,7 @@ function duckTail() { if (!AC || !TAILBUS) return; const t = AC.currentTime; TAI
 function windDuck() { if (!AC || !WIND.g) return; const t = AC.currentTime; WIND.g.gain.cancelScheduledValues(t); WIND.g.gain.setValueAtTime(0, t); } // the next frame brings it back: a dip around every impact
 function sndSlow(on) { if (AC && SLOWLP) SLOWLP.frequency.setTargetAtTime(on ? 3600 : 20000, AC.currentTime, 0.1); } // slow motion: duller, heavier
 // ---------- HD sound (level option hd: true): a city around the car, sounds placed in 3D, wind and engine that build on the drop, a cinematic hammer hit ----------
-// Recordings from OpenGameArt (CC0), see CREDITS.md. The city reverb is the echo of a firework bang between buildings.
+// Recordings from Freesound and OpenGameArt (CC0 / CC BY), see CREDITS.md. The city reverb is the echo of a firework bang between buildings.
 const HDSND = { on: !!L.hd, ir: null, irLoad: false, eng: null, eng2: null, wind: null, whistle: null, sw: new Map(), deb: 0, debLast: 0, dead: 0 };
 const HD_LOOPS = { hdwind: 5.1353, hdengine: [0.64256, 0.58957] }; // loop periods (s): each file holds its loop more than once, the middle is looped so mp3 padding never lands in it
 function hdIrLoad() { if (HDSND.irLoad) return; HDSND.irLoad = true; fetch('sfx/hdcity_ir.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { HDSND.ir = buf; if (REVCONV) hdCityVerb(); }).catch(() => {}); }

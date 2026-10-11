@@ -1,0 +1,27 @@
+# Fetch sound effects from Freesound (CC0 / CC BY) with the repository secret FREESOUND_API_KEY and commit them.
+# Runs by hand (Actions tab, "Run workflow") or on a push to the branch claude/freesound-sfx.
+name: Freesound sounds
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/freesound-sfx]
+    paths: [tools/freesound_sfx.py, tools/freesound_picks.json, .github/workflows/freesound-sfx.yml]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -yq ffmpeg && pip install -q numpy
+      - name: Download and process
+        env:
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+        run: python3 tools/freesound_sfx.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A sfx tools
+          git diff --cached --quiet || git commit -m "Freesound: candidates or chosen sounds (CC0 / CC BY)"
+          git push
