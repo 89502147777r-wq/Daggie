@@ -24,6 +24,7 @@ All from [Poly Haven](https://polyhaven.com), CC0. 1k JPG sets (diffuse, OpenGL 
 Every file is the sound's HQ preview, trimmed, faded, loudness-matched and saved as mono MP3. Chosen by hand from
 `tools/freesound_picks.json` and fetched by `tools/freesound_sfx.py` (GitHub Actions workflow "Freesound sounds").
 CC BY sounds: licence linked on each line; CC0 sounds are credited anyway.
+Loops (roll, cart, road, drone, amb*) are made seamless and written twice; the game loops the middle.
 - `sfx/cannon1.mp3`: [Cannon1.wav](https://freesound.org/people/Isaac200000/sounds/184650/) by **Isaac200000**, CC0
 - `sfx/cannon2.mp3`: [Cannon shot](https://freesound.org/people/SamsterBirdies/sounds/467883/) by **SamsterBirdies**, CC0
 - `sfx/cannon3.mp3`: [Tank fire Mixed.wav](https://freesound.org/people/GaryQ/sounds/127845/) by **GaryQ**, CC0
@@ -102,6 +103,20 @@ CC BY sounds: licence linked on each line; CC0 sounds are credited anyway.
 - `sfx/win1.mp3`: [Cheer 1 short.wav](https://freesound.org/people/jayfrosting/sounds/333405/) by **jayfrosting**, CC0
 - `sfx/win2.mp3`: [Short Crowd Cheer.flac](https://freesound.org/people/qubodup/sounds/182571/) by **qubodup**, CC0
 - `sfx/win3.mp3`: [Medium crowd cheering 01](https://freesound.org/people/misjoc/sounds/400587/) by **misjoc**, CC0
+- `sfx/roll1.mp3`: [Skateboard rolling down concrete ramp.wav](https://freesound.org/people/Bruno_Garcez/sounds/243765/) by **Bruno_Garcez**, CC0
+- `sfx/roll2.mp3`: [skateboard.wav](https://freesound.org/people/prometheus888/sounds/507714/) by **prometheus888**, CC0
+- `sfx/cart1.mp3`: [Shopping Cart 01.wav](https://freesound.org/people/Sonicorchestra/sounds/434885/) by **Sonicorchestra**, CC0
+- `sfx/cart2.mp3`: [Noisy Rolling Metal Cart on Rubber Wheels](https://freesound.org/people/reconsider59/sounds/397994/) by **reconsider59**, CC0
+- `sfx/road1.mp3`: [Car driving ambience](https://freesound.org/people/priesjensen/sounds/495795/) by **priesjensen**, CC0
+- `sfx/road2.mp3`: [Car Driving Interior](https://freesound.org/people/squareal/sounds/237374/) by **squareal**, CC0
+- `sfx/drone1.mp3`: [UAS Drone Hover 01.wav](https://freesound.org/people/DCPoke/sounds/387985/) by **DCPoke**, CC0
+- `sfx/drone2.mp3`: [Drone Flying](https://freesound.org/people/Sheyvan/sounds/470127/) by **Sheyvan**, CC0
+- `sfx/ambcity1.mp3`: [Ambience_Berlin_Rooftop.wav](https://freesound.org/people/danner/sounds/426894/) by **danner**, CC0
+- `sfx/ambcity2.mp3`: [Rooftop city heihbourhood afternoon, distant traffic, residents activity, distant muzein prayer.wav](https://freesound.org/people/risto_alcinov/sounds/371260/) by **risto_alcinov**, CC0
+- `sfx/ambsky1.mp3`: [wind_synth_high_altitude.wav](https://freesound.org/people/android_lime/sounds/570890/) by **android_lime**, CC0
+- `sfx/ambsky2.mp3`: [Winter wind.wav](https://freesound.org/people/Elanor1995/sounds/688841/) by **Elanor1995**, CC0
+- `sfx/amblab1.mp3`: [Roomtone Warehouse Fans Vents Large](https://freesound.org/people/leonelmail/sounds/427861/) by **leonelmail**, CC0
+- `sfx/amblab2.mp3`: [Factory_Ambiance.wav (48khz/24bit)](https://freesound.org/people/neilraouf/sounds/431480/) by **neilraouf**, CC0
 
 ### From [OpenGameArt](https://opengameart.org) (CC0)
 - `sfx/hdwind1.mp3`: [Wind](https://opengameart.org/content/wind) by **IgnasD**, made into a seamless loop

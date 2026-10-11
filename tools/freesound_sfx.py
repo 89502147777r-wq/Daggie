@@ -42,6 +42,14 @@ WANT = {
     'jump':     (['whoosh', 'quick woosh'], 0.3, 4, 1.0, -16, 0),
     'land':     (['car landing', 'car land impact'], 0.3, 4, 1.2, -14, 4),
     'win':      (['crowd cheer short', 'crowd cheering', 'audience cheer'], 1, 8, 3.0, -16, 0),
+    # loops (last field 'loop'): kept length = loop period in seconds; the file holds the seamless loop twice, the game loops its middle
+    'roll':     (['skateboard rolling', 'skateboard roll loop', 'skateboard cruising'], 3, 120, 2.5, -20, 'loop'),
+    'cart':     (['shopping cart rolling', 'trolley rolling', 'shopping trolley'], 3, 120, 2.5, -20, 'loop'),
+    'road':     (['car interior road noise', 'tire road noise', 'car driving interior'], 3, 120, 2.5, -20, 'loop'),
+    'drone':    (['drone flying', 'quadcopter hover', 'drone hovering'], 3, 120, 3.0, -20, 'loop'),
+    'ambcity':  (['city ambience rooftop', 'city ambience distant traffic', 'city rooftop wind'], 10, 600, 6.0, -24, 'loop'),
+    'ambsky':   (['high altitude wind', 'mountain wind ambience', 'wind ambience strong'], 10, 600, 6.0, -24, 'loop'),
+    'amblab':   (['warehouse room tone', 'factory hall ambience', 'industrial room tone'], 10, 600, 6.0, -26, 'loop'),
     'hdwhoosh': (['heavy whoosh', 'swing whoosh', 'whoosh large', 'pass by whoosh'], 0.4, 4, 2.0, -14, 0),
 }
 PER_NAME = 3
@@ -90,9 +98,17 @@ def process(x, keep, rms, bass):
     g = min(10 ** (rms / 20) / np.sqrt(e + 1e-12), 10 ** (-1 / 20) / np.abs(x).max())
     return x * g
 
+def make_loop(x, P, rms):  # a seamless loop of exactly P seconds (the tail crossfades into the head), written twice
+    x = x - onepole(x, 28); N, F = int(P * SR), int(0.3 * SR)
+    while len(x) < N + F + SR: x = np.concatenate([x, x])
+    st = min(int(0.5 * SR), len(x) - N - F); seg = x[st:st + N + F]; y = seg[:N].copy(); t = np.linspace(0, 1, F)
+    y[:F] = seg[N:N + F] * np.cos(t * np.pi / 2) + seg[:F] * np.sin(t * np.pi / 2)
+    g = min(10 ** (rms / 20) / np.sqrt(np.mean(y * y) + 1e-12), 10 ** (-1 / 20) / np.abs(y).max())
+    return np.concatenate([y, y]) * g
+
 def save(name, y):
     p = os.path.join(OUT, name + '.mp3')
-    for br in ('96k', '80k', '64k'):
+    for br in ('96k', '80k', '64k', '48k', '40k'):
         subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f64le', '-ar', str(SR), '-ac', '1', '-i', '-', '-c:a', 'libmp3lame', '-b:a', br, p], input=y.tobytes(), check=True)
         if os.path.getsize(p) <= 100 * 1024: break
     return os.path.getsize(p)
@@ -129,7 +145,7 @@ for name, ids in picks.items():
         s = api('sounds/%d/' % sid, fields=FIELDS); short = lic_short(s['license'])[0]
         if not short or banned(s): raise SystemExit('not allowed: %d %s' % (sid, s['license']))
         src = os.path.join(TMP, '%d.mp3' % sid); urllib.request.urlretrieve(s['previews']['preview-hq-mp3'], src)
-        y = process(load(src), keep, rms, bass); size = save(name + str(n), y)
+        y = make_loop(load(src), keep, rms) if bass == 'loop' else process(load(src), keep, rms, bass); size = save(name + str(n), y)
         credits.append({'file': 'sfx/%s%d.mp3' % (name, n), 'id': sid, 'title': s['name'], 'author': s['username'], 'url': s['url'], 'license': short, 'license_url': s['license'], 'seconds': round(len(y) / SR, 2), 'kb': size // 1024})
         print('%s%d  %-40.40s by %-18.18s %s  %.2fs %d KB' % (name, n, s['name'], s['username'], short, len(y) / SR, size // 1024)); time.sleep(0.5)
 json.dump(credits, open('tools/freesound_credits.json', 'w'), indent=1, ensure_ascii=False)
