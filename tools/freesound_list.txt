@@ -1,1 +1,0 @@
-w_conc w_armor w_crystal w_gold w_steel w_ply w_oak w_hay w_thick
