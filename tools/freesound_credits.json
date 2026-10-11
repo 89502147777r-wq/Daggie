@@ -1045,28 +1045,6 @@
   "kb": 26
  },
  {
-  "file": "sfx/mortar1.mp3",
-  "id": 187542,
-  "title": "M-327 Mortar Shots.flac",
-  "author": "qubodup",
-  "url": "https://freesound.org/people/qubodup/sounds/187542/",
-  "license": "CC0",
-  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
-  "seconds": 2.4,
-  "kb": 28
- },
- {
-  "file": "sfx/mortar2.mp3",
-  "id": 426158,
-  "title": "M224 Mortar Firing Close 01",
-  "author": "Nanashi",
-  "url": "https://freesound.org/people/Nanashi/sounds/426158/",
-  "license": "CC BY",
-  "license_url": "https://creativecommons.org/licenses/by/4.0/",
-  "seconds": 1.19,
-  "kb": 14
- },
- {
   "file": "sfx/fieldgun1.mp3",
   "id": 368270,
   "title": "CivilWarCannonFire_01.WAV",
@@ -1164,5 +1142,38 @@
   "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
   "seconds": 1.36,
   "kb": 16
+ },
+ {
+  "file": "sfx/recoil1.mp3",
+  "id": 67542,
+  "title": "BGM 71 TOW Missile Launch 1 (less echo)",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/67542/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 1.64,
+  "kb": 19
+ },
+ {
+  "file": "sfx/recoil2.mp3",
+  "id": 159610,
+  "title": "C4 Rocket Launch (M1 Assault Breacher Vehicle)",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/159610/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 2.4,
+  "kb": 28
+ },
+ {
+  "file": "sfx/recoil3.mp3",
+  "id": 162368,
+  "title": "AGM-114 Hellfire Rocket Missile Launch.flac",
+  "author": "qubodup",
+  "url": "https://freesound.org/people/qubodup/sounds/162368/",
+  "license": "CC0",
+  "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+  "seconds": 2.36,
+  "kb": 28
  }
 ]
