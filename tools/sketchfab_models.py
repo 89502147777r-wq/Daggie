@@ -25,6 +25,7 @@ for name, cfg in picks.items():
     src = (glob.glob(work + '/**/scene.gltf', recursive=True) or glob.glob(work + '/**/*.gltf', recursive=True) or glob.glob(work + '/**/*.glb', recursive=True))[0]
     out = 'models/%s.glb' % name
     cmd = ['npx', '--yes', '@gltf-transform/cli@4.1.1', 'optimize', src, out, '--compress', 'false', '--texture-compress', 'webp', '--texture-size', str(cfg.get('tex', 1024)), '--instance', 'false']
+    if cfg.get('raw'): cmd += ['--join', 'false', '--palette', 'false', '--flatten', 'false'] # keep every part and material apart (glass, lights, badges)
     if ratio: cmd += ['--simplify-ratio', str(ratio), '--simplify-error', '0.002']
     else: cmd += ['--simplify', 'false']
     subprocess.run(cmd, check=True)
