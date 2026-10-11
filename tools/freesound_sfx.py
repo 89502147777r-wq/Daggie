@@ -50,6 +50,11 @@ WANT = {
     'ambcity':  (['city ambience rooftop', 'city ambience distant traffic', 'city rooftop wind'], 10, 600, 6.0, -24, 'loop'),
     'ambsky':   (['high altitude wind', 'mountain wind ambience', 'wind ambience strong'], 10, 600, 6.0, -24, 'loop'),
     'amblab':   (['warehouse room tone', 'factory hall ambience', 'industrial room tone'], 10, 600, 6.0, -26, 'loop'),
+    'bazooka':  (['bazooka', 'rocket launcher', 'rpg launch'], 0.5, 8, 2.2, -12, 2),
+    'mortar':   (['mortar launch', 'mortar fire', 'light cannon'], 0.5, 8, 2.4, -11, 3),
+    'fieldgun': (['cannon shot', 'field gun', 'civil war cannon'], 0.6, 10, 2.8, -10, 4),
+    'tankgun':  (['tank cannon', 'tank fire', 'tank shot'], 0.6, 10, 3.0, -9, 5),
+    'howitzer': (['howitzer', 'artillery fire', 'self propelled artillery', 'heavy artillery'], 0.8, 12, 3.6, -8, 6),
     'hdwhoosh': (['heavy whoosh', 'swing whoosh', 'whoosh large', 'pass by whoosh'], 0.4, 4, 2.0, -14, 0),
 }
 PER_NAME = 3
