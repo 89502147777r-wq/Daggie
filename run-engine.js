@@ -1938,7 +1938,7 @@ function noise(t, dur, vol, type, f0, f1, q) { const src = AC.createBufferSource
 function initAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } else if (AC.state === 'suspended') AC.resume(); if (AC) sfxPreload(); }
 function tone(f0, f1, dur, type, vol, delay) {
   recEvt('t', [f0, f1, dur, type, vol, delay || 0]);
-  if (!AC) return; OUT();
+  if (!AC) return; OUT(); if (recTone(f0, f1, type, vol, delay)) return;
   const t = AC.currentTime + (delay || 0);
   // low sweeps are impacts: a sine body plus a burst of low noise
   if (f0 < 220 && f1 < f0) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(f0 * 1.4, t); o.frequency.exponentialRampToValueAtTime(Math.max(25, f1 * 0.8), t + dur); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * 1.3, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); sendOut(g, 0.3); o.start(t); o.stop(t + dur + 0.05); noise(t, Math.min(0.5, dur * 0.8), vol * 0.9, 'lowpass', 900, 120, 0.7); return; }
@@ -1975,12 +1975,31 @@ function crashSound0(p) { // p 0..1: 15 mph is about 0.1, 200 mph is 1
 // ---------- sound: real recordings if the files are there, the synthesised layers otherwise ----------
 // Drop files into the repo folder sfx/ named <name>1.mp3, <name>2.mp3, <name>3.mp3 (all optional). The game picks one at random with a small pitch change.
 // names: cannon glass window wood hay brick stone ice metal vault rip thud truck car tires sand body creak
-const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak'].concat(L.hd ? ['hdboom', 'hdwhoosh', 'hdwind', 'hdengine'] : []), started: false };
+const SFX = { buf: {}, want: ['cannon', 'glass', 'window', 'wood', 'hay', 'brick', 'stone', 'ice', 'metal', 'vault', 'rip', 'thud', 'truck', 'car', 'tires', 'sand', 'body', 'creak', 'uihit', 'uirise', 'uitick', 'jump', 'land', 'win'].concat(L.hd ? ['hdboom', 'hdwhoosh', 'hdwind', 'hdengine'] : []), started: false };
 function sfxLoad(n, i) { fetch('sfx/' + n + i + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject())).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (SFX.buf[n] = SFX.buf[n] || []).push(buf); if (i < 3) sfxLoad(n, i + 1); }).catch(() => { SFX.buf[n] = SFX.buf[n] || []; }); }
 function sfxPreload() { if (!AC || SFX.started) return; SFX.started = true; for (const n of SFX.want) sfxLoad(n, 1); if (L.hd) hdIrLoad(); } // one request per sound; the 2nd and 3rd are only asked for when the 1st exists
 function sfxPlay(names, vol, rate, wet) { // true if a recording was played
   if (!AC) return false; for (const n of [].concat(names)) { const L = SFX.buf[n]; if (!L || !L.length) continue; OUT(); const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = pick(L); src.playbackRate.value = (rate || 1) * rand(0.96, 1.04); g.gain.value = vol === undefined ? 1 : vol; src.connect(g); sendOut(g, wet === undefined ? 0.2 : wet); src.start(); return true; } return false;
 }
+// the old synthesised beeps become recordings outside the lab (the lab keeps its own designed sounds): rising = a whoosh up, flat = a tick, low and falling = a hit
+const RECT = {};
+function recTone(f0, f1, type, vol, delay) {
+  if (MODE === 'lab') return false; const has = n => SFX.buf[n] && SFX.buf[n].length;
+  if (delay) return has('uirise') && has('uitick'); // the 2nd note of a little jingle: the recording already covers it
+  let n, v;
+  if (f1 > f0 * 1.15) { n = 'uirise'; v = 0.6; } else if (Math.abs(f1 - f0) < f0 * 0.15) { n = 'uitick'; v = 0.45; }
+  else if (f0 < 260) { n = vol >= 0.2 ? 'uihit' : 'thud'; v = clamp(vol * 3, 0.35, 1); } else if (type === 'sawtooth') { n = 'rip'; v = 0.45; } else { n = 'uihit'; v = 0.6; }
+  if (!has(n)) return false; const t = AC.currentTime; if (t - (RECT[n] || -1) < 0.09) return true; RECT[n] = t; // never two of the same at once
+  return sfxPlay(n, v, 1, 0.25);
+}
+function crashRec(kind) { // the moment of the crash: a real crash, not beeps (the HD hammer has its own cinematic hit)
+  recEvt('K', [kind]); if (!AC || MODE === 'lab') return false; if (performance.now() - (HDSND.hitT || -1e9) < 400) return true; OUT();
+  SND_WIDE = 0.5; try {
+    if (BODY === 'car') { const a = sfxPlay('car', 1, 1, 0.35); sfxPlay('glass', 0.75, 1, 0.35); sfxPlay('uihit', 0.8, 1, 0.3); return a; }
+    const a = sfxPlay(['body', 'metal'], 1, 1, 0.3); sfxPlay('thud', 0.9, 0.9, 0.25); sfxPlay('uihit', 0.7, 1, 0.3); return a;
+  } finally { SND_WIDE = 0; }
+}
+function winRec() { recEvt('W', []); if (!AC || MODE === 'lab') return false; OUT(); const a = sfxPlay('win', 0.9, 1, 0.3); sfxPlay('uirise', 0.6, 1, 0.3); return a; }
 function ping(t, f, dur, vol) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o2.type = 'sine'; o.frequency.value = f; o2.frequency.value = f * 2.76; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); const g2 = AC.createGain(); g2.gain.value = 0.35; o.connect(g); o2.connect(g2); g2.connect(g); sendOut(g, 0.35); o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02); }
 
 // ---------- sound that follows the physics: every piece that lands makes its own small sound, and the flight has wind ----------
@@ -1988,6 +2007,7 @@ const DSND = { tokens: 25, last: 0 };
 function debrisHit(kind, v, size) { // v: speed at which the piece hit the floor (m/s), size: its largest dimension; at most ~45 of these a second so a phone can follow
   if (!AC) return; const now = AC.currentTime; DSND.tokens = Math.min(10, DSND.tokens + Math.max(0, now - DSND.last) * 22); DSND.last = now; if (DSND.tokens < 1) return; DSND.tokens--; OUT();
   const t = now, vv = clamp(v / 8, 0.2, 1), sz = clamp(size, 0.05, 1.5); SND_WIDE = 0.7;
+  if (MODE !== 'lab') { const n = { glass: 'ice', wood: 'wood', stone: 'stone', metal: 'metal', box: 'thud', barrel: 'metal', soft: 'thud', pin: 'wood', melon: 'thud' }[kind]; if (n && SFX.buf[n] && SFX.buf[n].length) { try { sfxPlay(n, (0.12 + 0.3 * vv) * (n === 'thud' ? 1.3 : 1), rand(1.05, 1.4) / Math.pow(sz * 2 + 0.5, 0.2), 0.25); } finally { SND_WIDE = 0; } return; } } // small pieces: the same recordings, quieter and a little higher
   try {
     if (kind === 'glass') { ping(t, clamp(4200 * Math.exp(rand(-0.5, 0.5)) / Math.pow(sz * 4, 0.35), 1500, 11000), rand(0.03, 0.12), (0.03 + 0.05 * vv) * 1.6); if (v > 4) noise(t, 0.012, 0.05 * vv, 'highpass', 6000, 3000, 0.7); }
     else if (kind === 'wood') { noise(t, rand(0.025, 0.06), 0.16 * vv, 'bandpass', rand(900, 2200), 600, 3); sweep(t, rand(180, 300), 90, 0.05, 0.1 * vv, 'sine'); }
@@ -2105,9 +2125,10 @@ function ripSound() { // a limb tearing off: metal screech, snap, sizzle
 function scrapeSound(v) { if (!AC) return; OUT(); const t = AC.currentTime; noise(t, 0.12, Math.min(0.12, 0.02 + v * 0.004), 'bandpass', 2600 + v * 30, 1400, 2.5); }
 let lastClank = 0;
 let clankN = 0, clankWin = 0;
-function clank(v) { // small knocks: a soft dull thud; only big hits ring like metal. Never more than ~4 a second.
-  const now = performance.now(); if (now - lastClank < 150) return; if (now - clankWin > 1000) { clankWin = now; clankN = 0; } if (++clankN > 4) return; lastClank = now;
-  recEvt('t', [300, 150, 0.1, 'sine', 0.02, 0]); if (!AC) return; OUT();
+function clank(v, replay) { // small knocks: a soft dull thud; only big hits ring like metal. Never more than ~4 a second.
+  const now = performance.now(); if (!replay) { if (now - lastClank < 150) return; if (now - clankWin > 1000) { clankWin = now; clankN = 0; } if (++clankN > 4) return; lastClank = now; }
+  recEvt('k', [v]); if (!AC) return; OUT();
+  if (MODE !== 'lab' && sfxPlay(v < 7 ? 'thud' : ['metal', 'body'], v < 7 ? 0.25 + v * 0.06 : clamp(0.4 + v * 0.03, 0.4, 0.9), rand(0.95, 1.1), 0.25)) return;
   const t = AC.currentTime;
   if (v < 7) { noise(t, 0.09, Math.min(0.05, 0.012 + v * 0.006), 'lowpass', 500, 160, 0.7); return; }
   const vol = Math.min(0.07, 0.02 + v * 0.004), f = rand(260, 420);
@@ -2240,6 +2261,9 @@ function fireEvents(f) {
     else if (k === 't') tone(d[0], d[1], d[2], d[3], d[4], d[5]);
     else if (k === 'c') crashSound(d[0]);
     else if (k === 'H') hdHitSound(new V3(d[0], d[1], d[2]), d[3]);
+    else if (k === 'K') crashRec(d[0]);
+    else if (k === 'W') winRec();
+    else if (k === 'k') clank(d[0], true);
     else if (k === 'r') ripSound();
     else if (k === 'p') { lastPop = 0; pop(d[0], d[1]); }
     else if (k === 'x') explodeVisual(new V3(d[0], d[1], d[2]));
@@ -2768,14 +2792,14 @@ function crash(kind, saw) {
   slowUntil = now + (reduceMotion ? 500 : 1600); slowK = 0.22;
   if (!reduceMotion) shake = 0.5;
   pop({ saw: 'ZZZT!', big: 'SHREDDED!', fall: 'NOOO!', hurdle: 'FACEPLANT!', ball: 'WRECKED!', press: 'SQUISH!', barrel: 'STRIKE!', cart: 'CART CRASH!', sweeper: 'SWEPT!', fart: 'BRRRAP!', sock: 'STOMPED!', fire: 'BURNED!', wall: 'BONK!', spikes: 'OUCH!', wear: 'FALLING APART!', bones: 'BONES EVERYWHERE!', anvil: 'FLATTENED!', gap: 'SPLAT!', lava: 'MELTED!', hammer: 'HAMMERED!', bumps: 'TOO MANY BUMPS!', rollover: 'ROLLED OVER!' }[kind] || 'CRASH!', kind === 'fall' ? 'lilac' : 'green');
-  tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06);
+  if (!crashRec(kind)) { tone(140, 40, 0.45, 'sine', 0.3); tone(1500, 300, 0.25, 'sawtooth', 0.06); tone(700, 200, 0.2, 'triangle', 0.08, 0.06); }
   orbitA = Math.atan2(camera.position.x - center.x, camera.position.z - center.z);
 }
 function passed() {
   state = 'passed'; stateT = performance.now();
   setFace('happy', 99999); const nf = flockCount(); pop(DLV ? 'DELIVERY!' : nf > 1 ? nf + ' SURVIVED!' : 'HE SURVIVED!', 'green'); if (DLV) D.phase = 'approach';
   for (let i = 0; i < 4; i++) setTimeout(() => burst(rider.position.clone().add(new V3(rand(-2, 2), 3, rand(-3, 1))), 60, CONF, 7), i * 250);
-  tone(660, 1320, 0.3, 'square', 0.05); tone(880, 1760, 0.3, 'square', 0.04, 0.15);
+  if (!winRec()) { tone(660, 1320, 0.3, 'square', 0.05); tone(880, 1760, 0.3, 'square', 0.04, 0.15); }
 }
 function showResult() {
   state = 'result';
@@ -2935,7 +2959,7 @@ function resetGadgets() {
 function stepRide(dt, now) {
   const px = R.x, ps0 = R.s;
   stepFx(dt); if (state !== 'ride' && state !== 'passed') return;
-  if (R.jumpPend > 0) { R.jumpPend -= dt; if (R.jumpPend <= 0 && R.grounded && state === 'ride') { R.grounded = false; R.hop = false; R.vy = R.speed * R.slope + 5.75 * FX.jump; crouchV -= 12; tone(300, 700, 0.15, 'triangle', 0.05); noise && AC && noise(AC.currentTime, 0.12, 0.05, 'bandpass', 1800, 700, 1.5); setFace('wow', 700); } }
+  if (R.jumpPend > 0) { R.jumpPend -= dt; if (R.jumpPend <= 0 && R.grounded && state === 'ride') { R.grounded = false; R.hop = false; R.vy = R.speed * R.slope + 5.75 * FX.jump; crouchV -= 12; if (!sfxPlay('jump', 0.7, 1, 0.2)) tone(300, 700, 0.15, 'triangle', 0.05); noise && AC && noise(AC.currentTime, 0.12, 0.05, 'bandpass', 1800, 700, 1.5); setFace('wow', 700); } }
   if (R.slip > 0) { R.slip -= dt; R.xT += Math.sin(simT * 7.3) * 5.5 * dt; }
   if (OBS.wind && R.s > OBS.wind.s0 && R.s < OBS.wind.s1) { R.xT += OBS.wind.force * dt; R.x += OBS.wind.force * 0.35 * dt; }
   R.x += (R.xT - R.x) * Math.min(1, dt * (FORM.kind === 'frozen' ? 1.4 : R.slip > 0 ? 2.5 : 6));
@@ -3063,7 +3087,7 @@ function stepRide(dt, now) {
     setHP(HP - Math.round(1 + sev * 5)); carHit(sev * 0.16, 0, 1); // the bump smacks the nose and front wing
     lastPop = 0; pop(R.wild > 1.3 ? 'NO CONTROL!' : sev > 0.5 ? 'WHOA! ' + (R.bumps + (R.clean || 0)) + '/' + BUMP_N : 'BUMP ' + (R.bumps + (R.clean || 0)) + '/' + BUMP_N, sev > 0.5 ? 'green' : '');
     if (sev > 0.5) setFace('scared', 1200);
-    if (!reduceMotion) shake = Math.min(0.7, shake + 0.12 + sev * 0.3); clank(3 + Math.round(sev * 3)); tone(140, 55, 0.18, 'sine', Math.min(0.3, 0.08 + R.speed * 0.006));
+    if (!reduceMotion) shake = Math.min(0.7, shake + 0.12 + sev * 0.3); clank(3 + Math.round(sev * 3)); if (!sfxPlay('land', clamp(0.35 + R.speed * 0.012, 0.35, 1), 1, 0.25)) tone(140, 55, 0.18, 'sine', Math.min(0.3, 0.08 + R.speed * 0.006));
     burst(new V3(R.x, 0.15, -R.s), 10 + Math.round(R.speed * 0.6), SPARK, 4);
     if (HP <= 0) { crash('rollover'); return; }
   }
