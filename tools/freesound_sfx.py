@@ -42,6 +42,14 @@ WANT = {
     'jump':     (['whoosh', 'quick woosh'], 0.3, 4, 1.0, -16, 0),
     'land':     (['car landing', 'car land impact'], 0.3, 4, 1.2, -14, 4),
     'win':      (['crowd cheer short', 'crowd cheering', 'audience cheer'], 1, 8, 3.0, -16, 0),
+    # loops (last field 'loop'): kept length = loop period in seconds; the file holds the seamless loop twice, the game loops its middle
+    'roll':     (['skateboard rolling', 'skateboard roll loop', 'skateboard cruising'], 3, 120, 2.5, -20, 'loop'),
+    'cart':     (['shopping cart rolling', 'trolley rolling', 'shopping trolley'], 3, 120, 2.5, -20, 'loop'),
+    'road':     (['car interior road noise', 'tire road noise', 'car driving interior'], 3, 120, 2.5, -20, 'loop'),
+    'drone':    (['drone flying', 'quadcopter hover', 'drone hovering'], 3, 120, 3.0, -20, 'loop'),
+    'ambcity':  (['city ambience rooftop', 'city ambience distant traffic', 'city rooftop wind'], 10, 600, 6.0, -24, 'loop'),
+    'ambsky':   (['high altitude wind', 'mountain wind ambience', 'wind ambience strong'], 10, 600, 6.0, -24, 'loop'),
+    'amblab':   (['warehouse room tone', 'factory hall ambience', 'industrial room tone'], 10, 600, 6.0, -26, 'loop'),
     'hdwhoosh': (['heavy whoosh', 'swing whoosh', 'whoosh large', 'pass by whoosh'], 0.4, 4, 2.0, -14, 0),
 }
 PER_NAME = 3
