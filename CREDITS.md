@@ -18,6 +18,12 @@ All from [Poly Haven](https://polyhaven.com), CC0. 1k JPG sets (diffuse, OpenGL 
 - `tex/asphalt_*.jpg`: [Asphalt Pit Lane](https://polyhaven.com/a/asphalt_pit_lane) by Dimitrios Savva. Road and ramp, tiled every 3 m, diffuse lifted in the game.
 - `tex/concrete_*.jpg`: [Concrete Wall 008](https://polyhaven.com/a/concrete_wall_008) by Dario Barresi and Charlotte Baglioni. Skyscraper roof and parapets.
 - `tex/metal_*.jpg`: [Metal Plate 02](https://polyhaven.com/a/metal_plate_02) by Rob Tuytel. Head of the giant hammer (diffuse desaturated and brightened to read as steel).
+- `tex/ply_*.jpg`: [Plywood](https://polyhaven.com/a/plywood) by Rob Tuytel. Lab cannon: the plywood wall.
+- `tex/oak_*.jpg`: [Brown Planks 03](https://polyhaven.com/a/brown_planks_03) by Rob Tuytel. Lab cannon: the oak wall (tinted warmer).
+- `tex/brick_*.jpg`: [Red Brick 03](https://polyhaven.com/a/red_brick_03) by Rob Tuytel. Lab cannon: the brick wall.
+- `tex/stone_*.jpg`: [Rustic Stone Wall 02](https://polyhaven.com/a/rustic_stone_wall_02) by Amal Kumar. Lab cannon: the stone wall.
+- `tex/conc_*.jpg`, `tex/steel_*.jpg`: greyscale copies of Concrete Wall 008 and Metal Plate 02 for the lab's concrete and steel walls;
+  the Metal Plate 02 relief is also on the five lab cannons, the wall frames, the vault door and the gold wall.
 
 ## Sound effects (`sfx/`)
 ### From [Freesound](https://freesound.org) (CC0 and CC BY)

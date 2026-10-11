@@ -5674,33 +5674,80 @@ function canWheel(r, wd, spokes, rimM, spokeM) {
   for (let k = 0; k < spokes; k++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(r * 0.09, r * 1.9, wd * 0.5), spokeM); sp.rotation.z = k * Math.PI / spokes; ring.add(sp); }
   ring.rotation.y = Math.PI / 2; g.add(ring); return g;
 }
-function canModel(lv) { // five cannons, each bigger and meaner; the muzzle is at z = MUZZLE_Z
-  const S = CAN_SPEC[lv - 1], g = new THREE.Group(), M = (c, m = 0.75, r = 0.4, e = 0) => new THREE.MeshStandardMaterial({ color: c, metalness: m, roughness: r, emissive: e ? c : 0x000000, emissiveIntensity: e });
-  const wood = M(0x7a4d28, 0.05, 0.8), iron = M(0x2b2d33, 0.8, 0.45), steel = M(0x6b7280, 0.85, 0.35), barrelM = M(S.col, 0.7, 0.35), bandM = M(S.band, S.glow ? 0.3 : 0.8, 0.3, S.glow ? 1.6 : 0), dark = M(0x101114, 0.5, 0.6);
-  try { const env = labEnv(); for (const m of [iron, steel, barrelM, bandM]) { m.envMap = env; m.envMapIntensity = 0.9; } } catch (e) {}
-  const yb = S.wr + 0.35, zc = MUZZLE_Z + S.L * 0.55, barrel = new THREE.Group(); barrel.position.set(LAB_LANE, yb, MUZZLE_Z + S.L); g.add(barrel); g.userData.barrel = barrel;
-  const tube = new THREE.Mesh(new THREE.CylinderGeometry(S.r1, S.r0, S.L, 36), barrelM); tube.rotation.x = -Math.PI / 2; tube.position.z = -S.L / 2; tube.castShadow = true; barrel.add(tube);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(S.r0, 24, 16), barrelM); cap.position.z = 0; barrel.add(cap);
-  const knob = new THREE.Mesh(new THREE.SphereGeometry(S.r0 * 0.3, 12, 10), bandM); knob.position.z = S.r0 * 0.95; barrel.add(knob);
-  const nb = 3 + lv; for (let k = 0; k < nb; k++) { const t = (k + 0.7) / (nb + 0.5), r = S.r0 + (S.r1 - S.r0) * t, b = new THREE.Mesh(new THREE.TorusGeometry(r + 0.025, 0.045 + lv * 0.01, 8, 36), bandM); b.position.z = -S.L * t; barrel.add(b); }
-  const flare = new THREE.Mesh(new THREE.TorusGeometry(S.r1 + 0.03, 0.09 + lv * 0.012, 10, 36), bandM); flare.position.z = -S.L; barrel.add(flare);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(S.r1 * 0.9, 28), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })); hole.position.z = -S.L + 0.04; barrel.add(hole);
-  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), dark); fuse.position.set(0, S.r0 + 0.1, S.r0 * 0.4); fuse.rotation.x = 0.4; barrel.add(fuse);
-  if (S.wheel === 'wood' || S.wheel === 'iron' || S.wheel === 'steel') {
-    const rimM = S.wheel === 'wood' ? wood : S.wheel === 'iron' ? iron : steel, spM = S.wheel === 'wood' ? wood : steel, sp = S.wheel === 'steel' ? 10 : 8;
-    for (const sx of [-1, 1]) { const w = canWheel(S.wr, S.wr * 0.16, sp, rimM, spM); w.position.set(LAB_LANE + sx * (S.r0 + 0.55), S.wr, zc); g.add(w); if (S.wheel !== 'wood') { const tyre = new THREE.Mesh(new THREE.TorusGeometry(S.wr, S.wr * 0.12, 8, 28), iron); tyre.rotation.y = Math.PI / 2; tyre.position.copy(w.position); g.add(tyre); } }
-    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, (S.r0 + 0.55) * 2, 10), iron); axle.rotation.z = Math.PI / 2; axle.position.set(LAB_LANE, S.wr, zc); g.add(axle);
-    for (const sx of [-1, 1]) { const ck = new THREE.Mesh(new THREE.BoxGeometry(0.22, S.wr * 0.9, S.L * 0.8), S.wheel === 'wood' ? wood : steel); ck.position.set(LAB_LANE + sx * (S.r0 + 0.3), yb - S.wr * 0.25, zc + 0.2); ck.castShadow = true; g.add(ck); }
-    const trail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, S.L * 0.55), S.wheel === 'wood' ? wood : steel); trail.position.set(LAB_LANE, 0.22, MUZZLE_Z + S.L + S.L * 0.3); trail.rotation.x = -0.12; g.add(trail);
-    if (lv === 3) for (let k = 0; k < 6; k++) { const bag = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 8), M(0x9a8a62, 0, 0.95)); bag.scale.set(1.3, 0.6, 1); bag.position.set(LAB_LANE + (k % 2 ? 1 : -1) * (S.r0 + 1.8) + rand(-0.2, 0.2), 0.2 + ((k / 2) | 0) * 0.28, zc - 1.0 + ((k / 2) | 0) * 0.5); g.add(bag); }
-  } else { // tracked bases with glowing cores
-    for (const sx of [-1, 1]) { const tr = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7 + lv * 0.1, S.L * 0.85), dark); tr.position.set(LAB_LANE + sx * (S.r0 + 0.65), 0.45 + lv * 0.05, zc); tr.castShadow = true; g.add(tr);
-      for (let k = 0; k < 11; k++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.06, 0.2), steel); st.position.set(tr.position.x, tr.position.y + (0.35 + lv * 0.05), zc - S.L * 0.4 + k * (S.L * 0.8 / 10)); g.add(st); } }
-    const deck = new THREE.Mesh(new THREE.BoxGeometry((S.r0 + 0.65) * 2, 0.4, S.L * 0.7), steel); deck.position.set(LAB_LANE, yb - S.r0 * 0.9, zc); deck.castShadow = true; g.add(deck);
-    for (let k = 0; k < 6; k++) { const fin = new THREE.Mesh(new THREE.TorusGeometry(S.r0 + 0.12, 0.03, 6, 30), steel); fin.position.set(0, 0, -S.L * (0.15 + k * 0.06)); barrel.add(fin); }
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 10), bandM); core.position.set(LAB_LANE, yb - S.r0 * 0.4, zc + S.L * 0.3); g.add(core);
-    if (lv === 5) { for (let k = 0; k < 8; k++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 8), bandM); const an = k / 8 * 6.283; sp.position.set(Math.cos(an) * (S.r0 + 0.2), Math.sin(an) * (S.r0 + 0.2), -S.L * 0.6); sp.rotation.z = an - Math.PI / 2; barrel.add(sp); }
-      const halo = new THREE.Mesh(new THREE.TorusGeometry(S.r1 + 0.7, 0.06, 8, 40), bandM); halo.position.z = -S.L - 0.5; barrel.add(halo); for (const sx of [-1, 1]) { const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 1.3, 10), steel); pipe.position.set(LAB_LANE + sx * (S.r0 + 0.65), 1.7, zc + S.L * 0.25); g.add(pipe); } }
+// lab PBR sets (tex/<name>_diff|nor|rough.jpg), loaded once; materials get them when they arrive
+const LABTEX = {};
+function labSet(name) { if (!LABTEX[name]) { const ld = new THREE.TextureLoader(), one = (f, srgb) => new Promise(res => ld.load('tex/' + name + '_' + f + '.jpg?v=1', t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; res(t); }, undefined, () => res(null)));
+  LABTEX[name] = Promise.all([one('diff', true), one('nor'), one('rough')]).then(([map, normalMap, roughnessMap]) => ({ map, normalMap, roughnessMap })); } return LABTEX[name]; }
+function labSkin(m, name, rep, opt) { // give a material a scanned surface tiled rep[0] x rep[1] times (opt.map false: keep its own colour and picture, take only the relief)
+  opt = opt || {}; labSet(name).then(S => { for (const k of ['map', 'normalMap', 'roughnessMap']) { if (!S[k] || (k === 'map' && opt.map === false)) continue; const t = S[k].clone(); t.needsUpdate = true; t.repeat.set(rep[0], rep[1]); m[k] = t; }
+    if (opt.ns) m.normalScale.setScalar(opt.ns); if (opt.rough !== undefined) m.roughness = opt.rough; if (opt.bump === false) m.bumpMap = null; m.needsUpdate = true; }); return m; }
+function camoTex(cols) { return tex(512, 512, (g, w, h) => { g.fillStyle = cols[0]; g.fillRect(0, 0, w, h); for (let k = 1; k < cols.length; k++) for (let i = 0; i < 9; i++) { g.fillStyle = cols[k]; g.beginPath(); const cx = rand(0, w), cy = rand(0, h), r = rand(40, 110); for (let a = 0; a < 6.283; a += 0.5) { const rr = r * rand(0.55, 1.25); g.lineTo(cx + Math.cos(a) * rr * 1.5, cy + Math.sin(a) * rr); } g.closePath(); g.fill(); } }, [1, 1]); }
+// five guns, as in their sound: a bazooka on a tripod, a mortar behind sandbags, a WWII field gun with its shield, a tank, a self-propelled howitzer. The muzzle is at z = MUZZLE_Z, the bore at y = wr + 0.35
+function canModel(lv) {
+  const S = CAN_SPEC[lv - 1], g = new THREE.Group(), env = (() => { try { return labEnv(); } catch (e) { return null; } })();
+  const M = (c, m = 0.6, r = 0.55, o) => { const x = new THREE.MeshStandardMaterial(Object.assign({ color: c, metalness: m, roughness: r }, o || {})); if (env) { x.envMap = env; x.envMapIntensity = 0.8; } return x; };
+  const paint = (c, rep) => labSkin(M(c, 0.35, 0.65), 'metal', rep || [2, 2], { map: false, ns: 0.6 }); // painted armour: the relief and wear of steel plates under the paint
+  const olive = paint(0x4b5326), dark = M(0x16181b, 0.5, 0.7), steel = labSkin(M(0x8a9098, 0.9, 0.35), 'metal', [1, 1], { map: false, ns: 0.4 }), rubber = M(0x111214, 0, 0.9), brass = M(0xc89b3c, 0.9, 0.3), canvas = M(0x6e6550, 0, 0.98);
+  const yb = S.wr + 0.35, x0 = LAB_LANE, br = MUZZLE_Z + S.L, barrel = new THREE.Group(); barrel.position.set(x0, yb, br); g.add(barrel); g.userData.barrel = barrel;
+  const add = (geo, mat, x, y, z, par, rx, ry, rz) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (rx) m.rotation.x = rx; if (ry) m.rotation.y = ry; if (rz) m.rotation.z = rz; m.castShadow = true; m.receiveShadow = true; (par || g).add(m); return m; };
+  const tubeZ = (r0, r1, len, z, mat, seg, open) => add(new THREE.CylinderGeometry(r1, r0, len, seg || 32, 1, !!open), mat, 0, 0, z, barrel, -Math.PI / 2); // along -z from z
+  const bore = r => { const h = new THREE.Mesh(new THREE.CircleGeometry(r, 24), new THREE.MeshBasicMaterial({ color: 0x050505, side: THREE.DoubleSide })); h.position.z = -S.L - 0.01; barrel.add(h); };
+  const sandbag = (x, y, z, ry) => { const b = add(new THREE.SphereGeometry(0.36, 12, 8), canvas, x, y, z, null, 0, ry || 0); b.scale.set(1.35, 0.5, 0.75); };
+  const crate = (x, z, ry) => { const c = add(new THREE.BoxGeometry(1.0, 0.45, 0.6), labSkin(M(0x5a5232, 0, 0.8), 'oak', [1, 0.5], { ns: 0.8 }), x, 0.23, z, null, 0, ry || 0); add(new THREE.BoxGeometry(1.02, 0.06, 0.62), dark, 0, 0.12, 0, c); return c; };
+  const wheelSet = (n, x, z0, dz, r, y) => { for (let k = 0; k < n; k++) { const w = add(new THREE.CylinderGeometry(r, r, 0.22, 20), dark, x, y, z0 + k * dz, null, 0, 0, Math.PI / 2); add(new THREE.CylinderGeometry(r * 0.45, r * 0.45, 0.24, 12), steel, 0, 0, 0, w); } };
+  const tracks = (w, z0, z1, h, y, gap) => { for (const sd of [-1, 1]) { const x = x0 + sd * gap, len = z1 - z0, zc = (z0 + z1) / 2;
+      const T = tex(64, 256, (c, W, H) => { c.fillStyle = '#1a1b1d'; c.fillRect(0, 0, W, H); c.fillStyle = '#34363a'; for (let i = 0; i < H; i += 16) c.fillRect(0, i, W, 9); }, [1, len * 2.5]);
+      add(new THREE.BoxGeometry(w, h, len), M(0x2a2b2e, 0.6, 0.8, { map: T }), x, y, zc); wheelSet(Math.round(len / 0.9), x + sd * 0.02, z0 + 0.45, len / Math.round(len / 0.9) * 0.98, h * 0.42, y - h * 0.05); } };
+  if (lv === 1) { // BAZOOKA: a long olive tube, open venturi at the back, grip, sight, on a tripod
+    tubeZ(0.3, 0.3, S.L, -S.L / 2, olive); add(new THREE.CylinderGeometry(0.44, 0.31, 0.6, 28, 1, true), steel, 0, 0, 0.3, barrel, -Math.PI / 2).material.side = THREE.DoubleSide;
+    for (const z of [-S.L + 0.1, -S.L * 0.62, -S.L * 0.3, -0.15]) tubeZ(0.335, 0.335, 0.1, z, dark);
+    bore(0.27); add(new THREE.BoxGeometry(0.12, 0.42, 0.2), dark, 0, -0.45, -S.L * 0.55, barrel, 0.15); add(new THREE.BoxGeometry(0.1, 0.32, 0.18), dark, 0, -0.42, -S.L * 0.32, barrel, 0.25);
+    add(new THREE.BoxGeometry(0.16, 0.2, 0.5), dark, -0.38, 0.12, -S.L * 0.5, barrel); add(new THREE.CylinderGeometry(0.07, 0.07, 0.25, 12), M(0x223344, 0.2, 0.1), -0.38, 0.12, -S.L * 0.5 - 0.35, barrel, Math.PI / 2);
+    add(new THREE.BoxGeometry(0.5, 0.12, 0.5), canvas, 0, -0.32, -0.6, barrel); // shoulder rest
+    const head = add(new THREE.CylinderGeometry(0.12, 0.12, 0.3, 16), steel, x0, yb - 0.38, br - S.L * 0.45, null);
+    for (let k = 0; k < 3; k++) { const a = k / 3 * 6.283 + 0.5, lx = Math.cos(a) * 0.9, lz = Math.sin(a) * 0.9, len = Math.hypot(yb - 0.45, 0.9); const leg = add(new THREE.CylinderGeometry(0.04, 0.05, len, 8), steel, x0 + lx / 2, (yb - 0.45) / 2, br - S.L * 0.45 + lz / 2);
+      leg.lookAt(x0 + lx, 0, br - S.L * 0.45 + lz); leg.rotateX(Math.PI / 2); }
+    crate(x0 + 1.6, br - 1.2, 0.3); for (let k = 0; k < 2; k++) { const r = add(new THREE.CylinderGeometry(0.12, 0.12, 0.9, 14), olive, x0 + 1.4 + k * 0.3, 0.6, br - 1.2, null, Math.PI / 2); add(new THREE.ConeGeometry(0.12, 0.3, 14), dark, 0, 0.6, 0, r); }
+  } else if (lv === 2) { // MORTAR: a fat smooth-bore tube resting on a round baseplate, a bipod with its screw, sandbags and bomb crates
+    tubeZ(0.45, 0.42, S.L, -S.L / 2, olive); tubeZ(0.5, 0.5, 0.18, -S.L + 0.09, dark); bore(0.38);
+    add(new THREE.SphereGeometry(0.46, 20, 14), olive, 0, 0, 0.05, barrel); // the breech cap, then a ball joint down to the baseplate on the floor
+    add(new THREE.CylinderGeometry(0.13, 0.16, yb - 0.12, 12), steel, x0, (yb - 0.12) / 2 + 0.1, br + 0.35); add(new THREE.CylinderGeometry(0.95, 1.05, 0.12, 6), dark, x0, 0.06, br + 0.35); for (let k = 0; k < 3; k++) add(new THREE.BoxGeometry(1.9, 0.16, 0.08), dark, x0, 0.14, br + 0.35, null, 0, k / 3 * Math.PI);
+    const bz = br - S.L * 0.62; for (const sd of [-1, 1]) { const len = Math.hypot(yb - 0.05, 0.8); const leg = add(new THREE.CylinderGeometry(0.05, 0.06, len, 8), steel, x0 + sd * 0.4, (yb - 0.05) / 2, bz); leg.rotation.z = sd * Math.atan2(0.8, yb); add(new THREE.CylinderGeometry(0.14, 0.14, 0.05, 12), dark, x0 + sd * 0.8, 0.03, bz); }
+    add(new THREE.BoxGeometry(1.6, 0.08, 0.08), steel, x0, yb * 0.45, bz); add(new THREE.CylinderGeometry(0.05, 0.05, yb - 0.4, 8), steel, x0, (yb - 0.4) / 2 + 0.4, bz + 0.15); add(new THREE.TorusGeometry(0.18, 0.03, 6, 18), steel, x0 + 0.3, yb * 0.55, bz + 0.15, null, 0, Math.PI / 2);
+    for (let row = 0; row < 3; row++) for (let k = -3; k <= 3; k++) sandbag(x0 + k * 0.7 + (row % 2) * 0.35, 0.18 + row * 0.33, br + 0.7, 0);
+    for (const sd of [-1, 1]) { const c = crate(x0 + sd * 2.0, br - 1.5, sd * 0.2); for (let k = 0; k < 3; k++) { const b = add(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 12), olive, x0 + sd * 2.0 - 0.3 + k * 0.3, 0.75, br - 1.5, null); add(new THREE.SphereGeometry(0.11, 12, 10), olive, 0, 0.3, 0, b); add(new THREE.BoxGeometry(0.2, 0.12, 0.02), dark, 0, -0.3, 0, b); } }
+  } else if (lv === 3) { // FIELD GUN: long barrel with a muzzle brake and a recoil cylinder, an armoured shield, pressed-steel wheels, split trails
+    tubeZ(0.3, 0.22, S.L, -S.L / 2, olive); tubeZ(0.34, 0.34, 1.6, -0.8, olive); add(new THREE.BoxGeometry(0.62, 0.5, 0.9), olive, 0, 0, 0.35, barrel);
+    tubeZ(0.14, 0.14, S.L * 0.45, -S.L * 0.3, steel).position.y = 0.42; const mb = add(new THREE.BoxGeometry(0.62, 0.44, 0.55), dark, 0, 0, -S.L - 0.15, barrel); for (const sd of [-1, 1]) add(new THREE.BoxGeometry(0.04, 0.3, 0.12), M(0x050505, 0, 1), sd * 0.31, 0, 0, mb); bore(0.2);
+    const sz = br - S.L * 0.35, shield = add(new THREE.BoxGeometry(2.9, 1.7, 0.06), olive, x0, yb + 0.05, sz); add(new THREE.BoxGeometry(2.9, 0.5, 0.06), olive, x0, yb + 1.05, sz + 0.12, null, -0.45); add(new THREE.BoxGeometry(0.6, 0.6, 0.08), M(0x050505, 0, 1), x0, yb, sz - 0.02);
+    add(new THREE.BoxGeometry(0.35, 0.08, 0.06), M(0x050505, 0, 1), x0 - 0.9, yb + 0.5, sz - 0.04); for (const sd of [-1, 1]) add(new THREE.BoxGeometry(0.06, 0.1, 0.06), steel, x0 + sd * 1.3, yb + 0.7, sz - 0.04);
+    for (const sd of [-1, 1]) { const w = add(new THREE.CylinderGeometry(S.wr, S.wr, 0.34, 28), rubber, x0 + sd * 1.15, S.wr, sz + 0.35, null, 0, 0, Math.PI / 2); add(new THREE.CylinderGeometry(S.wr * 0.68, S.wr * 0.68, 0.36, 24), olive, 0, 0, 0, w); for (let k = 0; k < 6; k++) add(new THREE.CylinderGeometry(0.04, 0.04, 0.38, 6), steel, Math.cos(k) * S.wr * 0.45, 0, Math.sin(k) * S.wr * 0.45, w);
+      const tr = add(new THREE.BoxGeometry(0.22, 0.2, 3.4), olive, x0 + sd * 0.55, 0.45, sz + 2.0, null, -0.22, sd * -0.18); add(new THREE.BoxGeometry(0.5, 0.35, 0.08), dark, sd * 0, -0.15, 1.7, tr, 0.6); }
+    add(new THREE.CylinderGeometry(0.07, 0.07, 2.6, 10), steel, x0, S.wr, sz + 0.35, null, 0, 0, Math.PI / 2);
+    for (let k = 0; k < 4; k++) { const sh = add(new THREE.CylinderGeometry(0.08, 0.08, 0.55, 12), brass, x0 - 1.9 + k * 0.2, 0.28, br + 0.4, null); }
+    for (let row = 0; row < 2; row++) for (let k = 0; k < 5; k++) { sandbag(x0 - 2.6 - row * 0.1, 0.18 + row * 0.33, sz - 1.4 + k * 0.62 + (row % 2) * 0.3, Math.PI / 2); sandbag(x0 + 2.6 + row * 0.1, 0.18 + row * 0.33, sz - 1.4 + k * 0.62 + (row % 2) * 0.3, Math.PI / 2); }
+  } else if (lv === 4) { // TANK: a sloped hull on tracks, a cast turret, a long gun with a fume extractor and a muzzle brake
+    const cam = M(0xffffff, 0.35, 0.65, { map: camoTex(['#4b5326', '#2f3a1c', '#6b5a3a', '#1f241a']) }); labSkin(cam, 'metal', [2, 2], { map: false, ns: 0.6 });
+    const tz = br - 0.1, hz0 = tz - 3.6, hz1 = tz + 3.0, hy0 = 0.32, hy1 = yb - 0.32, hl = hz1 - hz0, hc = (hz0 + hz1) / 2;
+    tracks(0.62, hz0 - 0.2, hz1 + 0.1, 0.78, 0.4, 1.35);
+    add(new THREE.BoxGeometry(2.1, hy1 - hy0, hl), cam, x0, (hy0 + hy1) / 2, hc); add(new THREE.BoxGeometry(3.3, 0.1, hl - 0.3), cam, x0, hy1 - 0.02, hc); // hull and track guards
+    for (const sd of [-1, 1]) add(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 14), M(0xffe9a8, 0, 0.3, { emissive: 0x332a10 }), x0 + sd * 1.2, hy1 - 0.1, hz0 - 0.05, null, Math.PI / 2);
+    const tur = add(new THREE.SphereGeometry(1.0, 28, 18), cam, x0, yb, tz + 0.3); tur.scale.set(1.25, 0.45, 1.4); add(new THREE.CylinderGeometry(0.32, 0.32, 0.18, 18), cam, x0 - 0.45, yb + 0.48, tz + 0.6); add(new THREE.BoxGeometry(0.9, 0.5, 0.35), cam, x0, yb, tz - 0.85);
+    add(new THREE.CylinderGeometry(0.025, 0.025, 2.2, 6), dark, x0 + 0.7, yb + 1.4, tz + 1.2); add(new THREE.BoxGeometry(0.1, 0.1, 0.6), dark, x0 - 0.45, yb + 0.66, tz + 0.4);
+    tubeZ(0.19, 0.16, S.L, -S.L / 2, cam); tubeZ(0.26, 0.26, 0.8, -S.L * 0.45, cam); const mb = add(new THREE.BoxGeometry(0.46, 0.34, 0.6), dark, 0, 0, -S.L - 0.2, barrel); for (const sd of [-1, 1]) add(new THREE.BoxGeometry(0.04, 0.24, 0.16), M(0x050505, 0, 1), sd * 0.23, 0, 0, mb); bore(0.14);
+    for (const sd of [-1, 1]) add(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 14), M(0x2a2b2e, 0.5, 0.6), x0 + sd * 0.7, hy1 + 0.2, hz1 - 0.4, null, 0, 0, Math.PI / 2);
+  } else { // SELF-PROPELLED HOWITZER: a long tracked hull, a tall armoured casemate, a huge barrel with a slotted muzzle brake and a bore evacuator, a rear spade
+    const cam = M(0xffffff, 0.35, 0.65, { map: camoTex(['#7a6e4a', '#4f4a32', '#9a8a5c', '#3a3626']) }); labSkin(cam, 'metal', [2, 2], { map: false, ns: 0.7 });
+    const tz = br + 0.2, hz0 = tz - 4.4, hz1 = tz + 3.2, hy0 = 0.35, hy1 = yb - 0.4, hl = hz1 - hz0, hc = (hz0 + hz1) / 2;
+    tracks(0.7, hz0 - 0.2, hz1 + 0.1, 0.9, 0.45, 1.55);
+    add(new THREE.BoxGeometry(2.4, hy1 - hy0, hl), cam, x0, (hy0 + hy1) / 2, hc); add(new THREE.BoxGeometry(3.75, 0.1, hl - 0.3), cam, x0, hy1 - 0.02, hc);
+    const cz = tz + 0.9; add(new THREE.BoxGeometry(3.0, 1.55, 3.0), cam, x0, hy1 + 0.75, cz); add(new THREE.BoxGeometry(3.0, 0.1, 1.2), cam, x0, hy1 + 1.4, cz - 1.8, null, 0.45); add(new THREE.BoxGeometry(1.1, 1.0, 0.5), cam, x0, yb, tz - 0.65);
+    add(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 18), cam, x0 + 0.8, hy1 + 1.62, cz + 0.6); add(new THREE.BoxGeometry(0.1, 0.12, 0.8), dark, x0 + 0.8, hy1 + 1.85, cz + 0.3); add(new THREE.CylinderGeometry(0.025, 0.025, 2.8, 6), dark, x0 - 1.2, hy1 + 2.9, cz + 1.2);
+    for (const sd of [-1, 1]) add(new THREE.BoxGeometry(0.4, 0.5, 1.6), labSkin(M(0x4f4a32, 0.3, 0.7), 'metal', [1, 1], { map: false }), x0 + sd * 1.55, hy1 + 0.3, cz + 0.4);
+    tubeZ(0.27, 0.22, S.L, -S.L / 2, cam); tubeZ(0.36, 0.36, 1.1, -S.L * 0.5, cam); for (const sd of [-1, 1]) tubeZ(0.1, 0.1, 2.2, -1.2, steel).position.y = sd * 0.42;
+    const mb = add(new THREE.BoxGeometry(0.78, 0.6, 1.0), dark, 0, 0, -S.L - 0.35, barrel); for (let k = 0; k < 4; k++) for (const sd of [-1, 1]) add(new THREE.BoxGeometry(0.04, 0.42, 0.12), M(0x050505, 0, 1), sd * 0.39, 0, -0.35 + k * 0.23, mb); bore(0.2);
+    const sp = add(new THREE.BoxGeometry(2.6, 1.0, 0.12), cam, x0, 0.5, hz1 + 0.5, null, 0.35); for (const sd of [-1, 1]) add(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 10), steel, x0 + sd * 0.9, 0.8, hz1 + 0.1, null, 0.9);
+    for (let k = 0; k < 5; k++) add(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 14), brass, x0 + 2.3, 0.35, hz1 - 1.5 + k * 0.28, null);
   }
   g.visible = false; return g;
 }
@@ -5715,13 +5762,16 @@ function cannonBuild() {
   if (CAN.built || !labBuilt) return; CAN.built = true;
   const g = CAN.group = new THREE.Group(); g.visible = false; scene.add(g);
   for (let lv = 1; lv <= 5; lv++) { const m = canModel(lv); CAN.models[lv] = m; g.add(m); }
-  const crackTex = tex(256, 256, (c, w, h) => CAN_DRAW.cracks(c, w, h)), frameM = new THREE.MeshStandardMaterial({ color: 0x23262e, metalness: 0.6, roughness: 0.5 });
+  const crackTex = tex(256, 256, (c, w, h) => CAN_DRAW.cracks(c, w, h)), frameM = labSkin(new THREE.MeshStandardMaterial({ color: 0x3a3e46, metalness: 0.8, roughness: 0.45 }), 'metal', [0.5, 2], { map: false, ns: 1 });
   CANNON_WALLS.forEach((W, i) => {
     const grp = new THREE.Group(); grp.position.set(LAB_LANE, 0, cannonWallZ(i)); grp.visible = false; scene.add(grp);
     const map = tex(512, 320, (c, w, h) => CAN_DRAW[W.draw](c, w, h)), clear = W.kind === 'glass' || W.kind === 'jelly' || W.kind === 'ice' || W.kind === 'window';
     if (W.draw === 'window') CAN.winBroken = tex(512, 320, (c, w, h) => CAN_DRAW.windowBroken(c, w, h));
     const mat = canWallMat(map, W), smat = new THREE.MeshStandardMaterial({ map, roughness: mat.roughness, metalness: mat.metalness, transparent: clear, side: THREE.DoubleSide, depthWrite: !clear });
     try { for (const m of [mat, smat]) { m.envMap = labEnv(); m.envMapIntensity = W.kind === 'metal' ? 1.0 : W.kind === 'glass' || W.kind === 'ice' ? 0.9 : 0.12; } } catch (e) { /* no reflections, still fine */ }
+    { const SK = { ply: ['ply', 1.2, 0xffffff], oak: ['oak', 1.0, 0xffdcae], brick: ['brick', 1.0, 0xffffff], stone: ['stone', 1.5, 0xffffff], concrete: ['conc', 2.7, 0xffffff], steel: ['steel', 2.0, 0xe8eef6] }[W.draw]; // scanned surfaces at their real size (Poly Haven, CC0)
+      if (SK) for (const m of [mat, smat]) { m.color.setHex(SK[2]); if (W.draw === 'steel') { m.metalness = 0.55; m.envMapIntensity = 1.6; } labSkin(m, SK[0], [CAN_W / SK[1], CAN_H / SK[1]], { bump: false, ns: 1.2 }); }
+      else if (W.draw === 'vault' || W.draw === 'gold') for (const m of [mat, smat]) labSkin(m, 'metal', [3, 2], { map: false, ns: 0.8 }); } // painted ones keep their picture, under the relief of steel plate
     if (W.draw === 'diamond') for (const m of [mat, smat]) { m.emissive = new THREE.Color(0x9fd8ff); m.emissiveMap = map; m.emissiveIntensity = 0.35; }
     const geo = new THREE.BoxGeometry(CAN_W, CAN_H, W.T); geo.translate(0, CAN_H / 2, 0); const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; mesh.receiveShadow = true; grp.add(mesh); grp.userData.panel = mesh;
     { const N = 72, tg = new THREE.BufferGeometry(), idx = []; tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array((N + 1) * 6), 3)); tg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((N + 1) * 4), 2));
