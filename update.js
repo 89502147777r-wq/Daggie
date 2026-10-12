@@ -1,6 +1,6 @@
 // Version of the game files on this device. version.json on GitHub always holds the newest number.
 // When they differ, a button offers a one-tap update. Always change BOTH when releasing.
-const BUILD = '10.72';
+const BUILD = '10.73';
 // The version is also printed on the loading screen (and goes away with it), so it never ends up in a recorded video.
 function showVer() {
   const l = document.getElementById('loader'); if (!l) return false; if (l.querySelector('.ver')) return true;
@@ -15,8 +15,9 @@ setTimeout(async () => {
     if (!v.build || v.build === BUILD) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'updbtn'; b.textContent = 'New version ' + v.build + ' available. Tap to update';
     b.onclick = async () => {
-      try { const regs = await navigator.serviceWorker.getRegistrations(); for (const r of regs) await r.unregister(); } catch (e) {}
-      try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
+      // only the game code is refreshed; models, textures, sounds and panoramas stay saved on the phone (their addresses change when they change)
+      try { const regs = await navigator.serviceWorker.getRegistrations(); for (const r of regs) await r.update(); } catch (e) {}
+      try { for (const k of await caches.keys()) { const c = await caches.open(k); for (const req of await c.keys()) if (!/\.(bin|glb|hdr|jpe?g|png|webp|woff2?|ttf|mp3)(\?|$)/i.test(req.url) && !/jsdelivr|gstatic|googleapis/.test(req.url)) await c.delete(req); } } catch (e) {}
       location.replace(location.pathname + location.search.replace(/([?&])v=\d+&?/, '$1') + (location.search ? '&' : '?') + 'v=' + Date.now());
     };
     (document.getElementById('stage') || document.body).appendChild(b);
