@@ -1,5 +1,6 @@
 // Offline cache. Game code (html/js/json) is network-first so updates arrive right away;
-// heavy files (model, textures, fonts, three.js) are cache-first.
+// heavy files (models, textures, sounds, panoramas, fonts, three.js) are cache-first and kept across updates:
+// a heavy file that changes gets a new address (?v=), so the old copy is never served for it.
 const CACHE = 'daggie-v3.2';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil((async () => {
@@ -10,7 +11,7 @@ self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const u = new URL(req.url);
   if (u.searchParams.has('check')) return;
-  const heavy = /\.(bin|glb|hdr|jpe?g|png|webp|woff2?|ttf)$/i.test(u.pathname) || /jsdelivr|gstatic|googleapis/.test(u.hostname);
+  const heavy = /\.(bin|glb|hdr|jpe?g|png|webp|woff2?|ttf|mp3)$/i.test(u.pathname) || /jsdelivr|gstatic|googleapis/.test(u.hostname);
   e.respondWith(heavy ? cacheFirst(req) : networkFirst(req));
 });
 async function cacheFirst(req) {
