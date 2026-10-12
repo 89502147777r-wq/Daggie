@@ -5406,21 +5406,23 @@ function labHall() {
   }
 }
 // ---- instant replay: the last seconds recorded and played back slowly with film cameras and black bars ----
-const LREC = { frames: [], t: 0, impT: null };
+const LREC = { frames: [], t: 0, impT: null, obs: [], sets: null, dent: null };
+function labObsSets() { const o = OBX.built[OBX.cur], out = o && OBX.cur !== 'post' ? Object.values(o.sets) : []; if (OBX.shards) out.push(OBX.shards); if (OBX.frag) out.push(OBX.frag); return out; } // everything of the obstacle that can fly, in a fixed order
 function labRec(dt) {
   LREC.t += dt; if (LABCART.hit && LREC.impT === null) LREC.impT = LREC.t;
   const f = new Float32Array(9 + parts.length * 7 + CDEB.list.length * 7), q = new THREE.Quaternion(), v = new V3();
   f[0] = LREC.t; board.getWorldPosition(v); board.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 1);
   parts.forEach((p, i) => { p.getWorldPosition(v); p.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 8 + i * 7); });
   { const base = 8 + parts.length * 7; f[base] = CDEB.on ? 1 : 0; CDEB.list.forEach((d, i) => { d.m.getWorldPosition(v); d.m.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], base + 1 + i * 7); }); }
-  LREC.frames.push(f); if (LREC.frames.length > 700) LREC.frames.shift();
+  if (!LREC.sets) LREC.sets = labObsSets(); LREC.obs.push(LREC.sets.map(st => st.mesh.visible ? st.mesh.instanceMatrix.array.slice() : null)); // the barrels, bricks, tyres and glass fly in the replay too
+  LREC.frames.push(f); if (LREC.frames.length > 700) { LREC.frames.shift(); LREC.obs.shift(); }
 }
 function labBars(on) { // the replay used to draw black bars over 24% of the screen and a blinking REPLAY label: gone, so a replay cut into a video looks like the rest of it
   if (!document.getElementById('labBarsCss')) { const css = document.createElement('style'); css.id = 'labBarsCss'; css.textContent = '.labmode.replaying .labgauge,.labmode.replaying .lablvl{opacity:0}#labBars{display:none!important}'; document.head.appendChild(css); }
   stage.classList.toggle('replaying', on);
 }
 function labReplayStart() {
-  crashBudget(false); // the replay gets the full picture again
+  crashBudget(false); if (!LREC.dent) { const A = OBST[OBX.cur] && OBST[OBX.cur].dent, o = OBX.built[OBX.cur]; LREC.dent = A && o ? A.parts.map(pt => o.kits[pt] && o.kits[pt].geo).filter(Boolean).map(g => [g, g.userData.dentD || 0]) : []; } // remembered, so a second viewing can crumple it again // the replay gets the full picture again
   const imp = LREC.impT ?? LREC.t;
   const from = Math.max(LREC.frames[0] ? LREC.frames[0][0] : 0, imp - 0.7), to = Math.min(LREC.t, imp + 2.6);
   const cage = board.getObjectByName('cage');
@@ -5433,6 +5435,7 @@ function labReplayFrame(t) {
   const put = (obj, o) => { obj.position.set(lerp(a[o], b[o], k), lerp(a[o + 1], b[o + 1], k), lerp(a[o + 2], b[o + 2], k)); qa.set(a[o + 3], a[o + 4], a[o + 5], a[o + 6]); qb.set(b[o + 3], b[o + 4], b[o + 5], b[o + 6]); obj.quaternion.copy(qa).slerp(qb, k); };
   put(board, 1); parts.forEach((p, j) => put(p, 8 + j * 7));
   { const base = 8 + parts.length * 7, act = a[base] > 0.5; if (CART_ROOT) CART_ROOT.visible = !act; CDEB.list.forEach((d, i) => { d.m.visible = act; if (act) { put(d.m, base + 1 + i * 7); d.m.scale.setScalar(CART_S * VEH_SCALE); } }); }
+  const OA = LREC.obs[i], OB = LREC.obs[i + 1] || OA; if (OA && LREC.sets) LREC.sets.forEach((st, j) => { const fa = OA[j], fb = OB[j] || fa, m = st.mesh; if (!fa) { m.visible = false; return; } m.visible = true; const arr = m.instanceMatrix.array; if (fb.length !== fa.length) arr.set(fa); else for (let n = 0; n < fa.length; n++) arr[n] = fa[n] + (fb[n] - fa[n]) * k; m.instanceMatrix.needsUpdate = true; });
 }
 function labReplayStep(dt, now) {
   const R2 = LAB.replay; if (!R2) return;
@@ -5487,13 +5490,14 @@ function buildLabUI() {
   stage.appendChild(g);
   const lv = document.createElement('div'); lv.className = 'lablvl'; lv.id = 'labLvl'; stage.appendChild(lv);
   const p = document.createElement('div'); p.className = 'labpanel'; p.id = 'labPanel';
-  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labTxt" type="button">Text</button><button id="labNext" type="button">Next level ▶</button></div>';
+  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labTxt" type="button">Text</button><button id="labReplay" type="button" hidden>↺ Replay</button><button id="labNext" type="button">Next level ▶</button></div>';
   stage.appendChild(p);
   const chips = $('labChips');
   for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub' || m === 'stairs') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
   for (const b of p.querySelectorAll('.sm')) { if (Math.abs(Number(b.dataset.d)) === 10) b.style.display = 'none'; b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, LAB_MAX()); labSave(); labUI(); }; }
   $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, LAB_MAX()); labSave(); labUI(); };
   $('labGo').onclick = () => { initAudio(); labStart(); };
+  $('labReplay').onclick = () => labRewatch();
   $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labTxt').onclick = () => { const t = prompt('WORD WALL text (letters, numbers, ! ? - + .)', MIX.txt); if (t === null) return; const c = wordwallClean(t); MIX.txt = c; try { localStorage.setItem('daggie-mix', JSON.stringify({ veh: MIX.veh, obs: MIX.obs, loc: MIX.loc, txt: MIX.txt })); } catch (e) { /* not saved */ } wordwallRebuild(); mixApply(); labUI(); };
@@ -5514,6 +5518,7 @@ function labUI() {
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labTxt').hidden = !(labBol() && MIX.obs === 'wordwall'); $('labTxt').textContent = 'Text: ' + MIX.txt; 
   if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
+  $('labReplay').hidden = !((labBol() && LREC.frames.length >= 20) || (LAB.machine === 'cannon' && CREC.frames.length >= 20));
 }
 function labReset() {
   crashBudget(false); idleSharp(true);
@@ -5535,7 +5540,7 @@ function labStart() { // the buffers are rebuilt on the still picture, not while
 function labStartNow() {
   idleSharp(false);
   resetRun(); // fresh Daggie on the stand
-  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; LAB.aura = 0; LAB.six7 = false; labBars(false);
+  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.obs.length = 0; LREC.sets = null; LREC.dent = null; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; LAB.aura = 0; LAB.six7 = false; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
@@ -5566,6 +5571,10 @@ function labPancake() {
 function labAura() {
   const ft = Math.round(LAB.dist || 0), torn = LAB.lost || 0, mph = Math.round((LAB.impV || 0) * 2.237), surv = LAB.text === 'survived' || String(LAB.text).indexOf('stayed in the ') === 0, six7 = ft >= 66 && ft <= 68, broke = !!CART.knocked;
   let a = ft * 10 + torn * 2500 + (broke ? 5000 : 0) + mph * 40; if (surv) a = Math.round(a * 0.4); if (six7) a += 67000; a = Math.max(100, Math.round(a / 10) * 10); LAB.aura = a; LAB.six7 = six7; }
+function labRewatch() { /* the last crash once more, from the recording */ initAudio(); const can = LAB.machine === 'cannon';
+  if (can ? CREC.frames.length < 20 : !labBol() || LREC.frames.length < 20) return; $('labPanel').hidden = true; mixPickVis(false); state = 'ride'; stateT = performance.now();
+  if (can) { stage.classList.add('cannonrun'); if (!cannonReplayStart()) labFinish(LAB.text); return; }
+  if (LREC.dent) for (const [g, d] of LREC.dent) { g.userData.dentD = d; g.userData.shown = undefined; } board.visible = true; labReplayStart(); }
 function labFinish(text) { if (labBol()) { LAB.text = text; labAura(); } LAB.text = text; LAB.phase = 'done'; if (state === 'ride') { state = 'lab'; stateT = performance.now(); LAB.pending = performance.now() + 1400; } }
 function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(kind); LAB.lost = 15; }
 
