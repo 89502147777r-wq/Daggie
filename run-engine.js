@@ -3765,7 +3765,7 @@ let BOLLARD = null;
 function bollardFall(e) { if (!BOLLARD) return; BOLLARD.rotation.set(-(CART.knocked ? 1.35 : 0.5) * e, (LAB.tipYaw || 0) * e, 0); } // snapped: falls flat; bent (50 mph): leans over and stays
 const CART = new CartSim(CART_S, LAB_LANE, BOLLARD_Z, BOLLARD_R);
 CART.zf0 = CART.box.zf;
-CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); clank(Math.min(12, v)); };
+CART.onHit = (corner, v) => { labDentAt(corner[0] / CART_S, corner[1] / CART_S, v); vehModelDent(corner[0], corner[1], clamp(v * 0.02, 0.02, 0.35), 0.6); clank(Math.min(12, v)); }; // a corner slamming into the floor caves in where it lands
 function labDentAt(y, z, v) {
   if (LAB_VEH !== 'cart') return; // crush the wires around a corner that slammed into the floor, toward the middle of the basket
   const cage = board.getObjectByName('cage'); if (!cage) return;
@@ -3814,6 +3814,18 @@ function cartDebrisBuild() {
     CDEB.list.push({ m, c: o.position.clone(), q: o.quaternion.clone(), r: o.isGroup ? 0.08 : 0.06, v: new V3(), w: new V3(), rest: true, cd: 0, orig: o, mk: o.userData.mk || 'metal' });
   }
 }
+function cartShed() { /* only the front-most small part (a front wheel) comes off; the rest stays one dented body */
+  cartDebrisBuild(); if (!CDEB.list.length) { CDEB.on = 0.5; return; } const b = new THREE.Box3(), all = new THREE.Box3(); for (const d of CDEB.list) { if (!d.orig) continue; b.setFromObject(d.orig); all.union(b); } const big = all.getSize(new V3()).length();
+  let pick = null, pz = Infinity; for (const d of CDEB.list) { if (!d.orig) continue; b.setFromObject(d.orig); const sz = b.getSize(new V3()).length(), c = b.getCenter(new V3()); board.worldToLocal(c); if (sz < big * 0.45 && c.z < pz) { pz = c.z; pick = d; } }
+  CDEB.on = true; for (const d of CDEB.list) { d.rest = true; d.m.visible = false; } if (!pick) return; const ip = new V3(), q = new THREE.Quaternion(); pick.orig.getWorldPosition(ip); pick.orig.getWorldQuaternion(q);
+  pick.m.position.copy(ip); pick.m.quaternion.copy(q); pick.m.scale.setScalar(CART_S * VEH_SCALE); pick.m.visible = true; pick.orig.visible = false; pick.rest = false; pick.cd = 0; pick.v.set(rand(-3, 3), rand(2, 5), CART.vz - rand(1, 4)); pick.w.set(rand(-8, 8), rand(-8, 8), rand(-8, 8)); clank(10); }
+function vehModelDent(cy, cz, depth, R) { /* the real model is pushed in around (cy, cz) of the vehicle's own frame, toward its middle */
+  const V = VEHS[LAB_VEH]; if (!V || !V.on || !V.glb || depth <= 0) return; const S = CART_S * VEH_SCALE, c = new V3(0, CART.H * 0.45, (CART.zfOut + CART.zbOut) / 2), pt = new V3(0, cy, cz), dir = c.clone().sub(pt).normalize();
+  for (const m of V.glb) { if (!m.isMesh) continue; const g = m.geometry, p = g.attributes.position; if (!g.userData.orig0) g.userData.orig0 = p.array.slice(); let hit = false;
+    for (let i = 0; i < p.count; i++) { const lx = (m.position.x + p.getX(i)) * S, ly = (m.position.y + p.getY(i)) * S, lz = (m.position.z + p.getZ(i)) * S, d = Math.hypot(lx * 0.7, ly - cy, lz - cz); if (d >= R) continue;
+      const n = Math.sin(lx * 31.7 + ly * 17.3 + lz * 23.1) * 0.25 + 0.85, w = Math.pow(1 - d / R, 2) * n * depth / S; p.setXYZ(i, p.getX(i) + dir.x * w, p.getY(i) + dir.y * w, p.getZ(i) + dir.z * w); hit = true; }
+    if (hit) { p.needsUpdate = true; g.computeVertexNormals(); } } }
+function vehModelUndent() { for (const k in VEHS) { const V = VEHS[k]; if (!V.glb) continue; for (const m of V.glb) { if (!m.isMesh) continue; m.visible = true; const g = m.geometry, o = g.userData.orig0; if (o) { g.attributes.position.array.set(o); g.attributes.position.needsUpdate = true; g.computeVertexNormals(); } } } }
 function cartBreak() {
   cartDebrisBuild(); if (!CDEB.list.length) return; CDEB.on = true; CART_ROOT.visible = false; CART.box.on = false;
   const v = LABCART.v, ip = new V3(LAB_LANE, 0.8, BOLLARD_Z), bq = new THREE.Quaternion(); board.getWorldQuaternion(bq); board.updateMatrixWorld(true);
@@ -3831,14 +3843,17 @@ const _dq = new THREE.Quaternion(), _da = new V3();
 const DEB_PROPS = { metal: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, chrome: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 }, ceramic: { b: 0.26, drag: 0.02, snd: 'stone', fly: 0.8, lift: 0.9 }, fabric: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, fabric2: { b: 0.1, drag: 0.14, snd: 'soft', fly: 0.9, lift: 1.9 }, plastic: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, accent: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, black: { b: 0.4, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, wheel: { b: 0.58, drag: 0.015, snd: 'metal', fly: 1.7, lift: 1.2 }, rubber: { b: 0.7, drag: 0.02, snd: 'soft', fly: 1.3, lift: 2.2 }, wood: { b: 0.3, drag: 0.03, snd: 'wood', fly: 1.2, lift: 1 }, steel: { b: 0.45, drag: 0.02, snd: 'metal', fly: 1.1, lift: 1 } };
 function cartDebrisStep(dt) {
   obsStep(dt);
-  if (((CART.knocked && !CART.plow && LABCART.v >= 30) || ((OBX.cur !== 'post' || LAB.machine === 'mix') && CART.solid && LABCART.hit && LABCART.v >= 20)) && !CDEB.on) { CDEB.timer += dt; if (CDEB.timer >= 0.08) cartBreak(); }
+  { const tough = LAB.tough || 20, v = LABCART.v; if (LABCART.hit && !CDEB.on) { // a light vehicle breaks up at once against something solid (no delay); a tractor keeps its body and may lose a front wheel
+      if (tough === Infinity) { if (v >= 25 && (CART.solid || OBX.cur === 'post')) cartShed(); else CDEB.on = 0.5; }
+      else if ((CART.knocked && !CART.plow && v >= tough * 1.5) || ((OBX.cur !== 'post' || LAB.machine === 'mix') && CART.solid && v >= tough)) cartBreak(); } }
   if (!CDEB.on) return; CDEB.cool -= dt;
   for (const d of CDEB.list) {
     if (d.rest) continue; d.cd -= dt;
-    const pr = DEB_PROPS[d.mk] || DEB_PROPS.metal; d.v.y -= 9.8 * dt; d.v.multiplyScalar(1 / (1 + pr.drag * d.v.length() * dt)); d.m.position.addScaledVector(d.v, dt); // air drag: the faster the more it slows
+    const pr = DEB_PROPS[d.mk] || DEB_PROPS.metal; d.v.y -= 9.8 * dt; d.v.multiplyScalar(1 / (1 + pr.drag * d.v.length() * dt)); const nsub = Math.min(12, Math.ceil(d.v.length() * dt / 0.15) || 1); // air drag; fast pieces move in short steps so they cannot jump through a wall
+    for (let ss = 0; ss < nsub; ss++) { d.m.position.addScaledVector(d.v, dt / nsub);
     for (const c of CART.cyls) { const P = d.m.position; if (P.y > c.h + d.r) continue; const dx = P.x - c.x, dz = P.z - c.z, dd = Math.hypot(dx, dz), R = c.r + d.r; if (dd >= R) continue; // the obstacle is solid for the pieces too: they bounce off it, never through
       const nx = dd > 1e-5 ? dx / dd : 0, nz = dd > 1e-5 ? dz / dd : 1, vn = d.v.x * nx + d.v.z * nz; P.x = c.x + nx * R; P.z = c.z + nz * R;
-      if (vn < 0) { d.v.x -= (1 + pr.b) * vn * nx; d.v.z -= (1 + pr.b) * vn * nz; d.v.x *= 0.65; d.v.z *= 0.65; if (d.cd <= 0 && vn < -3) { debrisHit(pr.snd, -vn, d.r * 2); d.cd = 0.12; } } }
+      if (vn < 0) { d.v.x -= (1 + pr.b) * vn * nx; d.v.z -= (1 + pr.b) * vn * nz; d.v.x *= 0.65; d.v.z *= 0.65; if (d.cd <= 0 && vn < -3) { debrisHit(pr.snd, -vn, d.r * 2); d.cd = 0.12; } } } }
     const wl = d.w.length(); if (wl > 1e-4) { _da.copy(d.w).multiplyScalar(1 / wl); _dq.setFromAxisAngle(_da, wl * dt); d.m.quaternion.premultiply(_dq); }
     if (d.m.position.y < d.r) {
       d.m.position.y = d.r;
@@ -3951,6 +3966,10 @@ function labVehicle(kind) {
 }
 
 // ---------- obstacles for the crash hall: the steel post, or anything that can be hit (blocks that fly apart) ----------
+// how heavy and how strong things are (kg; the speed in m/s above which a vehicle breaks up against something solid): a tractor shoves a bus, an office chair only rocks it
+const VEH_MASS = { cart: [30, 18], tub: [120, 25], chair: [15, 9], sofa: [60, 14], toilet: [45, 10], barrow: [25, 15], trike: [15, 10], bin: [150, 30], bumper: [250, 30], wheelchair: [18, 10], kart: [280, 28], mower: [2600, Infinity], bed: [90, 18] };
+const OBS_MASS = { truck: 18000, car: 1300, hatch: 1200, bus: 12000, barrier: 2400, tires: 220, barrels: 800, bricks: 1500, wordwall: 500, crates: 300, haywall: 600, booth: 400, vending: 350, boxes: 30, melons: 100, pins: 15 };
+const vehMass = () => (VEH_MASS[LAB_VEH] || [60, 18]);
 const labBol = () => LAB.machine === 'bollard' || LAB.machine === 'tub' || LAB.machine === 'mix'; // all the crash-hall machines
 const labVehKind = () => (LAB.machine === 'tub' ? 'tub' : LAB.machine === 'mix' ? MIX.veh : 'cart');
 const MIX = { veh: 'cart', obs: 'post', loc: 'hall', txt: '67', el: null };
@@ -3998,7 +4017,7 @@ const OBST = {
     layout() { const b = []; for (let row = 0; row < 4; row++) { const n = row % 2 ? 3 : 4; for (let i = 0; i < n; i++) b.push({ t: 'barrel' + Math.floor(rand(0, 4)), x: (i - (n - 1) / 2) * 0.62, y: 0.45 + row * 0.9, z: 0, sx: 0.58, sy: 0.9, sz: 0.58, ry: rand(-0.35, 0.35), col: 0xffffff }); } return b; } },
   bricks: { absorb: 800, hard: 4.2, fx: 'dust', name: 'BRICK WALL', r: 0.14, cyls: [-1, -0.5, 0, 0.5, 1].map(dx => ({ dx, r: 0.14 })), h: 1.6, bend: 12, knock: 50, tumble: 12, solid: true, kick: 0.5, lift: 0.8, sound: 'brick', pop: 'THE WALL FALLS!',
     layout() { const b = []; for (let row = 0; row < 8; row++) { const odd = row % 2; const xs = odd ? [-1.125, -0.75, -0.25, 0.25, 0.75, 1.125] : [-1, -0.5, 0, 0.5, 1]; for (const x of xs) { const half = odd && Math.abs(x) > 1; b.push({ t: 'brick' + Math.floor(rand(0, 4)), x: half ? Math.sign(x) * 1.125 : x, y: 0.1 + row * 0.2, z: 0, sx: half ? 0.25 : 0.5, sy: 0.2, sz: 0.25, ry: 0, col: 0xffffff - Math.floor(rand(0, 8)) * 0x0a0a0a }); } } return b; } },
-  barrier: { absorb: 0, hard: 3.8, fx: 'dust', name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 80, knock: 9999, tumble: 10, solid: true, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!',
+  barrier: { absorb: 0, hard: 3.8, fx: 'dust', name: 'CONCRETE BARRIER', r: 0.25, cyls: [-0.7, 0, 0.7].map(dx => ({ dx, r: 0.25 })), h: 0.8, bend: 9999, knock: 9999, tumble: 10, solid: true, kick: 0.12, lift: 0.3, sound: 'concrete', pop: 'BARRIER HOLDS!', rock: { parts: ['barrier'], slide: 0, tilt: 0, tiltMax: 0, tau: 0.5, w: 6, py: 0, pz: 0 },
     layout() { return [{ t: 'barrier', x: 0, y: 0, z: 0, sx: 2.2, sy: 1, sz: 1, ry: 0, col: 0xb9b9b3 }]; } },
   wordwall: { absorb: 650, hard: 5, fx: 'dust', name: 'WORD WALL', r: 0.25, cyls: [-1, 0, 1].map(dx => ({ dx, r: 0.28 })), h: 3.85, bend: 9, knock: 20, tumble: 16, solid: false, kick: 0.8, lift: 1.0, sound: 'barrel', pop: 'WALL DESTROYED!',
     layout() { return wordwallLayout(MIX.txt); } },
@@ -4107,7 +4126,7 @@ function obsGlassAt(x, y, z, power) { /* power 0..1 at the point (x, y, z) of th
       glassSound(1.15 - 0.3 * power); } }
 }
 function obsGlassHit(wx, wy, wz, sp) { /* Daggie's body meets the obstacle at a world point */ const spec = OBST[OBX.cur]; if (!spec || !spec.glass || sp < 6) return; obsGlassAt(wx - LAB_LANE, wy, wz - BOLLARD_Z, clamp((sp - 4) / 26, 0.15, 1)); }
-function obsGlassCart(v) { /* the cart's hit flexes the body: the glass above it cracks, the harder the more */ const spec = OBST[OBX.cur]; if (!spec || !spec.glass || !spec.glass.cart) return; const p = clamp((v - 10) / 55, 0, 1); for (const c of spec.glass.cart) obsGlassAt(c[0], c[1], c[2], p); }
+function obsGlassCart(v) { /* the cart's hit flexes the body: the glass above it cracks, the harder the more */ const spec = OBST[OBX.cur]; if (!spec || !spec.glass || !spec.glass.cart) return; const p = clamp((v - 10) / 55, 0, 1) * clamp(Math.sqrt(vehMass()[0] / 200), 0.2, 1.4); for (const c of spec.glass.cart) obsGlassAt(c[0], c[1], c[2], p); }
 const OBX_MODELS = {};
 function obxModel(id) { return OBX_MODELS[id] || (OBX_MODELS[id] = OBX_MAKE[id]()); }
 const OBX_MAKE = {
@@ -4453,7 +4472,7 @@ function obsDentApply(geo, on) { // crumple the prepared vertices to the stored 
   pos.needsUpdate = true; nor.needsUpdate = true; U.shown = on;
 }
 function obsDeform(v) { // a heavy obstacle is not a rock: the front of the truck / the side of the car (and its glass) crumples, deeper the faster the hit; the vehicle and the cylinders sink into the dent by the same depth
-  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], A = sp && sp.dent; if (!A || !o) return 0; const D = clamp(A.min + v * A.k, 0, A.max);
+  const sp = OBST[OBX.cur], o = OBX.built[OBX.cur], A = sp && sp.dent; if (!A || !o) return 0; const mf = clamp(Math.sqrt(vehMass()[0] / 200), 0.12, 1.6), D = clamp((A.min + v * A.k) * mf, 0, A.max * (mf > 1 ? 1.3 : 1)) /* a light chair barely marks it, a tractor caves it in */;
   for (const part of A.parts) { const kit = o.kits[part]; if (!kit) continue; const geo = kit.geo; obsDentPrep(geo, A); geo.userData.dentD = D; obsDentApply(geo, true); }
   const DK = D * (sp._k || 1); for (let j = 0; j < (A.shiftN || 0); j++) if (CART.cyls[j]) CART.cyls[j].z -= DK;
   CART.pw[1] -= DK * 0.9; labCartPlace(); board.updateMatrixWorld(true);
@@ -4463,7 +4482,8 @@ function obsDeform(v) { // a heavy obstacle is not a rock: the front of the truc
 const OBX_ROCK = { on: false, t: 0, id: '', S: 0, A: 0, T: 0.7, cz: [], q: null, ax: null, c: null };
 function obsRockStart(v) { // the struck vehicle is shoved and rocks on its suspension: the lighter it is, the more (the truck a little, the car clearly); a hit hard enough to throw it is handled by the debris physics instead
   const sp = OBST[OBX.cur], k = sp && sp.rock, o = OBX.built[OBX.cur]; OBX_ROCK.on = false; OBX_ROCK.id = ''; if (!k || !o || !k.parts.every(p => o.sets[p]) || v >= sp.bend) return;
-  Object.assign(OBX_ROCK, { on: true, t: 0, id: OBX.cur, S: k.slide * v, A: Math.min(k.tiltMax || 9, k.tilt * v), cz: CART.cyls.map(c => c.z) });
+  const mv = vehMass()[0], mo = OBS_MASS[OBX.cur] || 2000, u = mv * v * 1.1 / (mv + mo); // the speed it is shoved away with: momentum, not a fixed amount
+  Object.assign(OBX_ROCK, { on: true, t: 0, id: OBX.cur, S: Math.min(30, u * u / (2 * 0.6 * 9.8) + Math.min(0.15, k.slide * v * 0.2)), T: Math.max(0.45, u / 5.9), A: k.tiltMax ? Math.min(0.32, 0.006 + u * 0.022) : 0, u, cz: CART.cyls.map(c => c.z) });
   if (AC && v >= 6 && !sfxPlay('creak', 0.5, k.part === 'truck' ? 0.7 : 1, 0.2)) { OUT(); const t = AC.currentTime, big = k.part === 'truck', g = clamp(v / 45, 0.2, 1); // metal groan on the springs, then two soft settling thumps
     noise(t + 0.1, 0.5, 0.05 * g, 'bandpass', big ? 300 : 460, big ? 190 : 300, 12); noise(t + 0.3, 0.12, 0.1 * g, 'lowpass', 300, 100, 0.8); noise(t + 0.62, 0.1, 0.06 * g, 'lowpass', 260, 90, 0.8); }
 }
@@ -4476,7 +4496,7 @@ function obsRockAt(t) { // the vehicle's pose t seconds after the hit (t < 0: un
 }
 function obsRockStep(dt) {
   const R = OBX_ROCK; if (!R.on) return; R.t += dt; const sp = OBST[R.id], slide = obsRockAt(R.t); if (slide === undefined) { R.on = false; return; }
-  const n = Math.min(CART.cyls.length, sp.dent ? sp.dent.shiftN : 0); for (let j = 0; j < n; j++) if (R.cz[j] !== undefined) CART.cyls[j].z = R.cz[j] - slide; // what the body collides with moves with the vehicle
+  const n = CART.cyls.length; for (let j = 0; j < n; j++) if (R.cz[j] !== undefined) CART.cyls[j].z = R.cz[j] - slide; // what the body collides with moves with the vehicle
   if (R.t > R.T + 3) R.on = false;
 }
 function obsDentShow(dented) { // the replay: the vehicle is whole before the hit, crumpled (glass cracked) after it
@@ -4586,15 +4606,19 @@ function mixApply() { MIX.upd && MIX.upd.forEach(f => f()); if (LAB.machine === 
 function warmDebris() { // every part that can fly is shown for one compile, so the shaders exist before the crash
   try { const hid = [], on = m => { if (m && !m.visible) { hid.push(m); m.visible = true; } }; for (const d of CDEB.list) on(d.m); if (OBX.shards) on(OBX.shards.mesh); if (OBX.frag) on(OBX.frag.mesh); const o = OBX.built[OBX.cur]; if (o) for (const t in o.sets) on(o.sets[t].mesh); renderer.compile(scene, camera); for (const m of hid) m.visible = false; } catch (e) { /* a missing warm-up is only a hitch */ } }
 function labCartReset() {
-  cartDebrisBuild(); cartDebrisReset();
+  cartDebrisBuild(); cartDebrisReset(); vehModelUndent(); LAB.tough = 0;
   const cage = board.getObjectByName('cage'); if (cage && cage.geometry.userData.orig) { cage.geometry.attributes.position.array.set(cage.geometry.userData.orig); cage.geometry.attributes.position.needsUpdate = true; cage.geometry.computeVertexNormals(); }
   for (const w of wheels) w.visible = true; { const plate = board.getObjectByName('plate'); if (plate && plate.userData.home) { plate.position.copy(plate.userData.home); plate.rotation.set(0, Math.PI, 0); plate.visible = true; } }
   CART.box.zf = CART.zf0; LABCART.hit = false; CART.place(BOLLARD_Z + CART.br + 7.5); CART.vz = 0; labCartPlace(); if (OBX.cur !== 'post' && labBol()) obsPlace(OBX.cur);
   bollardFall(0); LAB.bollardTip = 0; warmDebris();
 }
 function labImpact() {
-  const v = LABCART.v; LAB.impV = v;  LABCART.hit = true; CART.impact(v);
-  const SPK = OBX.cur !== 'post' && OBST[OBX.cur]; if (SPK && CART.knocked) { const PK = { crates: 0.4, haywall: 0.28, booth: 0.3, vending: 0.25, tires: 0.45, barrels: 0.4, boxes: 0.6, melons: 0.7, wordwall: 0.45, pins: 0.8, bricks: 0.35 }[OBX.cur]; if (PK !== undefined) CART.vz = -v * PK; } /* what it hits is heavy: the vehicle loses most of its speed in it, it does not roll on through */
+  const v = LABCART.v; LAB.impV = v;  LABCART.hit = true; const [mv, tough] = vehMass(), SPO = OBX.cur !== 'post' && OBST[OBX.cur], mo = SPO ? OBS_MASS[OBX.cur] || 2000 : 1e9, heavy = mv / (mv + mo) > 0.06;
+  const tv0 = CART.tumbleV; if (heavy && SPO && SPO.solid && SPO.h > CART.H * 0.6) CART.tumbleV = Infinity; CART.impact(v); CART.tumbleV = tv0; // a tractor does not climb a bus: it shoves it; over a low barrier it can go
+  if (heavy && SPO && SPO.solid) { const u = mv * v * 1.1 / (mv + mo); CART.vz = -u * 0.92; CART.w *= 0.25; CART.pdamp = 0.6; } // it stays against the obstacle as both slide
+  if (VEHS[LAB_VEH] && VEHS[LAB_VEH].on && (SPO ? SPO.solid : true)) vehModelDent(CART.H * 0.38, CART.zfOut, clamp(0.04 + v * 0.007, 0, 0.7) * clamp(Math.sqrt(200 / Math.max(15, mv)) * 0.5, 0.25, 1.2) * (heavy ? 1.6 : 1), heavy ? 0.9 : 0.55); // the front caves in where it hit
+  LAB.tough = tough; LAB.heavyHit = heavy;
+  if (SPO && CART.knocked && !SPO.solid) CART.vz = -v * clamp(mv / (mv + mo * 0.6), 0.08, 0.92); /* what it ploughs into takes its share of the speed: a chair stops in hay, a tractor goes on through it */
   const dd = OBX.cur === 'post' || OBST[OBX.cur].solid ? labDent(v) : 0; CART.box.zf = CART.zf0 + dd * CART_S * 0.75; /* a soft obstacle does not crumple the cart */ // the crumpled front wires are a wall further back now
   if (OBX.cur !== 'post') { obsDeform(v); obsRockStart(v); }
   const vR = OBX.cur !== 'post' && CART.knocked ? v * Math.sqrt(Math.max(0.05, 1 - (OBST[OBX.cur].absorb || 0) / (v * v))) : v; // an obstacle that is destroyed takes some of his speed
@@ -5456,7 +5480,7 @@ function labRec(dt) {
   const f = new Float32Array(9 + parts.length * 7 + CDEB.list.length * 7), q = new THREE.Quaternion(), v = new V3();
   f[0] = LREC.t; board.getWorldPosition(v); board.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 1);
   parts.forEach((p, i) => { p.getWorldPosition(v); p.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 8 + i * 7); });
-  { const base = 8 + parts.length * 7; f[base] = CDEB.on ? 1 : 0; CDEB.list.forEach((d, i) => { d.m.getWorldPosition(v); d.m.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], base + 1 + i * 7); }); }
+  { const base = 8 + parts.length * 7; f[base] = CDEB.on ? (CART_ROOT && CART_ROOT.visible ? 2 : 1) : 0; CDEB.list.forEach((d, i) => { d.m.getWorldPosition(v); d.m.getWorldQuaternion(q); f.set(d.m.visible ? [v.x, v.y, v.z, q.x, q.y, q.z, q.w] : [NaN, 0, 0, 0, 0, 0, 1], base + 1 + i * 7); }); } // 2: the body stays whole, only some parts came off
   if (!LREC.sets) LREC.sets = labObsSets(); LREC.obs.push(LREC.sets.map(st => st.mesh.visible ? st.mesh.instanceMatrix.array.slice() : null)); // the barrels, bricks, tyres and glass fly in the replay too
   LREC.frames.push(f); if (LREC.frames.length > 700) { LREC.frames.shift(); LREC.obs.shift(); }
 }
@@ -5478,7 +5502,7 @@ function labReplayFrame(t) {
   const a = F[i], b = F[i + 1] || a, k = b[0] > a[0] ? clamp((t - a[0]) / (b[0] - a[0]), 0, 1) : 0, qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
   const put = (obj, o) => { obj.position.set(lerp(a[o], b[o], k), lerp(a[o + 1], b[o + 1], k), lerp(a[o + 2], b[o + 2], k)); qa.set(a[o + 3], a[o + 4], a[o + 5], a[o + 6]); qb.set(b[o + 3], b[o + 4], b[o + 5], b[o + 6]); obj.quaternion.copy(qa).slerp(qb, k); };
   put(board, 1); parts.forEach((p, j) => put(p, 8 + j * 7));
-  { const base = 8 + parts.length * 7, act = a[base] > 0.5; if (CART_ROOT) CART_ROOT.visible = !act; CDEB.list.forEach((d, i) => { d.m.visible = act; if (act) { put(d.m, base + 1 + i * 7); d.m.scale.setScalar(CART_S * VEH_SCALE); } }); }
+  { const base = 8 + parts.length * 7, act = a[base] > 0.5; if (CART_ROOT) CART_ROOT.visible = !(act && a[base] < 1.5); CDEB.list.forEach((d, i) => { d.m.visible = act && !isNaN(a[base + 1 + i * 7]); if (d.m.visible) { put(d.m, base + 1 + i * 7); d.m.scale.setScalar(CART_S * VEH_SCALE); } }); }
   const OA = LREC.obs[i], OB = LREC.obs[i + 1] || OA; if (OA && LREC.sets) LREC.sets.forEach((st, j) => { const fa = OA[j], fb = OB[j] || fa, m = st.mesh; if (!fa) { m.visible = false; return; } m.visible = true; const arr = m.instanceMatrix.array; if (fb.length !== fa.length) arr.set(fa); else for (let n = 0; n < fa.length; n++) arr[n] = fa[n] + (fb[n] - fa[n]) * k; m.instanceMatrix.needsUpdate = true; });
 }
 function labReplayStep(dt, now) {
@@ -5492,7 +5516,7 @@ function labReplayStep(dt, now) {
   if (!before && !R2.boomed) { R2.boomed = true; burst(new V3(LAB_LANE, 0.8, BOLLARD_Z), 60, SPARK, 6); tone(90, 30, 0.5, 'sine', 0.4); if (!reduceMotion) shake = 0.5; }
   if (labBol() && OBX.cur !== 'post') { obsDentShow(!before); obsRockAt(R2.t - R2.imp); }
   labReplayFrame(R2.t);
-  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked || CART.bent) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
+  if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked || CART.bent) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); if (LAB.rewatch) { LAB.rewatch = false; setTimeout(labDone, 500); } }
 }
 function labReplayCam() { /* like the cannon's replay: the camera follows him by itself (the vehicle before the hit, his body after it); drag turns it, pinch zooms, a tap skips */
   const R2 = LAB.replay, T = torso.getWorldPosition(new V3()), B = board.getWorldPosition(new V3()), k = clamp((R2.t - R2.imp) / 0.5, 0, 1);
@@ -5612,9 +5636,9 @@ function labAura() {
   const ft = Math.round(LAB.dist || 0), torn = LAB.lost || 0, mph = Math.round((LAB.impV || 0) * 2.237), surv = LAB.text === 'survived' || String(LAB.text).indexOf('stayed in the ') === 0, six7 = ft >= 66 && ft <= 68, broke = !!CART.knocked;
   let a = ft * 10 + torn * 2500 + (broke ? 5000 : 0) + mph * 40; if (surv) a = Math.round(a * 0.4); if (six7) a += 67000; a = Math.max(100, Math.round(a / 10) * 10); LAB.aura = a; LAB.six7 = six7; }
 function labRewatch() { /* the last crash once more, from the recording */ initAudio(); const can = LAB.machine === 'cannon';
-  if (can ? CREC.frames.length < 20 : !labBol() || LREC.frames.length < 20) return; $('labPanel').hidden = true; mixPickVis(false); state = 'ride'; stateT = performance.now();
+  if (can ? CREC.frames.length < 20 : !labBol() || LREC.frames.length < 20) return; $('labPanel').hidden = true; mixPickVis(false); if (can) { state = 'ride'; stateT = performance.now(); } LAB.rewatch = !can; // (the crash mix replays in the menu state, so nothing poses him over the recording)
   if (can) { stage.classList.add('cannonrun'); if (!cannonReplayStart()) labFinish(LAB.text); return; }
-  if (LREC.dent) for (const [g, d] of LREC.dent) { g.userData.dentD = d; g.userData.shown = undefined; } board.visible = true; labReplayStart(); }
+  if (LREC.dent) for (const [g, d] of LREC.dent) { g.userData.dentD = d; g.userData.shown = undefined; } board.visible = true; daggie.visible = true; rider.visible = true; for (const p of parts) p.visible = true; labReplayStart(); }
 function labFinish(text) { if (labBol()) { LAB.text = text; labAura(); } LAB.text = text; LAB.phase = 'done'; if (state === 'ride') { state = 'lab'; stateT = performance.now(); LAB.pending = performance.now() + 1400; } }
 function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(kind); LAB.lost = 15; }
 
@@ -6698,7 +6722,7 @@ function labStep(dt, now) {
 }
 function labPose(t) {
   if (LAB.machine === 'stairs' && RAGSIM) return; // the physics body has taken over
-  if (labBol() || LAB.machine === 'cannon') { if (!RAGSIM) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
+  if (labBol() || LAB.machine === 'cannon') { if (!RAGSIM && !LAB.replay) { rider.position.copy(board.position); rider.rotation.set(0, 0, 0); poseBody(t); } return; }
   rider.position.set(R.x, R.y, 0); rider.rotation.set(0, LAB_YAW, 0);
   if (LAB.machine === 'stairs') { rider.position.set(LAB_LANE, STAIR.H - BOARD_TOP, STAIR.z0 + 0.7); rider.rotation.set(0, Math.PI, 0); } // on the top landing, facing down the stairs
   let P;
