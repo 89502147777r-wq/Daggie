@@ -42,6 +42,16 @@ the truck's badge and name strip and the dumpster's lid are removed, the truck's
 - `models/o_barrel.glb` (obstacle, barrel wall): [Dirty oil barrel - 5MB](https://sketchfab.com/3d-models/dirty-oil-barrel-5mb-b973a95ff3bb478a941ccb06a70b14bb) by **ahmagh2e**, CC Attribution
 - `models/o_barrier.glb` (obstacle, concrete barrier): [Jersey Barrier](https://sketchfab.com/3d-models/jersey-barrier-b52246c9611a42a99a03b425535a0237) by **emran.bayati**, CC Attribution
 - `models/o_bollard.glb` (obstacle, steel post): [Street Bollard](https://sketchfab.com/3d-models/street-bollard-9b9db79ae21c4e118423efae658e7fb7) by **FameProductions**, CC Attribution
+- `models/v_bumper.glb` (vehicle, bumper car (no pole, no floor plate)): [Bumper Car](https://sketchfab.com/3d-models/bumper-car-05e53156ee874c60ab14f5405bd9f086) by **koker06**, CC Attribution
+- `models/v_wheelchair.glb` (vehicle, wheelchair): [Wheelchair](https://sketchfab.com/3d-models/wheelchair-54911b7d81a44991804c87c6fc58c4df) by **maxencerouillet**, CC Attribution
+- `models/v_kart.glb` (vehicle, vintage kart): [Vintage Kart (CycleKart)](https://sketchfab.com/3d-models/vintage-kart-cyclekart-962316b91e914fc1808f6fb574b46ba5) by **Mike_hbrt**, CC Attribution
+- `models/v_mower.glb` (vehicle, lawn tractor): [Lawn Tractor](https://sketchfab.com/3d-models/lawn-tractor-97ec916314324ed8a828176f3d310f82) by **mirrol**, CC Attribution
+- `models/v_bed.glb` (vehicle, hospital bed): [Hospital Bed](https://sketchfab.com/3d-models/hospital-bed-f8c13a19e84343e7b644c19f7b9488d3) by **loxfear**, CC Attribution
+- `models/o_hay.glb` (obstacle, hay bales): [Hay bale](https://sketchfab.com/3d-models/hay-bale-e01a6a0f9ed843279adfac2427c99679) by **NoodePoodle**, CC Attribution
+- `models/o_booth.glb` (obstacle, phone booth): [London Phone Booth](https://sketchfab.com/3d-models/london-phone-booth-b9033372814b421a8fb225990c8f2226) by **stovepipe**, CC Attribution
+- `models/o_bus.glb` (obstacle, school bus): [School Bus](https://sketchfab.com/3d-models/school-bus-a959ee8ce17d434f9fdbc93cad199a21) by **Macaroniii**, CC Attribution
+- `models/o_vending.glb` (obstacle, vending machine): [Red Japanese Vending Machine](https://sketchfab.com/3d-models/red-japanese-vending-machine-a8a6874f62da478f8572554959d3c62e) by **tokyo45otaku**, CC Attribution
+- `models/p_crate.glb` (obstacle, crate stack): [Wooden Crate 01](https://polyhaven.com/a/wooden_crate_01), Poly Haven, CC0
 
 ## PBR surfaces (HD look, `tex/`)
 All from [Poly Haven](https://polyhaven.com), CC0. 1k JPG sets (diffuse, OpenGL normal, roughness), recompressed for the web.

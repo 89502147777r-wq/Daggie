@@ -339,5 +339,104 @@
   "license_url": "http://creativecommons.org/licenses/by/4.0/",
   "faces": 35240,
   "kb": 1917
+ },
+ "v_bumper": {
+  "uid": "05e53156ee874c60ab14f5405bd9f086",
+  "title": "Bumper Car",
+  "author": "koker06",
+  "author_name": "koker06",
+  "url": "https://sketchfab.com/3d-models/bumper-car-05e53156ee874c60ab14f5405bd9f086",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 10209,
+  "kb": 1602
+ },
+ "v_wheelchair": {
+  "uid": "54911b7d81a44991804c87c6fc58c4df",
+  "title": "Wheelchair",
+  "author": "maxencerouillet",
+  "author_name": "Maxence Rouillet",
+  "url": "https://sketchfab.com/3d-models/wheelchair-54911b7d81a44991804c87c6fc58c4df",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 9518,
+  "kb": 555
+ },
+ "v_kart": {
+  "uid": "962316b91e914fc1808f6fb574b46ba5",
+  "title": "Vintage Kart (CycleKart)",
+  "author": "Mike_hbrt",
+  "author_name": "Mike_hbrt",
+  "url": "https://sketchfab.com/3d-models/vintage-kart-cyclekart-962316b91e914fc1808f6fb574b46ba5",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 13619,
+  "kb": 1075
+ },
+ "v_mower": {
+  "uid": "97ec916314324ed8a828176f3d310f82",
+  "title": "Lawn Tractor",
+  "author": "mirrol",
+  "author_name": "mirrol",
+  "url": "https://sketchfab.com/3d-models/lawn-tractor-97ec916314324ed8a828176f3d310f82",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 9920,
+  "kb": 490
+ },
+ "v_bed": {
+  "uid": "f8c13a19e84343e7b644c19f7b9488d3",
+  "title": "Hospital Bed",
+  "author": "loxfear",
+  "author_name": "loxfear",
+  "url": "https://sketchfab.com/3d-models/hospital-bed-f8c13a19e84343e7b644c19f7b9488d3",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 3988,
+  "kb": 514
+ },
+ "o_hay": {
+  "uid": "e01a6a0f9ed843279adfac2427c99679",
+  "title": "Hay bale",
+  "author": "NoodePoodle",
+  "author_name": "NoodlePoodle",
+  "url": "https://sketchfab.com/3d-models/hay-bale-e01a6a0f9ed843279adfac2427c99679",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 9492,
+  "kb": 1824
+ },
+ "o_booth": {
+  "uid": "b9033372814b421a8fb225990c8f2226",
+  "title": "London Phone Booth",
+  "author": "stovepipe",
+  "author_name": "stovepipe",
+  "url": "https://sketchfab.com/3d-models/london-phone-booth-b9033372814b421a8fb225990c8f2226",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 14732,
+  "kb": 992
+ },
+ "o_bus": {
+  "uid": "a959ee8ce17d434f9fdbc93cad199a21",
+  "title": "School Bus",
+  "author": "Macaroniii",
+  "author_name": "Macaroni",
+  "url": "https://sketchfab.com/3d-models/school-bus-a959ee8ce17d434f9fdbc93cad199a21",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 16286,
+  "kb": 1265
+ },
+ "o_vending": {
+  "uid": "a8a6874f62da478f8572554959d3c62e",
+  "title": "Red Japanese Vending Machine",
+  "author": "tokyo45otaku",
+  "author_name": "Watanuki_San",
+  "url": "https://sketchfab.com/3d-models/red-japanese-vending-machine-a8a6874f62da478f8572554959d3c62e",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 39653,
+  "kb": 1444
  }
 }

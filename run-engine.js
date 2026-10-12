@@ -3889,7 +3889,8 @@ function makeSpecMesh(spec, wheelsOut) { // origin on the floor, front faces -z;
   return root;
 }
 // kind -> name, the word for 'stayed in the ...', the box of its seat (the physics), where he sits and where his hands rest, the height of its floor above the ground
-const VEH_ORDER = ['cart', 'tub', 'chair', 'sofa', 'toilet', 'barrow', 'trike', 'bin'];
+const VEH_ORDER = ['cart', 'tub', 'chair', 'sofa', 'toilet', 'barrow', 'trike', 'bin', 'bumper', 'wheelchair', 'kart', 'mower', 'bed'];
+const vehStand = (w, h, d, col) => wo => makeSpecMesh({ prims: [{ t: 'box', s: [w, h, d], p: [0, h / 2, 0], m: 'accent', r: 0.04, rot: [0, 0, 0], g: null, n: 'body' }], wheels: [], fabric: 0x888888, accent: col }, wo); // a plain block of the right size until the real model is in
 var PEDAL = { use: false, phase: 0, t: 0, cx: 0, cy: 0.3, cz: -0.42, r: 0.1, px: 0.17, crank: null, ped: [] };
 function makeTrikeMesh(wheelsOut) { // the spec parts, plus a crank with two pedals that really turn (the right arm points down at phase 0, the left one up; the pedals stay level)
   const root = makeSpecMesh(VEH_SPECS.trike, wheelsOut), S = CART_S, g = root.userData.g, C = new THREE.Group(), steel = new THREE.MeshStandardMaterial({ color: 0x9aa1a9, metalness: 0.85, roughness: 0.35 }), rub = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 }), chr = new THREE.MeshStandardMaterial({ color: 0xeef1f5, metalness: 1, roughness: 0.12 });
@@ -3913,6 +3914,11 @@ const VEH_DEFS = {
   barrow: { name: 'WHEELBARROW', launch: { up: 0.14, min: 2.6, max: 5, om: -3.2, yaw: 0.6, keep: 0.9 }, fx: 'sparks', tipW: 1.1, rebound: 0.8, noun: 'barrow', box: { hw: 0.27, y0: 0.44, y1: 0.85, zf: -0.46, zb: 0.4, zfOut: -0.5, zbOut: 0.48, H: 0.95 }, seat: [0.16, 0.08], rimY: 0.68, rimX: 0.3, floorY: 0.44, open: true, build: w => makeSpecMesh(VEH_SPECS.barrow, w) },
   trike: { name: 'KIDDIE TRIKE', launch: { up: 0.14, min: 2.4, max: 4.6, om: -3.6, yaw: 1.0, keep: 1.0 }, fx: 'sparks', tipW: 1.7, rebound: 1.2, noun: 'trike', box: { hw: 0.24, y0: 0.5, y1: 1.2, zf: -0.62, zb: 0.32, zfOut: -0.92, zbOut: 0.55, H: 1.2 }, seat: [0.68, 0.1], rimY: 1.0, rimX: 0.3, rimZ: -0.5, floorY: 0, open: true, build: w => makeTrikeMesh(w) },
   bin: { name: 'WASTE CONTAINER', launch: { up: 0.1, min: 2, max: 3.6, om: -1.8, yaw: 0.4, keep: 0.8 }, fx: 'sparks', tipW: 0.6, rebound: 0.55, noun: 'container', box: { hw: 0.52, y0: 0.3, y1: 0.9, zf: -0.34, zb: 0.34, zfOut: -0.44, zbOut: 0.44, H: 0.95 }, seat: [0.18, 0.02], rimY: 0.84, rimX: 0.52, floorY: 0.28, open: false, build: w => makeSpecMesh(VEH_SPECS.bin, w) },
+  bumper: { name: 'BUMPER CAR', launch: { up: 0.12, min: 2.2, max: 3.8, om: -2.2, yaw: 0.5, keep: 0.85 }, fx: 'sparks', tipW: 0.7, rebound: 1.6, noun: 'bumper car', box: { hw: 0.62, y0: 0.32, y1: 0.9, zf: -0.95, zb: 0.85, zfOut: -1.35, zbOut: 1.35, H: 1.2 }, seat: [0.42, 0.3], rimY: 0.9, rimX: 0.6, floorY: 0.32, open: false, build: vehStand(1.6, 1.2, 2.7, 0xd02020) },
+  wheelchair: { name: 'WHEELCHAIR', launch: { up: 0.14, min: 2.2, max: 4.4, om: -4.2, yaw: 1.2, keep: 1.0 }, fx: 'sparks', tipW: 1.5, rebound: 1.1, noun: 'wheelchair', box: { hw: 0.36, y0: 0.62, y1: 1.1, zf: -0.35, zb: 0.3, zfOut: -0.72, zbOut: 0.6, H: 1.33 }, seat: [0.72, 0.05], rimY: 0.95, rimX: 0.42, floorY: 0, open: true, build: vehStand(0.9, 1.33, 1.45, 0x777777) },
+  kart: { name: 'VINTAGE KART', launch: { up: 0.16, min: 2.8, max: 5.2, om: -3.0, yaw: 0.7, keep: 0.95 }, fx: 'sparks', tipW: 0.9, rebound: 0.9, noun: 'kart', box: { hw: 0.4, y0: 0.3, y1: 0.8, zf: -0.6, zb: 0.6, zfOut: -1.5, zbOut: 1.5, H: 1.1 }, seat: [0.42, 0.35], rimY: 0.75, rimX: 0.3, floorY: 0.3, open: true, build: vehStand(1.4, 1.1, 3.0, 0xc03030) },
+  mower: { name: 'LAWN TRACTOR', launch: { up: 0.12, min: 2.4, max: 4.6, om: -3.2, yaw: 0.8, keep: 0.9 }, fx: 'sparks', tipW: 0.8, rebound: 0.8, noun: 'tractor', box: { hw: 0.45, y0: 0.8, y1: 1.3, zf: -0.5, zb: 0.35, zfOut: -1.3, zbOut: 1.3, H: 1.5 }, seat: [0.95, 0.25], rimY: 1.35, rimX: 0.25, rimZ: -0.55, floorY: 0, open: true, build: vehStand(1.4, 1.5, 2.6, 0xd06020) },
+  bed: { name: 'HOSPITAL BED', launch: { up: 0.1, min: 1.8, max: 3.4, om: -2.4, yaw: 0.6, keep: 0.8 }, fx: 'feathers', tipW: 0.6, rebound: 0.6, noun: 'bed', box: { hw: 0.6, y0: 0.75, y1: 1.2, zf: -1.2, zb: 1.2, zfOut: -1.35, zbOut: 1.35, H: 1.3 }, seat: [0.88, 0.6], rimY: 0.95, rimX: 0.6, floorY: 0.0, open: true, build: vehStand(1.3, 1.3, 2.7, 0xcccccc) },
   sofa: { name: 'SOFA ON WHEELS', launch: { up: 0.08, min: 1.5, max: 3, om: -2.0, yaw: 0.6, keep: 0.72 }, fx: 'feathers', tipW: 0.45, rebound: 0.5, noun: 'sofa', box: { hw: 0.69, y0: 0.43, y1: 1.0, zf: -0.42, zb: 0.4, zfOut: -0.45, zbOut: 0.5, H: 1.05 }, seat: [0.53, 0.1], rimY: 0.72, rimX: 0.73, floorY: 0, open: true, build: w => makeSpecMesh(VEH_SPECS.sofa, w) },
 };
 
@@ -3921,7 +3927,8 @@ const VEH_SEAT = { // how the robot sits in each real model (his hip, his feet, 
   cart: { dy: 0.9, seat: [0, 0.14, 0.5], foot: [0.16, 0.04, -0.12], rim: [0.56, 0.9, 0.2] }, tub: { seat: [0, 0.13, 0.55], foot: [0.16, 0.02, -0.45], rim: [0.5, 0.45, 0.1], lean: -0.15 },
   chair: { seat: [0, 0.82, 0.18], foot: [0.17, 0, -0.45], rim: [0.45, 1.0, 0.05], lean: -0.05 }, sofa: { seat: [0, 0.68, 0.05], foot: [0.17, 0, -0.6], rim: [0.3, 0.75, -0.25], lean: -0.1 },
   toilet: { seat: [0, 0.6, 0.1], foot: [0.17, -0.15, -0.55], rim: [0.35, 0.65, -0.2] }, barrow: { seat: [0, 0.15, 0.25], foot: [0.16, 0.1, -0.45], rim: [0.45, 0.35, 0] },
-  trike: { seat: [0, 1.2, 0.25] }, bin: { seat: [0, 0.42, 0.15], foot: [0.17, 0, -0.3], rim: [0.55, 0.9, -0.35] } };
+  trike: { seat: [0, 1.2, 0.25] }, bed: { seat: [0, 0.82, 0.55], foot: [0.18, 0.72, -0.55], rim: [0.55, 0.95, 0.35], lean: -0.25 }, bumper: { seat: [0, 0.3, 0.3], foot: [0.18, 0.05, -0.45], rim: [0.2, 0.72, -0.55] },
+  kart: { seat: [0, 0.3, 0.3], foot: [0.16, 0.05, -0.6], rim: [0.2, 0.8, -0.45], lean: -0.1 }, mower: { seat: [0, 0.92, 0.3], foot: [0.2, 0.25, -0.35], rim: [0.2, 1.3, -0.5] }, wheelchair: { seat: [0, 0.68, 0.08], foot: [0.16, 0.08, -0.5], rim: [0.38, 0.85, 0.1] }, bin: { seat: [0, 0.42, 0.15], foot: [0.17, 0, -0.3], rim: [0.55, 0.9, -0.35] } };
 function vehSeat(kind) { const V = VEHS[kind], S = V && V.on ? VEH_SEAT[kind] : null; CART_FOOT.set(0.17, 0, -0.3); CART_LEAN = 0; if (!S) return;
   if (S.dy !== undefined) daggie.position.y = S.dy; CART_SEAT.set(...S.seat); if (S.foot) CART_FOOT.set(...S.foot); if (S.rim) { CART_RIM_X = S.rim[0]; CART_RIM_Y = S.rim[1]; CART_RIM_Z = S.rim[2]; } CART_LEAN = S.lean || 0; }
 function vehFit(kind) { /* the real model is bigger than the drawn vehicle: the vehicle, its physics box, his seat and his hands grow with it */
@@ -3962,7 +3969,7 @@ function wordwallLayout(txt) { const cols = wordwallGrid(txt), C = cols.length, 
 function wordwallSpec(txt) { /* the collision profile is as deep as the two layers of blocks and has no gaps between its cylinders (a thin wall of small blocks used to let a rider slip through); neighbours overlap a little, not a lot (a deep overlap makes the rider's joints fight each other) */ const cols = wordwallGrid(txt), C = cols.length, cs = clamp(6.2 / C, 0.28, 0.55), r = Math.max(cs * 0.9, 0.3), hw = Math.min(C * cs / 2, 1.8), n = Math.max(3, Math.ceil(hw * 2 / (r * 1.7)) + 1), sp = OBST.wordwall; sp.cyls = Array.from({ length: n }, (_, i) => ({ dx: -hw + i * (2 * hw / (n - 1)), r })); sp.h = 7 * cs; sp.r = r; WW.cs = cs; }
 function wordwallRebuild() { wordwallSpec(MIX.txt); const o = OBX.built.wordwall; if (o) { for (const t in o.sets) { scene.remove(o.sets[t].mesh); try { o.sets[t].mesh.dispose(); } catch (e) { /* gone anyway */ } } delete OBX.built.wordwall; } }
 
-const OBS_ORDER = ['post', 'truck', 'car', 'hatch', 'tires', 'barrels', 'bricks', 'barrier', 'wordwall'];
+const OBS_ORDER = ['post', 'truck', 'car', 'hatch', 'tires', 'barrels', 'bricks', 'barrier', 'wordwall', 'crates', 'haywall', 'booth', 'bus', 'vending'];
 if (!OBS_ORDER.includes(MIX.obs)) MIX.obs = 'truck'; /* a saved choice that no longer exists */
 // strengths in m/s: bend (it starts to give), knock (it is destroyed), tumble (the vehicle tips over); 15 mph = 6.7, 50 = 22, 100 = 45, 150 = 67, 200 = 89
 const OBST = {
@@ -3995,6 +4002,17 @@ const OBST = {
     layout() { return [{ t: 'barrier', x: 0, y: 0, z: 0, sx: 2.2, sy: 1, sz: 1, ry: 0, col: 0xb9b9b3 }]; } },
   wordwall: { absorb: 650, hard: 5, fx: 'dust', name: 'WORD WALL', r: 0.25, cyls: [-1, 0, 1].map(dx => ({ dx, r: 0.28 })), h: 3.85, bend: 9, knock: 20, tumble: 16, solid: false, kick: 0.8, lift: 1.0, sound: 'barrel', pop: 'WALL DESTROYED!',
     layout() { return wordwallLayout(MIX.txt); } },
+  crates: { absorb: 320, hard: 9, fx: 'wood', name: 'CRATE STACK', r: 0.3, cyls: [-1.05, -0.35, 0.35, 1.05].map(dx => ({ dx, r: 0.32 })), h: 2.5, bend: 3, knock: 9, tumble: 40, solid: false, kick: 0.75, lift: 0.9, sound: 'wood', pop: 'CRATES SMASHED!',
+    layout() { const b = []; for (let row = 0; row < 5; row++) { const n = row % 2 ? 2 : 3; for (let i = 0; i < n; i++) b.push({ t: 'crate', x: (i - (n - 1) / 2) * 1.06 + rand(-0.03, 0.03), y: 0.26 + row * 0.51, z: rand(-0.04, 0.04), sx: 1.0, sy: 0.5, sz: 0.62, ry: rand(-0.06, 0.06), col: 0xffffff - Math.floor(rand(0, 4)) * 0x0a0a0a }); } return b; } },
+  haywall: { absorb: 950, hard: 99, fx: 'hay', name: 'HAY BALES', r: 0.4, cyls: [-1.2, -0.4, 0.4, 1.2].map(dx => ({ dx, r: 0.42 })), h: 2.5, bend: 2, knock: 7, tumble: 60, solid: false, kick: 0.9, lift: 1.0, sound: 'hay', pop: 'HAY EVERYWHERE!',
+    layout() { const b = []; for (let row = 0; row < 3; row++) { const n = row === 2 ? 1 : 2 - (row % 2) + 1; for (let i = 0; i < n; i++) b.push({ t: 'hay', x: (i - (n - 1) / 2) * 1.65 + rand(-0.04, 0.04), y: 0.42 + row * 0.82, z: rand(-0.05, 0.05), sx: 1.6, sy: 0.82, sz: 0.85, ry: rand(-0.05, 0.05), col: 0xffffff }); } return b; } },
+  booth: { absorb: 600, hard: 6, fx: 'glass', name: 'PHONE BOOTH', r: 0.65, cyls: [{ dx: -0.3, r: 0.5 }, { dx: 0.3, r: 0.5 }], h: 3.2, bend: 8, knock: 16, tumble: 20, solid: false, kick: 0.55, lift: 0.5, sound: 'booth', pop: 'BOOTH DOWN!',
+    layout() { return [{ t: 'booth', x: 0, y: 1.6, z: 0, sx: 1.25, sy: 3.2, sz: 1.25, ry: 0, col: 0xffffff }]; } },
+  bus: { absorb: 2800, hard: 4.5, fx: 'dust', name: 'SCHOOL BUS (SIDEWAYS)', r: 1.3, cyls: [-4.8, -3.6, -2.4, -1.2, 0, 1.2, 2.4, 3.6, 4.8].map(dx => ({ dx, r: 1.3, rim: 1.3, h: 3.1 })), h: 3.2, bend: 9999, knock: 9999, tumble: 14, solid: true, kick: 0.2, lift: 0.3, sound: 'car', pop: 'BUS HIT!', rider: { up: 1.5, om: 0.6, crash: 0, cap: 11 }, rock: { parts: ['bus'], slide: 0.012, tilt: 0.0015, tiltMax: 0.1, tau: 0.7, w: 8, py: 0, pz: 0 },
+    dent: { parts: ['bus'], k: 0.018, min: 0.05, max: 0.9, cx: 0, cy: 1.1, sx: 1.4, sy: 0.9, z0: 0.3, z1: 1.32, shiftN: 9, mask: (x, y, z) => z > 0.3 },
+    layout() { return [{ t: 'bus', x: 0, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff }]; } },
+  vending: { absorb: 1300, hard: 5, fx: 'cans', name: 'VENDING MACHINE', r: 0.5, cyls: [{ dx: -0.38, r: 0.48 }, { dx: 0.38, r: 0.48 }], h: 2.6, bend: 30, knock: 22, tumble: 18, solid: false, kick: 0.35, lift: 0.3, sound: 'vending', pop: 'SODA EVERYWHERE!',
+    layout() { return [{ t: 'vend', x: 0, y: 1.3, z: 0, sx: 1.35, sy: 2.6, sz: 0.95, ry: 0, col: 0xffffff }]; } },
   pins: { absorb: 12, hard: 99, fx: 'none', name: 'BOWLING PINS', r: 0.15, cyls: [{ dx: 0, r: 0.15 }], h: 0.6, bend: 1, knock: 2.5, tumble: 80, solid: false, kick: 1.0, lift: 1.4, sound: 'pins', pop: 'STRIKE!',
     layout() { const b = []; for (let k = 0; k < 4; k++) for (let j = 0; j <= k; j++) b.push({ t: 'pin', x: (j - k / 2) * 0.3, y: 0, z: -k * 0.27, sx: 0.55, sy: 0.55, sz: 0.55, ry: 0, col: 0xffffff }); return b; } },
 };
@@ -4306,6 +4324,9 @@ function mixPaint(mat, P) { /* a repainted copy of a model's material: the textu
 function mixLook(list, C) { /* the parts a model should not have (badges, a lid) are left out, the paint is applied */
   let L = C.drop ? list.filter(q => !C.drop.test(q.mat.name || '')) : list;
   if (C.paint) { const done = new Map(); L = L.map(q => { const P = C.paint.find(P => !P.match || P.match.test(q.mat.name || '')); if (!P) return q; if (!done.has(q.mat)) done.set(q.mat, mixPaint(q.mat, P)); return { geo: q.geo, mat: done.get(q.mat), name: q.name }; }); }
+  if (C.dropIsl) { const B = new THREE.Box3(), bb = new THREE.Box3(), v = new V3(); for (const q of L) { q.geo.computeBoundingBox(); B.union(q.geo.boundingBox); } const out = [];
+    for (const q of L) { const p = q.geo.attributes.position.array, keep = []; for (const tris of mixIslands(q.geo)) { bb.makeEmpty(); for (const t of tris) for (let c = 0; c < 3; c++) bb.expandByPoint(v.fromArray(p, t * 9 + c * 3)); if (!C.dropIsl(bb, B)) keep.push(...tris); } if (keep.length) out.push({ geo: mixSub(q.geo, keep.sort((a, b) => a - b)), mat: q.mat, name: q.name }); }
+    L = out; } // an island that is no part of the vehicle (a pole, a floor plate)
   if (C.dropTop) { const b = new THREE.Box3(); for (const q of L) { q.geo.computeBoundingBox(); b.union(q.geo.boundingBox); } const y0 = b.min.y + C.dropTop * (b.max.y - b.min.y), out = [];
     for (const q of L) { const p = q.geo.attributes.position.array, keep = []; for (const tris of mixIslands(q.geo)) { let lo = Infinity; for (const t of tris) lo = Math.min(lo, p[t * 9 + 1], p[t * 9 + 4], p[t * 9 + 7]); if (lo < y0) for (const t of tris) { const k = t * 9, ux = p[k + 3] - p[k], uy = p[k + 4] - p[k + 1], uz = p[k + 5] - p[k + 2], vx = p[k + 6] - p[k], vy = p[k + 7] - p[k + 1], vz = p[k + 8] - p[k + 2], nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
         if (Math.min(p[k + 1], p[k + 4], p[k + 7]) > y0 - 0.02 * (b.max.y - b.min.y) && Math.abs(ny) > 0.8 * Math.hypot(nx, ny, nz)) continue; keep.push(t); } } /* a closed box keeps no flat top either */ if (keep.length) out.push({ geo: keep.length * 9 === p.length ? q.geo : mixSub(q.geo, keep.sort((a, b) => a - b)), mat: q.mat, name: q.name }); }
@@ -4320,13 +4341,15 @@ function mixPieces(list, N) { /* the model in about N parts for a crash: its isl
 const VEH_GLB = { cart: { f: 'v_cart', ry: Math.PI, mk: 'metal', k: 1.4 }, tub: { f: 'v_tub', ry: Math.PI / 2, mk: 'ceramic', k: 1.45 }, chair: { f: 'v_chair', ry: Math.PI, mk: 'plastic', k: 1.5 },
   sofa: { f: 'v_sofa', ry: Math.PI, mk: 'fabric', k: 1.35, paint: [{ hex: 0x3a7dff, gain: 4.8 }] }, toilet: { f: 'v_toilet', ry: Math.PI, mk: 'ceramic', k: 1.55 },
   barrow: { f: 'v_barrow', ry: Math.PI / 2, mk: 'metal', k: 1.55, paint: [{ hex: 0x2ed14a, gain: 3.4 }] }, trike: { f: 'v_trike', ry: 0, mk: 'metal', k: 1.7, paint: [{ hex: 0xf01a1a, gain: 3.4 }] },
-  bin: { f: 'v_bin', ry: Math.PI / 2, mk: 'metal', k: 1.3, dropTop: 0.855 } }; // k: how much bigger than the drawn one (Daggie is a big robot: 1.8 m sitting)
+  bin: { f: 'v_bin', ry: Math.PI / 2, mk: 'metal', k: 1.3, dropTop: 0.855 },
+  bumper: { f: 'v_bumper', ry: Math.PI, mk: 'plastic', k: 1, drop: /^(pasted__pasted__pasted__blinn1SG|blinn8SG)$/ }, // no floor plate, no pole
+  wheelchair: { f: 'v_wheelchair', ry: Math.PI, mk: 'metal', k: 1 }, kart: { f: 'v_kart', ry: Math.PI, mk: 'metal', k: 1 }, mower: { f: 'v_mower', ry: Math.PI, mk: 'metal', k: 1 }, bed: { f: 'v_bed', ry: Math.PI / 2, mk: 'fabric', k: 1 } }; // k: how much bigger than the drawn one (Daggie is a big robot: 1.8 m sitting)
 function vehSkin(kind) {
   const C = VEH_GLB[kind], V = VEHS[kind]; if (!C || !V || V.skin) return; V.skin = 1;
   mixGlb(C.f).then(list => { if (!list) return; const root = V.root, g = root.userData.g, S = g.scale.x, tb = new THREE.Box3(), bb = new THREE.Box3(), mm = new THREE.Matrix4();
     root.updateMatrixWorld(true); const inv = g.matrixWorld.clone().invert(); // the drawn vehicle's box, in the units of its parts
     g.traverse(o => { if (!o.isMesh || !o.geometry) return; o.geometry.computeBoundingBox(); bb.copy(o.geometry.boundingBox).applyMatrix4(mm.multiplyMatrices(inv, o.matrixWorld)); tb.union(bb); });
-    const sz = tb.getSize(new V3()).multiplyScalar(S), c = tb.getCenter(new V3()).multiplyScalar(S), fit = mixLook(mixFit(list, { ry: C.ry, fit: [sz.x, sz.y, sz.z], at: [c.x, tb.min.y * S, c.z] }), C), kids = [];
+    const sz = tb.getSize(new V3()).multiplyScalar(S), c = tb.getCenter(new V3()).multiplyScalar(S), src = C.dropIsl || C.drop ? mixLook(list, { dropIsl: C.dropIsl, drop: C.drop }) : list, fit = mixLook(mixFit(src, { ry: C.ry, fit: [sz.x, sz.y, sz.z], at: [c.x, tb.min.y * S, c.z] }), Object.assign({}, C, { dropIsl: null, drop: null })), kids = []; // the pole and the floor plate go before the size is taken
     for (const pc of mixPieces(fit, C.n || 10)) { const ge = pc.geo; ge.scale(1 / S, 1 / S, 1 / S); ge.computeBoundingBox(); const cc = ge.boundingBox.getCenter(new V3()); ge.translate(-cc.x, -cc.y, -cc.z); const m = new THREE.Mesh(ge, pc.mat); m.position.copy(cc); m.castShadow = true; m.receiveShadow = true; m.userData.mk = C.mk; m.name = 'glb'; kids.push(m); }
     V.old = { kids: [...g.children], extras: root.userData.extras, pieces: root.userData.pieces, big: root.userData.bigPieces, wheels: V.wheels.slice() }; V.glb = kids; V.on = false;
     vehSkinSet(kind, LAB.machine === 'mix'); }); }
@@ -4343,8 +4366,11 @@ const OBS_GLB = {
   car: { f: 'o_car', fit: [4.75, null, null], yoff: 0.75, kits: { car: 'body', carg: 'glass' }, paint: [{ match: /Bodymat/, hex: 0xc0111b }] },
   tire: { f: 'o_tire', rz: Math.PI / 2, fit: [0.714, null, 0.714], mid: true, kits: { tire: 'body' } },
   barrel: { f: 'o_barrel', split: 2, fit: [1, 1, 1], stretch: true, mid: true, kits: { barrel0: 1, barrel1: [1, 0x2fc24e], barrel2: [1, 0x3a6dff], barrel3: [1, 0xffd21a] }, light: 1.5 }, // red, green, blue and yellow drums 
-  barrier: { f: 'o_barrier', ry: Math.PI / 2, fit: [null, 0.8, 0.56], kits: { barrier: 'body' } } };
-const OBS_GLB_OF = { truck: 'truck', car: 'car', tires: 'tire', barrels: 'barrel', barrier: 'barrier' }, OBS_GLB_FL = { truck: 0.5, truckg: 0.5, car: 0.45, carg: 0.5, tire: 0.12, barrel0: 0.29, barrel1: 0.29, barrel2: 0.29, barrel3: 0.29, barrier: 0.25 };
+  barrier: { f: 'o_barrier', ry: Math.PI / 2, fit: [null, 0.8, 0.56], kits: { barrier: 'body' } },
+  crate: { f: 'p_crate', fit: [1, 1, 1], stretch: true, mid: true, kits: { crate: 'body' } }, hay: { f: 'o_hay', ry: Math.PI / 2, fit: [1, 1, 1], stretch: true, mid: true, kits: { hay: 'body' } },
+  booth: { f: 'o_booth', fit: [1, 1, 1], stretch: true, mid: true, kits: { booth: 'body' } }, bus: { f: 'o_bus', ry: Math.PI / 2, fit: [11, null, null], kits: { bus: 'body' } },
+  vending: { f: 'o_vending', ry: -Math.PI / 2, fit: [1, 1, 1], stretch: true, mid: true, kits: { vend: 'body' } } };
+const OBS_GLB_OF = { truck: 'truck', car: 'car', tires: 'tire', barrels: 'barrel', barrier: 'barrier', crates: 'crate', haywall: 'hay', booth: 'booth', bus: 'bus', vending: 'vending' }, OBS_GLB_FL = { truck: 0.5, truckg: 0.5, car: 0.45, carg: 0.5, tire: 0.12, barrel0: 0.29, barrel1: 0.29, barrel2: 0.29, barrel3: 0.29, barrier: 0.25, crate: 0.25, hay: 0.41, booth: 0.62, bus: 0.5, vend: 0.47 };
 function mixPanes(geos) { /* glass split by the way it faces (sides, front, back, roof), each with a planar map into one cell of the crack atlas */
   const groups = {}, pa = new V3(), pb = new V3(), pc = new V3(), nn = new V3();
   for (const ge of geos) { const p = ge.attributes.position.array, by = {}; for (let t = 0; t * 9 < p.length; t++) { pa.fromArray(p, t * 9); pb.fromArray(p, t * 9 + 3); pc.fromArray(p, t * 9 + 6); nn.subVectors(pb, pa).cross(pc.sub(pa));
@@ -4376,6 +4402,8 @@ function mixObsKit(t) { /* the kit of block type t from its model, or null while
     if (role === 'glass') { const id = Object.keys(OBS_GLB_OF).find(k => OBS_GLB_OF[k] === name); return O.glass ? obxGlassKit(OBX_MODELS[id], new THREE.BoxGeometry(0.05, 0.05, 0.05), C.yoff || 0) : HATCH_NOTHING(); }
     if (Array.isArray(role)) { const B = O[role[0]]; if (!B) return null; O['p' + t] = O['p' + t] || (Array.isArray(B.mat) ? B.mat.map(m => mixPaint(m, { hex: role[1], gain: 4 })) : mixPaint(B.mat, { hex: role[1], gain: 4 })); return { geo: B.geo, mat: O['p' + t], fl: OBS_GLB_FL[t] }; }
     const B = O[role]; if (B && C.light && !O['l' + t]) { O['l' + t] = 1; for (const m of [].concat(B.mat)) { m.color.multiplyScalar(C.light); m.roughness = Math.max(0.35, m.roughness * 0.8); } } return B ? { geo: B.geo, mat: B.mat, fl: OBS_GLB_FL[t] } : null; } return null; }
+{ const plain = (w, h, d, col, fl) => () => ({ geo: new THREE.BoxGeometry(w, h, d), mat: new THREE.MeshStandardMaterial({ color: col, roughness: 0.8 }), fl }); // stand-ins until the models are in
+  Object.assign(OBS_KIT, { crate: plain(1, 1, 1, 0x9a7a4a, 0.25), hay: plain(1, 1, 1, 0xc8a85a, 0.41), booth: plain(1, 1, 1, 0xb01818, 0.62), bus: () => ({ geo: new THREE.BoxGeometry(11, 3.1, 2.6).translate(0, 1.55, 0), mat: new THREE.MeshStandardMaterial({ color: 0xf0b020 }), fl: 0.5 }), vend: plain(1, 1, 1, 0xc02020, 0.47) }); }
 for (const t of Object.keys(OBS_GLB_FL)) { const drawn = OBS_KIT[t]; OBS_KIT[t] = () => mixObsKit(t) || drawn(); }
 { const drawn = OBST.barrier.layout; OBST.barrier.layout = function () { const O = MIXG.obs.barrier; if (!O || O.state !== 2) return drawn.call(this); const gb = O.body.geo; if (!gb.boundingBox) gb.computeBoundingBox(); const L = gb.boundingBox.max.x - gb.boundingBox.min.x; // a row of two real barriers, end to end
   return [-0.5, 0.5].map(s => ({ t: 'barrier', x: s * L * 0.98, y: 0, z: 0, sx: 1, sy: 1, sz: 1, ry: 0, col: 0xffffff })); }; }
@@ -4390,7 +4418,7 @@ function mixBollard() { /* the steel post as a real street bollard (it still ben
 function obsBuild(id) {
   if (OBX.built[id]) return OBX.built[id]; const sp = OBST[id], blocks = sp.layout(), by = {}, out = { blocks: [], sets: {}, kits: {} };
   for (const b of blocks) (by[b.t] = by[b.t] || []).push(b);
-  for (const t in by) { const tk = /^(barrel|brick)\d$/.test(t) ? t.slice(0, -1) : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { cube: 'box', box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass', hatch: 'metal', hatchg: 'glass', hwP: 'box', hwN: 'box' }[tk]; set.dragK = { cube: 0.1, box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02, hatch: 0.02, hatchg: 0.02, hwP: 0.02, hwN: 0.02 }[tk]; set.bnc = { cube: 0.3, box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15, hatch: 0.15, hatchg: 0.15, hwP: 0.4, hwN: 0.4 }[tk]; if (t === 'truckg' || t === 'carg' || t === 'hatchg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
+  for (const t in by) { const tk = /^(barrel|brick)\d$/.test(t) ? t.slice(0, -1) : t, kit = OBS_KIT[t](), set = new CanDebris(kit.geo, kit.mat, by[t].length); set.mesh.castShadow = true; set.mesh.receiveShadow = true; set.snd = { cube: 'box', box: 'box', melon: 'melon', barrel: 'barrel', brick: 'stone', barrier: 'stone', pin: 'pin', truck: 'metal', car: 'metal', tire: 'box', truckg: 'glass', carg: 'glass', hatch: 'metal', hatchg: 'glass', hwP: 'box', hwN: 'box', crate: 'wood', hay: 'soft', booth: 'metal', bus: 'metal', vend: 'metal' }[tk]; set.dragK = { cube: 0.1, box: 0.3, melon: 0.04, barrel: 0.04, brick: 0.02, barrier: 0.01, pin: 0.08, truck: 0.01, car: 0.02, tire: 0.1, truckg: 0.01, carg: 0.02, hatch: 0.02, hatchg: 0.02, hwP: 0.02, hwN: 0.02, crate: 0.15, hay: 0.3, booth: 0.03, bus: 0.01, vend: 0.02 }[tk]; set.bnc = { cube: 0.3, box: 0.12, melon: 0.1, barrel: 0.45, brick: 0.2, barrier: 0.1, pin: 0.5, truck: 0.05, car: 0.15, tire: 0.55, truckg: 0.05, carg: 0.15, hatch: 0.15, hatchg: 0.15, hwP: 0.4, hwN: 0.4, crate: 0.25, hay: 0.1, booth: 0.2, bus: 0.05, vend: 0.15 }[tk]; if (t === 'truckg' || t === 'carg' || t === 'hatchg') set.mesh.castShadow = false; out.sets[t] = set; out.kits[t] = kit; for (const b of by[t]) out.blocks.push(Object.assign({ set, kit }, b)); }
   return (OBX.built[id] = out);
 }
 function obsPlace(id) { // every block back in its place, still
@@ -4501,7 +4529,11 @@ function vehFx(v) { // the vehicle's own contribution to the crash
   else burst(new V3(at[0], at[1] + 0.2, at[2]), 30 + v, SPARK, 5 + v * 0.1);
 }
 function obsFx(sp, v, st) { // dust, pulp, splash: what comes out of the obstacle depends on what it is made of
-  if (!st) return; const at = [LAB_LANE, 0.5, BOLLARD_Z]; if (!OBX.dust) OBX.dust = new CanTrail(260, false); const D = OBX.dust, n = Math.round(10 + v * 0.45);
+  if (!st) return;
+  if (sp.fx === 'glass' || sp.fx === 'cans') { obsShardSet(); const N = Math.round(12 + v * 0.6), cans = sp.fx === 'cans', cols = [0xd8261e, 0x1f6ad8, 0x26a84a, 0xf2c21a, 0xeeeeee]; // the booth's panes burst; cans and bottles fly out of the machine
+    for (let i = 0; i < N; i++) { const sp2 = rand(1, 3 + v * 0.12); OBX.shards.spawn(LAB_LANE + rand(-0.6, 0.6), rand(0.4, 2.6), BOLLARD_Z + rand(-0.3, 0.4), rand(-2.5, 2.5), rand(1, 4), -sp2, cans ? 0.07 : rand(0.04, 0.14), cans ? 0.13 : 0.006, cans ? 0.07 : rand(0.04, 0.12), 99999, cans ? cols[i % cols.length] : 0xc4dde8, false); }
+    glassSound(cans ? 1.3 : 1.05); if (!cans) return; }
+  if (sp.fx === 'hay' || sp.fx === 'wood') { const H = sp.fx === 'hay'; if (!OBX.dust) OBX.dust = new CanTrail(260, false); for (let i = 0; i < Math.round((H ? 30 : 16) + v * 0.6); i++) OBX.dust.emit(LAB_LANE + rand(-1.2, 1.2), rand(0.2, 2), BOLLARD_Z + rand(-0.4, 0.4), rand(-3, 3), rand(0.5, 3.5), -rand(1, 4 + v * 0.1), H ? 0.25 : 0.2, H ? 1.0 : 0.7, rand(1, 1.8), H ? 0.85 : 0.55, H ? 0.72 : 0.42, H ? 0.38 : 0.28, 0.6, 1.1); return; } /* straw or splinters */ const at = [LAB_LANE, 0.5, BOLLARD_Z]; if (!OBX.dust) OBX.dust = new CanTrail(260, false); const D = OBX.dust, n = Math.round(10 + v * 0.45);
   const puff = (rgb, a, s0, s1, life, k) => { for (let i = 0; i < n * k; i++) D.emit(at[0] + rand(-1, 1), at[1] + rand(0, 0.8), at[2] + rand(-0.4, 0.4), rand(-2.5, 2.5), rand(0.5, 3), -rand(1, 4 + v * 0.1), s0, s1 * rand(0.8, 1.3), life * rand(0.7, 1.2), rgb[0], rgb[1], rgb[2], a, 1.1); };
   if (sp.fx === 'dust') puff([0.62, 0.56, 0.5], 0.55, 0.5, 2.4, 1.6, 1); else if (sp.fx === 'paper') puff([0.85, 0.78, 0.65], 0.4, 0.3, 1.2, 1.0, 0.7); else if (sp.fx === 'juice') puff([0.75, 0.12, 0.18], 0.55, 0.3, 1.3, 0.9, 0.9); else if (sp.fx === 'splash') puff([0.12, 0.09, 0.07], 0.5, 0.3, 1.1, 0.8, 0.6); else if (sp.fx === 'sand') puff([0.78, 0.66, 0.42], 0.5, 0.3, 1.8, 1.4, 1);
 }
@@ -4525,6 +4557,7 @@ function obsSound(kind, st, v) {
   else if (kind === 'car') { if (!sfxPlay(['car', 'metal'], 0.9, 0.8, 0.25)) { matSound('metal', 1, 0.8); noiseDist(t, 0.2, 0.3, 2200, 260, 1.1); sweep(t, 90, 40, 0.25, 0.3, 'sine'); } if (v > 12) glassSound(1.3); for (let i = 0; i < 6; i++) noise(t + 0.1 + Math.random() * 0.6, 0.05, 0.1, 'bandpass', rand(1500, 4000), 800, 3); }
   else if (kind === 'tires') { if (!sfxPlay('tires', 0.9, 1, 0.2)) { noise(t, 0.25, 0.4, 'lowpass', 500, 120, 0.9); sweep(t, 95, 40, 0.28, 0.35, 'sine'); for (let i = 0; i < 5; i++) noise(t + Math.random() * 0.5, 0.07, 0.12, 'bandpass', rand(200, 600), 200, 1.5); } if (v > 8) noise(t, 0.35, 0.08, 'bandpass', 1900, 900, 4); } // and the squeak of rubber on rubber
   else if (kind === 'barrel') matSound('metal', 1, 0.55); else if (kind === 'brick') matSound('brick', p, 1); else if (kind === 'concrete') { matSound('stone', 1, 0.8); sweep(t, 70, 28, 0.5, 0.4, 'sine'); }
+  else if (kind === 'wood') matSound('wood', 1, 0.9); else if (kind === 'hay') { if (!sfxPlay('hay', 0.9, 1, 0.2)) matSound('wood', 0.4, 0.6); } else if (kind === 'booth') { matSound('metal', 0.8, 0.9); glassSound(1.0); } else if (kind === 'vending') { matSound('metal', 1, 0.7); sweep(t, 70, 30, 0.4, 0.35, 'sine'); }
   else if (kind === 'pins') for (let i = 0; i < 12; i++) { const tt = t + Math.pow(Math.random(), 1.4) * 0.7, f = rand(700, 1400); noise(tt, 0.04, 0.2, 'bandpass', f, f * 0.6, 3); ping(tt, f * 1.3, 0.05, 0.04); }
 }
 
@@ -5406,26 +5439,29 @@ function labHall() {
   }
 }
 // ---- instant replay: the last seconds recorded and played back slowly with film cameras and black bars ----
-const LREC = { frames: [], t: 0, impT: null };
+const LREC = { frames: [], t: 0, impT: null, obs: [], sets: null, dent: null };
+function labObsSets() { const o = OBX.built[OBX.cur], out = o && OBX.cur !== 'post' ? Object.values(o.sets) : []; if (OBX.shards) out.push(OBX.shards); if (OBX.frag) out.push(OBX.frag); return out; } // everything of the obstacle that can fly, in a fixed order
 function labRec(dt) {
   LREC.t += dt; if (LABCART.hit && LREC.impT === null) LREC.impT = LREC.t;
   const f = new Float32Array(9 + parts.length * 7 + CDEB.list.length * 7), q = new THREE.Quaternion(), v = new V3();
   f[0] = LREC.t; board.getWorldPosition(v); board.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 1);
   parts.forEach((p, i) => { p.getWorldPosition(v); p.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], 8 + i * 7); });
   { const base = 8 + parts.length * 7; f[base] = CDEB.on ? 1 : 0; CDEB.list.forEach((d, i) => { d.m.getWorldPosition(v); d.m.getWorldQuaternion(q); f.set([v.x, v.y, v.z, q.x, q.y, q.z, q.w], base + 1 + i * 7); }); }
-  LREC.frames.push(f); if (LREC.frames.length > 700) LREC.frames.shift();
+  if (!LREC.sets) LREC.sets = labObsSets(); LREC.obs.push(LREC.sets.map(st => st.mesh.visible ? st.mesh.instanceMatrix.array.slice() : null)); // the barrels, bricks, tyres and glass fly in the replay too
+  LREC.frames.push(f); if (LREC.frames.length > 700) { LREC.frames.shift(); LREC.obs.shift(); }
 }
 function labBars(on) { // the replay used to draw black bars over 24% of the screen and a blinking REPLAY label: gone, so a replay cut into a video looks like the rest of it
   if (!document.getElementById('labBarsCss')) { const css = document.createElement('style'); css.id = 'labBarsCss'; css.textContent = '.labmode.replaying .labgauge,.labmode.replaying .lablvl{opacity:0}#labBars{display:none!important}'; document.head.appendChild(css); }
   stage.classList.toggle('replaying', on);
 }
 function labReplayStart() {
-  crashBudget(false); // the replay gets the full picture again
+  crashBudget(false); if (!LREC.dent) { const A = OBST[OBX.cur] && OBST[OBX.cur].dent, o = OBX.built[OBX.cur]; LREC.dent = A && o ? A.parts.map(pt => o.kits[pt] && o.kits[pt].geo).filter(Boolean).map(g => [g, g.userData.dentD || 0]) : []; } // remembered, so a second viewing can crumple it again // the replay gets the full picture again
   const imp = LREC.impT ?? LREC.t;
   const from = Math.max(LREC.frames[0] ? LREC.frames[0][0] : 0, imp - 0.7), to = Math.min(LREC.t, imp + 2.6);
   const cage = board.getObjectByName('cage');
   LAB.replay = { from, to, imp, t: from, shot: -1, dent: cage ? cage.geometry.attributes.position.array.slice() : null, cage, boomed: false, skip: false };
-  LAB.phase = 'replay'; labBars(true); for (const p of parts) if (p.parent !== scene) scene.attach(p);
+  if (LAB.dist) LREC.dist = LAB.dist; else LAB.dist = LREC.dist || 0;
+  LAB.phase = 'replay'; labBars(true); for (const p of parts) if (p.parent !== scene) scene.attach(p); lastPop = 0; pop('REPLAY', 'lilac');
 }
 function labReplayFrame(t) {
   const F = LREC.frames; let i = 0; while (i < F.length - 2 && F[i + 1][0] <= t) i++;
@@ -5433,6 +5469,7 @@ function labReplayFrame(t) {
   const put = (obj, o) => { obj.position.set(lerp(a[o], b[o], k), lerp(a[o + 1], b[o + 1], k), lerp(a[o + 2], b[o + 2], k)); qa.set(a[o + 3], a[o + 4], a[o + 5], a[o + 6]); qb.set(b[o + 3], b[o + 4], b[o + 5], b[o + 6]); obj.quaternion.copy(qa).slerp(qb, k); };
   put(board, 1); parts.forEach((p, j) => put(p, 8 + j * 7));
   { const base = 8 + parts.length * 7, act = a[base] > 0.5; if (CART_ROOT) CART_ROOT.visible = !act; CDEB.list.forEach((d, i) => { d.m.visible = act; if (act) { put(d.m, base + 1 + i * 7); d.m.scale.setScalar(CART_S * VEH_SCALE); } }); }
+  const OA = LREC.obs[i], OB = LREC.obs[i + 1] || OA; if (OA && LREC.sets) LREC.sets.forEach((st, j) => { const fa = OA[j], fb = OB[j] || fa, m = st.mesh; if (!fa) { m.visible = false; return; } m.visible = true; const arr = m.instanceMatrix.array; if (fb.length !== fa.length) arr.set(fa); else for (let n = 0; n < fa.length; n++) arr[n] = fa[n] + (fb[n] - fa[n]) * k; m.instanceMatrix.needsUpdate = true; });
 }
 function labReplayStep(dt, now) {
   const R2 = LAB.replay; if (!R2) return;
@@ -5487,13 +5524,14 @@ function buildLabUI() {
   stage.appendChild(g);
   const lv = document.createElement('div'); lv.className = 'lablvl'; lv.id = 'labLvl'; stage.appendChild(lv);
   const p = document.createElement('div'); p.className = 'labpanel'; p.id = 'labPanel';
-  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labTxt" type="button">Text</button><button id="labNext" type="button">Next level ▶</button></div>';
+  p.innerHTML = '<p class="res" id="labRes"></p><div class="chips" id="labChips"></div><div class="lrow"><button class="sm" data-d="-10" type="button">−10</button><button class="sm" data-d="-1" type="button">−1</button><input type="range" min="1" max="100" step="1" id="labRange" aria-label="Level"><button class="sm" data-d="1" type="button">+1</button><button class="sm" data-d="10" type="button">+10</button></div><button class="go" id="labGo" type="button">TEST ▶</button><div class="foot"><button id="labMenu" type="button">◀ Menu</button><button id="labTxt" type="button">Text</button><button id="labReplay" type="button" hidden>↺ Replay</button><button id="labNext" type="button">Next level ▶</button></div>';
   stage.appendChild(p);
   const chips = $('labChips');
   for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub' || m === 'stairs') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
   for (const b of p.querySelectorAll('.sm')) { if (Math.abs(Number(b.dataset.d)) === 10) b.style.display = 'none'; b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, LAB_MAX()); labSave(); labUI(); }; }
   $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, LAB_MAX()); labSave(); labUI(); };
   $('labGo').onclick = () => { initAudio(); labStart(); };
+  $('labReplay').onclick = () => labRewatch();
   $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
   $('labTxt').onclick = () => { const t = prompt('WORD WALL text (letters, numbers, ! ? - + .)', MIX.txt); if (t === null) return; const c = wordwallClean(t); MIX.txt = c; try { localStorage.setItem('daggie-mix', JSON.stringify({ veh: MIX.veh, obs: MIX.obs, loc: MIX.loc, txt: MIX.txt })); } catch (e) { /* not saved */ } wordwallRebuild(); mixApply(); labUI(); };
@@ -5514,6 +5552,7 @@ function labUI() {
   for (const b of $('labChips').children) b.setAttribute('aria-pressed', String(b.dataset.m === LAB.machine));
   $('labTxt').hidden = !(labBol() && MIX.obs === 'wordwall'); $('labTxt').textContent = 'Text: ' + MIX.txt; 
   if (!LAB.text) { $('labRes').textContent = LAB_INFO[LAB.machine].ask; }
+  $('labReplay').hidden = !((labBol() && LREC.frames.length >= 20) || (LAB.machine === 'cannon' && CREC.frames.length >= 20));
 }
 function labReset() {
   crashBudget(false); idleSharp(true);
@@ -5535,7 +5574,7 @@ function labStart() { // the buffers are rebuilt on the still picture, not while
 function labStartNow() {
   idleSharp(false);
   resetRun(); // fresh Daggie on the stand
-  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; LAB.aura = 0; LAB.six7 = false; labBars(false);
+  LAB.text = ''; LAB.lost = 0; LAB.dist = 0; labDmg(false); LAB.t = 0; LAB.pending = 0; LAB.vx = 0; LAB.v = 0; LREC.frames.length = 0; LREC.obs.length = 0; LREC.sets = null; LREC.dent = null; LREC.t = 0; LREC.impT = null; LAB.replay = null; LAB.weave = null; LAB.aura = 0; LAB.six7 = false; labBars(false);
   $('labPanel').hidden = true; $('hook').classList.remove('show');
   state = 'ride'; stateT = performance.now(); setHP(100);
   const lv = LAB.level;
@@ -5566,6 +5605,10 @@ function labPancake() {
 function labAura() {
   const ft = Math.round(LAB.dist || 0), torn = LAB.lost || 0, mph = Math.round((LAB.impV || 0) * 2.237), surv = LAB.text === 'survived' || String(LAB.text).indexOf('stayed in the ') === 0, six7 = ft >= 66 && ft <= 68, broke = !!CART.knocked;
   let a = ft * 10 + torn * 2500 + (broke ? 5000 : 0) + mph * 40; if (surv) a = Math.round(a * 0.4); if (six7) a += 67000; a = Math.max(100, Math.round(a / 10) * 10); LAB.aura = a; LAB.six7 = six7; }
+function labRewatch() { /* the last crash once more, from the recording */ initAudio(); const can = LAB.machine === 'cannon';
+  if (can ? CREC.frames.length < 20 : !labBol() || LREC.frames.length < 20) return; $('labPanel').hidden = true; mixPickVis(false); state = 'ride'; stateT = performance.now();
+  if (can) { stage.classList.add('cannonrun'); if (!cannonReplayStart()) labFinish(LAB.text); return; }
+  if (LREC.dent) for (const [g, d] of LREC.dent) { g.userData.dentD = d; g.userData.shown = undefined; } board.visible = true; labReplayStart(); }
 function labFinish(text) { if (labBol()) { LAB.text = text; labAura(); } LAB.text = text; LAB.phase = 'done'; if (state === 'ride') { state = 'lab'; stateT = performance.now(); LAB.pending = performance.now() + 1400; } }
 function labCrash(kind) { R.vy = Math.min(R.vy, 0); LAB.phase = 'wreck'; crash(kind); LAB.lost = 15; }
 
