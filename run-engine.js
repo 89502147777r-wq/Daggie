@@ -5484,14 +5484,10 @@ function labReplayStep(dt, now) {
   labReplayFrame(R2.t);
   if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked || CART.bent) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); }
 }
-function labReplayCam() {
-  const R2 = LAB.replay, u = (R2.t - R2.from) / Math.max(0.01, R2.to - R2.from), shot = u < 0.34 ? 0 : u < 0.62 ? 1 : 2;
-  if (shot !== R2.shot) { R2.shot = shot; snapCam = true; }
-  const T = torso.getWorldPosition(new V3()), B = new V3(LAB_LANE, 0.8, BOLLARD_Z);
-  if (shot === 0) { const s = u / 0.34; wantPos.set(LAB_LANE + 2.4, 0.45, BOLLARD_Z + 4.5 - s * 5); wantLook.set(LAB_LANE, 0.8, BOLLARD_Z - 0.5); }            // low dolly past the post
-  else if (shot === 1) { wantPos.set(LAB_LANE - 1.4, 1.3, Math.min(T.z - 5, BOLLARD_Z - 5)); wantLook.copy(T); }                                            // from ahead: he flies at the lens
-  else { const s = (u - 0.62) / 0.38, ang = 0.4 + s * 2.2; wantPos.set(T.x + Math.sin(ang) * 4.5, T.y + 1.6, T.z + Math.cos(ang) * 4.5); wantLook.copy(T); } // slow orbit around where he ends up
-  return 30;
+function labReplayCam() { /* like the cannon's replay: the camera follows him by itself (the vehicle before the hit, his body after it); drag turns it, pinch zooms, a tap skips */
+  const R2 = LAB.replay, T = torso.getWorldPosition(new V3()), B = board.getWorldPosition(new V3()), k = clamp((R2.t - R2.imp) / 0.5, 0, 1);
+  if (!R2.f) R2.f = B.clone(); R2.f.lerp(new V3(lerp(B.x, T.x, k), lerp(B.y + 1, T.y, k), lerp(B.z, T.z, k)), 0.12);
+  const ty = Math.max(1.0, R2.f.y), p = canOrbit(R2.f.x, ty, R2.f.z, 6.5, 3.2, CAN.cam, ty + 1.8); wantPos.set(p[0], p[1], p[2]); wantLook.set(R2.f.x, ty, R2.f.z); return 26;
 }
 function labSpeedo(mph) { if (!SPEEDO) return; const v = Math.round(mph); if (v === SPEEDO.last) return; SPEEDO.last = v; const g = SPEEDO.cv.getContext('2d'); g.fillStyle = '#07060b'; g.fillRect(0, 0, 512, 200); g.fillStyle = v > 60 ? '#ff4a5a' : v > 30 ? '#ffc21a' : '#3dff9a'; g.font = '700 150px ' + FONT; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(String(v), 340, 108); g.font = '700 50px ' + FONT; g.textAlign = 'left'; g.fillText('MPH', 356, 130); SPEEDO.tex.needsUpdate = true; }
 function buildLabUI() {
@@ -6491,14 +6487,14 @@ function cannonMuzzleCloud() { // the big puff of smoke at the muzzle, bigger wi
 let CAN_IN = false;
 function canInput() {
   if (CAN_IN) return; CAN_IN = true; const pts = new Map(); let moved = 0, downT = 0, lastTap = 0; const cam = CAN.cam;
-  const on = e => MODE === 'lab' && (LAB.machine === 'cannon' || LAB.machine === 'stairs' || (labBol() && !LAB.replay)) && e.target === canvas;
+  const on = e => MODE === 'lab' && (LAB.machine === 'cannon' || LAB.machine === 'stairs' || labBol()) && e.target === canvas;
   stage.addEventListener('pointerdown', e => { if (!on(e)) return; e.stopImmediatePropagation(); try { canvas.setPointerCapture(e.pointerId); } catch (x) { /* fine */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 1) { moved = 0; downT = performance.now(); } }, true);
   stage.addEventListener('pointermove', e => { if (!pts.has(e.pointerId) || !on(e)) return; e.stopImmediatePropagation(); const p = pts.get(e.pointerId), dx = e.clientX - p.x, dy = e.clientY - p.y; moved += Math.abs(dx) + Math.abs(dy);
     if (pts.size === 1) { cam.yaw -= dx * 0.008; cam.pitch = Math.min(1.2, Math.max(-0.3, cam.pitch + dy * 0.006)); }
     else if (pts.size === 2) { const [u, w] = [...pts.values()], d0 = Math.hypot(u.x - w.x, u.y - w.y); p.x = e.clientX; p.y = e.clientY; const d1 = Math.hypot(u.x - w.x, u.y - w.y); if (d0 > 8 && d1 > 8) cam.zoom = Math.min(3.5, Math.max(0.3, cam.zoom * d0 / d1)); }
     p.x = e.clientX; p.y = e.clientY; }, true);
   const up = e => { if (!pts.has(e.pointerId)) return; if (on(e)) e.stopImmediatePropagation(); const alone = pts.size === 1; pts.delete(e.pointerId);
-    if (alone && moved < 12 && performance.now() - downT < 320) { const now = performance.now(); if (CREC.play) CREC.play.skip = true; else if (now - lastTap < 320) { cam.yaw = 0; cam.pitch = 0; cam.zoom = 1; } lastTap = now; } };
+    if (alone && moved < 12 && performance.now() - downT < 320) { const now = performance.now(); if (CREC.play) CREC.play.skip = true; else if (LAB.replay) LAB.replay.skip = true; else if (now - lastTap < 320) { cam.yaw = 0; cam.pitch = 0; cam.zoom = 1; } lastTap = now; } };
   stage.addEventListener('pointerup', up, true); stage.addEventListener('pointercancel', up, true);
   stage.addEventListener('wheel', e => { if (!on(e)) return; e.preventDefault(); cam.zoom = Math.min(3.5, Math.max(0.3, cam.zoom * (1 + e.deltaY * 0.001))); }, { passive: false });
   canvas.style.touchAction = 'none';
