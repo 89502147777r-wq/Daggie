@@ -34,6 +34,14 @@ if (HD_LOAD) HD_LOAD.catch(() => {}); // a failed download falls back to the old
 var CREC = { on: false, t: 0, frames: [], ev: [], play: null }; // instant replay of the wall cannon: Daggie per frame, plus a time-stamped log of everything else
 const CART_S = 1.35; // the player's cart is scaled up so a life-size robot can sit in it
 const V3 = THREE.Vector3, TAU = Math.PI * 2, Y = new V3(0, 1, 0);
+// ---- loading bar: every model, texture and panorama goes through three.js's default loading manager, and the TEST button waits for it ----
+const LOADQ = { busy: false, done: 0, total: 0, base: 0 };
+{ const M = THREE.DefaultLoadingManager; M.onStart = (u, l, t) => { if (!LOADQ.busy) LOADQ.base = l; LOADQ.busy = true; LOADQ.done = l; LOADQ.total = t; loadUI(); };
+  M.onProgress = (u, l, t) => { LOADQ.done = l; LOADQ.total = t; loadUI(); }; M.onLoad = () => { LOADQ.busy = false; loadUI(); }; M.onError = () => { /* a failed file counts as done; the drawn stand-in stays */ }; }
+function loadUI(nudge) { const bar = document.getElementById('labLoad'), go = document.getElementById('labGo'); if (!bar || !go) return; const n = Math.max(1, LOADQ.total - LOADQ.base), d = Math.max(0, LOADQ.done - LOADQ.base), k = LOADQ.busy ? d / n : 1;
+  bar.hidden = !LOADQ.busy; document.getElementById('labLoadN').textContent = d + ' / ' + n; document.getElementById('labLoadF').style.width = Math.round(k * 100) + '%';
+  document.getElementById('labLoadT').textContent = nudge ? 'Wait: still loading the 3D models…' : 'Loading 3D models and textures…';
+  go.textContent = LOADQ.busy ? 'LOADING ' + Math.round(k * 100) + '%' : 'TEST \u25b6'; go.style.opacity = LOADQ.busy ? '0.55' : ''; }
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[(Math.random() * a.length) | 0];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -5561,7 +5569,10 @@ function buildLabUI() {
   for (const m of (L.machines || Object.keys(LAB_INFO))) { if (m === 'bollard' || m === 'tub' || m === 'stairs') continue; const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m; b.textContent = LAB_INFO[m].title; b.onclick = () => { LAB.machine = m; LAB.level = Math.min(LAB.level, LAB_MAX()); labSave(); labUI(); }; chips.appendChild(b); }
   for (const b of p.querySelectorAll('.sm')) { if (Math.abs(Number(b.dataset.d)) === 10) b.style.display = 'none'; b.onclick = () => { LAB.level = clamp(LAB.level + Number(b.dataset.d), 1, LAB_MAX()); labSave(); labUI(); }; }
   $('labRange').oninput = e => { LAB.level = clamp(Number(e.target.value) || 1, 1, LAB_MAX()); labSave(); labUI(); };
-  $('labGo').onclick = () => { initAudio(); labStart(); };
+  $('labGo').onclick = () => { initAudio(); if (LOADQ.busy) { loadUI(true); return; } labStart(); }; // the test only starts when every model, texture and panorama of the choice is in
+  { const bar = document.createElement('div'); bar.id = 'labLoad'; bar.hidden = true; bar.style.cssText = 'margin:2px 0 8px;font:700 12px "Chakra Petch",sans-serif;color:#cfc6ff;letter-spacing:.5px';
+    bar.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span id="labLoadT">Loading 3D…</span><span id="labLoadN"></span></div><div style="height:8px;border-radius:5px;background:rgba(255,255,255,.14);overflow:hidden"><div id="labLoadF" style="height:100%;width:0;background:linear-gradient(90deg,#7d5cff,#3dff9a);transition:width .2s"></div></div>';
+    $('labGo').before(bar); loadUI(); }
   $('labReplay').onclick = () => labRewatch();
   $('labNext').onclick = () => { initAudio(); LAB.level = Math.min(LAB_MAX(), LAB.level + 1); labSave(); labStart(); };
   $('labMenu').onclick = () => { location.href = 'index.html'; };
