@@ -257,10 +257,20 @@ setLoad(0.93, 'Building the test track…');
 const faceCv = document.createElement('canvas'); faceCv.width = 320; faceCv.height = 220;
 const fx = faceCv.getContext('2d');
 const faceTex = new THREE.CanvasTexture(faceCv); faceTex.colorSpace = THREE.SRGBColorSpace;
-const visorMat = new THREE.MeshPhysicalMaterial({ color: 0x020104, roughness: 0.08, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.02, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 3.2, envMapIntensity: 0.8 });
+const visorMat = new THREE.MeshPhysicalMaterial({ color: 0x020104, roughness: 0.08, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.02, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 4.6, envMapIntensity: 0.8 });
 let faceMode = 'wow', faceKey = '';
 function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
 function tri(g, x, y, s) { g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s, y + s * 0.8); g.lineTo(x - s, y + s * 0.8); g.closePath(); }
+// his face, always readable: the same LED face as on the visor, in a round badge in the corner of the screen during a test and its replay (a screen recording keeps it)
+let FBADGE = null;
+function faceBadge() {
+  if (!FBADGE) { const el = document.createElement('div'); el.id = 'faceBadge'; el.style.cssText = 'position:absolute;right:12px;top:calc(env(safe-area-inset-top,0px) + 58px);width:104px;height:104px;border-radius:50%;overflow:hidden;z-index:6;pointer-events:none;background:#030006;border:4px solid #ffc21a;box-shadow:0 0 0 3px #16112a,0 6px 18px rgba(0,0,0,.45),inset 0 0 18px rgba(180,76,255,.35);display:none;transition:transform .12s';
+    faceCv.style.cssText = 'position:absolute;left:50%;top:50%;width:150px;height:103px;transform:translate(-50%,-50%)'; el.appendChild(faceCv);
+    const tag = document.createElement('div'); tag.textContent = 'D-011'; tag.style.cssText = 'position:absolute;left:0;right:0;bottom:6px;text-align:center;font:700 10px ui-monospace,Menlo,monospace;color:#ffc21a;letter-spacing:1px;opacity:.85'; el.appendChild(tag);
+    stage.appendChild(el); FBADGE = { el, mode: '', on: false }; }
+  const on = MODE === 'lab' && (state === 'ride' || !!LAB.replay || !!CREC.play);
+  if (on !== FBADGE.on) { FBADGE.on = on; FBADGE.el.style.display = on ? 'block' : 'none'; }
+  if (on && faceMode !== FBADGE.mode) { FBADGE.mode = faceMode; FBADGE.el.style.transform = 'scale(1.18)'; setTimeout(() => { FBADGE.el.style.transform = ''; }, 140); } } // a new expression makes it pop
 function drawFace(now) {
   const blink = (now % 3600) < 150 && (faceMode === 'idle' || faceMode === 'worried');
   const pulse = faceMode === 'okq' ? Math.floor(now / 320) % 2 : 0;
@@ -359,7 +369,7 @@ for (const L of MODEL.hdr.loops) {
   }
 }
 // live LED face + helmet ID decals
-const faceMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 3.2, roughness: 0.1, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+const faceMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, emissive: 0xffffff, emissiveMap: faceTex, emissiveIntensity: 4.6, roughness: 0.1, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 0.6, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
 const idTex = tex(512, 150, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#ffc21a'; g.font = '700 100px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('[D-011]', w / 2, h / 2 + 6); });
 const idMat = new THREE.MeshPhysicalMaterial({ map: idTex, transparent: true, roughness: 0.3, clearcoat: 1, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
 daggie.updateMatrixWorld(true);
@@ -3414,7 +3424,7 @@ function frame(vts) {
   dlvStep(sdt, now); if (DLV && state === 'passed' && D.phase === 'approach' && (R.s > DOOR_S - 3.6)) D.phase = 'door';
   if (DLV && (D.phase === 'door' || D.phase === 'hand' || D.phase === 'box')) R.speed = 0;
   stepMess(sdt); carBreakStep(sdt); hdShardStep(sdt);
-  drawFace(now);
+  drawFace(now); faceBadge();
   updateSparks(sdt);
   const k = camTargets(now, dt);
   if (snapCam) { camPos.copy(wantPos); camLook.copy(wantLook); snapCam = false; }
