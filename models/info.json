@@ -438,5 +438,27 @@
   "license_url": "http://creativecommons.org/licenses/by/4.0/",
   "faces": 39653,
   "kb": 1444
+ },
+ "o_bus2": {
+  "uid": "14fe03d792914d51b6c6250b393c44fd",
+  "title": "Generic Town Bus",
+  "author": "own.guest",
+  "author_name": "own.guest",
+  "url": "https://sketchfab.com/3d-models/generic-town-bus-14fe03d792914d51b6c6250b393c44fd",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 55542,
+  "kb": 2539
+ },
+ "v_tractor": {
+  "uid": "278fc1e0516c401eba358d3aa2e55635",
+  "title": "Tractor",
+  "author": "le0tard",
+  "author_name": "le0tard",
+  "url": "https://sketchfab.com/3d-models/tractor-278fc1e0516c401eba358d3aa2e55635",
+  "license": "CC Attribution",
+  "license_url": "http://creativecommons.org/licenses/by/4.0/",
+  "faces": 24759,
+  "kb": 1261
  }
 }
