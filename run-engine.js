@@ -4507,6 +4507,8 @@ function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds,
       for (const j of ord) { if (n >= sz) break; if (grp[j] !== undefined) continue; const c = o.blocks[j]; if (Math.abs(c.x - base.x) < 0.8 && Math.abs(c.y - base.y) < 0.45) { grp[j] = id; n++; } }
       const kk = sp.kick * (st === 1 ? 0.55 : 1) * rand(0.6, 1.1), calm = n > 1 ? 0.12 : 1, sw = 5 + v * 0.3;
       G.push({ n, v: [base.x * rand(0.8, 3) * (0.4 + v * 0.03) + rand(-1, 1), rand(1.2, 3.5) + v * 0.12 * sp.lift, -v * kk], w: [rand(-1, 1) * sw * calm, rand(-1, 1) * sw * calm, rand(-1, 1) * sw * calm] }); } }
+  const vCart = Math.abs(CART.vz), hwC = CART.box.hw, hC = CART.H; // a block in the vehicle's way is pushed at least as fast as the vehicle moves on, so the vehicle never drives through it
+  const shove = (b, i) => { if (!CART.knocked || Math.abs(b.x) > hwC + b.sx * 0.5 || b.y - b.sy * 0.5 > hC) return; const k = i * 3, need = -(vCart * rand(1.15, 1.35) + 0.5); if (b.set.v[k + 2] > need) b.set.v[k + 2] = need; if (b.set.v[k + 1] < 0.3) b.set.v[k + 1] = rand(0.3, 1.2); };
   let flown = 0; for (let bi = 0; bi < o.blocks.length; bi++) { const b = o.blocks[bi];
     if (!go[bi]) continue; flown++; if (drop[bi]) { b.set.launch(b.i, rand(-0.3, 0.3), 0, -v * 0.02, rand(-2, 2), rand(-2, 2), rand(-2, 2)); continue; }
     if (brickWall) { const g = G[grp[bi]], pb = clamp(0.2 + v / 100, 0.2, 0.75) * (g.n === 1 ? 1 : 0.25); if (Math.random() < pb) { brickBreak(b, g); continue; } b.set.launch(b.i, g.v[0] + rand(-0.15, 0.15), g.v[1] + rand(-0.15, 0.15), g.v[2] + rand(-0.15, 0.15), g.w[0], g.w[1], g.w[2]); continue; }
@@ -4516,6 +4518,7 @@ function obsHit(v) { // the vehicle has reached the obstacle at v m/s: it holds,
     const k = sp.kick * (st === 1 ? 0.55 : 1) * rand(0.6, 1.1), dx = b.x, near = 1 - clamp((b.z + 0.5) / 1.5, 0, 1) * 0.2;
     b.set.launch(b.i, dx * rand(0.8, 3) * (0.4 + v * 0.03) + rand(-1, 1), (rand(1.2, 3.5) + v * 0.12 * sp.lift) * near, -v * k, rand(-1, 1) * (5 + v * 0.3), rand(-1, 1) * (5 + v * 0.3), rand(-1, 1) * (5 + v * 0.3));
   }
+  for (const b of o.blocks) if (b.set.rest[b.i] === 0) shove(b, b.i);
   const at = new V3(LAB_LANE, 0.6, BOLLARD_Z); if (flown) { burst(at, 30 + flown * 2, sp.splash || [[1.4, 1.2, 1.0], [2, 1.7, 1.2]], 4 + v * 0.1); }
   obsSound(sp.sound, st, v); if (sp.wheels) sp.wheels(v);
 }
@@ -4591,6 +4594,7 @@ function labCartReset() {
 }
 function labImpact() {
   const v = LABCART.v; LAB.impV = v;  LABCART.hit = true; CART.impact(v);
+  const SPK = OBX.cur !== 'post' && OBST[OBX.cur]; if (SPK && CART.knocked) { const PK = { crates: 0.4, haywall: 0.28, booth: 0.3, vending: 0.25, tires: 0.45, barrels: 0.4, boxes: 0.6, melons: 0.7, wordwall: 0.45, pins: 0.8, bricks: 0.35 }[OBX.cur]; if (PK !== undefined) CART.vz = -v * PK; } /* what it hits is heavy: the vehicle loses most of its speed in it, it does not roll on through */
   const dd = OBX.cur === 'post' || OBST[OBX.cur].solid ? labDent(v) : 0; CART.box.zf = CART.zf0 + dd * CART_S * 0.75; /* a soft obstacle does not crumple the cart */ // the crumpled front wires are a wall further back now
   if (OBX.cur !== 'post') { obsDeform(v); obsRockStart(v); }
   const vR = OBX.cur !== 'post' && CART.knocked ? v * Math.sqrt(Math.max(0.05, 1 - (OBST[OBX.cur].absorb || 0) / (v * v))) : v; // an obstacle that is destroyed takes some of his speed
