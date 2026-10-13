@@ -5517,7 +5517,7 @@ function labReplayFrame(t) {
 function labReplayStep(dt, now) {
   const R2 = LAB.replay; if (!R2) return;
   // slowest right at the impact, a little faster before and after
-  const near = Math.abs(R2.t - R2.imp), speed = near < 0.35 ? 0.22 : near < 1 ? 0.4 : 0.65;
+  const near = Math.abs(R2.t - R2.imp), rt = R2.t - R2.imp, speed = rt >= 0.2 && rt < 1.3 ? (rt >= 0.85 ? 0.08 : 0.14) : near < 0.35 ? 0.22 : near < 1 ? 0.4 : 0.65; // very slow while the camera closes in on his face
   R2.t += dt * speed;
   const before = R2.t < R2.imp;
   if (R2.cage && R2.dent) { const want = before ? 'o' : 'd'; if (R2.shown !== want) { R2.cage.geometry.attributes.position.array.set(before ? R2.cage.geometry.userData.orig : R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; R2.shown = want; } }
@@ -5527,8 +5527,13 @@ function labReplayStep(dt, now) {
   labReplayFrame(R2.t);
   if (R2.t >= R2.to || R2.skip) { labReplayFrame(R2.to); if (R2.cage && R2.dent) { R2.cage.geometry.attributes.position.array.set(R2.dent); R2.cage.geometry.attributes.position.needsUpdate = true; } if (CART.knocked || CART.bent) bollardFall(1); LAB.replay = null; labBars(false); LAB.phase = 'done'; labFinish(LAB.outTxt || 'done'); if (LAB.rewatch) { LAB.rewatch = false; setTimeout(labDone, 500); } }
 }
+const FACE_SHOTS = [[0.2, 0.55, 8.5, 1.2], [0.55, 0.85, 3.6, 0.5], [0.85, 1.3, 1.25, 0.12]]; // after the hit (s of replay time): far, then a cut closer, then his face in close-up (distance, height above the head)
+function labFaceShot(R2) { /* the film beat of the replay: three cuts toward his face, the camera facing the visor as it was when each cut began */
+  const rt = R2.t - R2.imp, i = FACE_SHOTS.findIndex(q => rt >= q[0] && rt < q[1]); if (i < 0) return false; const [, , d, h] = FACE_SHOTS[i], H = head.getWorldPosition(new V3());
+  if (R2.fshot !== i) { R2.fshot = i; snapCam = true; const f = new V3(0, -0.03, -1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion())); f.y = clamp(f.y, -0.35, 0.6); f.normalize(); R2.fdir = f; R2.fside = (i % 2 ? -1 : 1) * 0.35; }
+  const f = R2.fdir, side = new V3(-f.z, 0, f.x).normalize().multiplyScalar(R2.fside * d); wantPos.copy(H).addScaledVector(f, d).add(side); wantPos.y = Math.max(0.3, wantPos.y + h); wantLook.copy(H); snapCam = true; return true; }
 function labReplayCam() { /* like the cannon's replay: the camera follows him by itself (the vehicle before the hit, his body after it); drag turns it, pinch zooms, a tap skips */
-  const R2 = LAB.replay, T = torso.getWorldPosition(new V3()), B = board.getWorldPosition(new V3()), k = clamp((R2.t - R2.imp) / 0.5, 0, 1);
+  const R2 = LAB.replay; if (labFaceShot(R2)) return R2.t - R2.imp > 0.85 ? 34 : 30; const T = torso.getWorldPosition(new V3()), B = board.getWorldPosition(new V3()), k = clamp((R2.t - R2.imp) / 0.5, 0, 1);
   if (!R2.f) R2.f = new V3(B.x, B.y + 1, B.z); R2.f.lerp(new V3(lerp(B.x, T.x, k), lerp(B.y + 1, T.y, k), lerp(B.z, T.z, k)), 0.6);
   const ty = Math.max(1.0, R2.f.y), p = canOrbit(R2.f.x, ty, R2.f.z, 3.8, 2.4, CAN.cam, ty + 1.1); wantPos.set(p[0], p[1], p[2]); wantLook.set(R2.f.x, ty, R2.f.z); snapCam = true; return 26;
 }
